@@ -135,10 +135,12 @@ def on_budget_exhausted(project: Project) -> Any:
     """Hook point for the escalation service of E-06 (human in the loop).
 
     Today: open (once) an `escalation` gate with `reason: budget` on the active phase, move
-    the project to `waiting(budget)` and emit `budget.exceeded`. When E-06 lands
-    `workflows.services.escalate(project, reason, payload)`, replace the gate creation below
-    with that call. The caller holds the project row lock. Returns the gate (or None when
-    the project has no process run yet).
+    the project to `waiting(budget)` and emit `budget.exceeded`. When E-06 (PR #7) is merged,
+    replace the gate creation and `_wait_for_budget` with
+    `workflows.escalations.escalate(project, "budget_exceeded", {"spent": ..., "budget": ...})`
+    (idempotent, it also moves the project to `waiting(budget)`), keep the `budget.exceeded`
+    event, and drop `decide_budget_gate` (E-06 resumes the project on `retry`). The caller
+    holds the project row lock. Returns the gate (or None without a process run).
     """
     from dexterhouse.apps.workflows.engine import common
     from dexterhouse.apps.workflows.models import GateType

@@ -39,7 +39,10 @@ export function GatePanel({ gateId, onClose }: { gateId: string; onClose: () => 
       body = <ApprovalBody gate={data} />;
       footer = admin && !decided ? <ApprovalActions gate={data} decide={decide} /> : null;
     } else if (data.type === "question") {
-      body = <QuestionForm gate={data} decide={decide} disabled={!admin || !!decided} />;
+      // Questions: member+ (E-06); approvals and escalations: admin.
+      body = (
+        <QuestionForm gate={data} decide={decide} disabled={!can(me.data, "member") || !!decided} />
+      );
     } else {
       body = <EscalationBody gate={data} />;
       footer = admin && !decided ? <EscalationActions gate={data} decide={decide} /> : null;

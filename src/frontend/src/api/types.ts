@@ -97,6 +97,9 @@ export interface Attempt {
 export interface Gate {
   id: string;
   project: string;
+  /** Present once E-06 lands (gate JSON with project name and phase id). */
+  project_name?: string;
+  phase_id?: string;
   phase_run: string;
   task: string | null;
   gate_id: string;

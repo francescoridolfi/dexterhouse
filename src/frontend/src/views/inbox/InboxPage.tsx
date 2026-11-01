@@ -72,7 +72,7 @@ export function InboxPage() {
                 </span>
                 <span className="min-w-48 flex-1 text-sm">
                   <Link to={`/projects/${gate.project}`} className="font-medium hover:underline">
-                    {names.get(gate.project) ?? t("inbox.project")}
+                    {gate.project_name ?? names.get(gate.project) ?? t("inbox.project")}
                   </Link>{" "}
                   · {gate.payload.title}
                 </span>
