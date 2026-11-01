@@ -38,9 +38,10 @@ services:
 
   web:
     <<: *core
+    environment: { <<: *core-env, DH_SERVICE: web }
     command: >-
       uvicorn dexterhouse.asgi:application --host 0.0.0.0 --port 8000
-      --workers ${WEB_WORKERS:-2} --proxy-headers --forwarded-allow-ips=*
+      --workers ${WEB_WORKERS:-2} --proxy-headers --forwarded-allow-ips=* --no-access-log
     networks: [internal, public]
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8000/health/ready"]
@@ -52,6 +53,7 @@ services:
 
   worker:
     <<: *core
+    environment: { <<: *core-env, DH_SERVICE: worker }
     command: >-
       celery -A dexterhouse worker -Q agents,default,core-callbacks
       -c ${WORKER_CONCURRENCY:-4} -l info
@@ -65,6 +67,7 @@ services:
 
   beat:
     <<: *core
+    environment: { <<: *core-env, DH_SERVICE: beat }
     command: >-
       celery -A dexterhouse beat -l info --pidfile /tmp/celerybeat.pid
       --scheduler django_celery_beat.schedulers:DatabaseScheduler

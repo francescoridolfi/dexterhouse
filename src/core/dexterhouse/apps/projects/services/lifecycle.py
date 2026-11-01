@@ -4,6 +4,8 @@
 from django.db import transaction
 
 from dexterhouse.apps.accounts.models import User
+from dexterhouse.apps.observability.services import budget
+from dexterhouse.apps.observability.services.estimate import estimate_for_project
 from dexterhouse.apps.projects.models import Project, ProjectStatus
 from dexterhouse.apps.projects.services.actors import emit, user_actor
 from dexterhouse.apps.projects.services.transitions import transition
@@ -23,11 +25,14 @@ def start_project(project_id, user: User) -> Project:
         errors = validate_for_start(project)
         if errors:
             raise ValidationFailedError("the project cannot start", errors)
+        budget.ensure_org_can_start(project.organization)
         installed = get_process(project.process_name)
         run = start.create_run(project, installed.process)
         run.project = project
         transition(project, ProjectStatus.RUNNING)
         emit(project, "project.started", {"process_run_id": run.id}, actor=user_actor(user))
+        guess = estimate_for_project(project)
+        emit(project, "budget.estimated", {k: guess[k] for k in ("low", "high", "basis")})
         start.start_run(run)
     return project
 
@@ -46,6 +51,7 @@ def resume_project(project_id, user: User) -> Project:
         project, run = common.lock(project_id)
         if project.status != ProjectStatus.PAUSED:
             raise InvalidTransitionError(f"project cannot resume from {project.status}")
+        budget.ensure_can_resume(project)
         if Gate.objects.filter(project=project, status=GateStatus.OPEN).exists():
             transition(project, ProjectStatus.WAITING, waiting_reason="gate")
         else:

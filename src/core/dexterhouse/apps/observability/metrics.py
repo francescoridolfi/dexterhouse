@@ -1,0 +1,126 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+"""Prometheus `/metrics` (operations.md): values read from Postgres and Redis at scrape time.
+
+Celery workers and the web processes do not share memory, so counters are derived from the
+persisted rows (`LLMCall`, `AgentTurn`, projects, gates) and queue lengths from Redis: every
+web replica reports the same numbers. Series:
+
+- `dh_llm_calls_total{provider,model,status}`, `dh_llm_tokens_total{kind}`,
+  `dh_llm_cost_eur_total`, `dh_llm_latency_seconds` (histogram, successful calls);
+- `dh_agent_turns_total{status}` (`rate(...[1m])*60` = turns per minute);
+- `dh_projects{status}`, `dh_gates_open{type}`, `dh_queue_length{queue}`;
+- `dh_workspaces_active` (0 until the runner epic E-05 adds workspaces).
+"""
+
+from collections.abc import Iterator
+
+import redis
+import structlog
+from django.conf import settings
+from django.db.models import Count, Q, Sum
+from django.http import HttpRequest, HttpResponse
+from django.views.decorators.http import require_GET
+from prometheus_client import CONTENT_TYPE_LATEST, CollectorRegistry, generate_latest
+from prometheus_client.core import (
+    CounterMetricFamily,
+    GaugeMetricFamily,
+    HistogramMetricFamily,
+)
+from prometheus_client.registry import Collector
+
+logger = structlog.get_logger(__name__)
+
+LATENCY_BUCKETS_S = (0.25, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0, 60.0, 120.0)
+QUEUES = ("agents", "default", "core-callbacks", "runner")
+
+
+class DexterHouseCollector(Collector):
+    def collect(self) -> Iterator[object]:
+        yield from self._llm()
+        yield from self._turns()
+        yield from self._projects()
+        yield self._queues()
+        workspaces = GaugeMetricFamily("dh_workspaces_active", "Active runner workspaces")
+        workspaces.add_metric([], 0)
+        yield workspaces
+
+    def _llm(self) -> Iterator[object]:
+        from dexterhouse.apps.gateway.models import LLMCall
+
+        calls = CounterMetricFamily(
+            "dh_llm_calls",
+            "LLM calls by provider, model and status",
+            labels=["provider", "model", "status"],
+        )
+        for row in LLMCall.objects.values("provider", "model", "status").annotate(n=Count("id")):
+            calls.add_metric([row["provider"], row["model"], row["status"]], row["n"])
+        yield calls
+        ok = LLMCall.objects.filter(status="ok")
+        sums = ok.aggregate(
+            input=Sum("input_tokens"),
+            output=Sum("output_tokens"),
+            cached=Sum("cached_tokens"),
+            cost=Sum("cost"),
+            latency=Sum("latency_ms"),
+            n=Count("id"),
+            **{
+                f"le_{i}": Count("id", filter=Q(latency_ms__lte=int(b * 1000)))
+                for i, b in enumerate(LATENCY_BUCKETS_S)
+            },
+        )
+        tokens = CounterMetricFamily("dh_llm_tokens", "LLM tokens by kind", labels=["kind"])
+        for kind in ("input", "output", "cached"):
+            tokens.add_metric([kind], sums[kind] or 0)
+        yield tokens
+        cost = CounterMetricFamily("dh_llm_cost_eur", "EUR spent on LLM calls")
+        cost.add_metric([], float(sums["cost"] or 0))
+        yield cost
+        latency = HistogramMetricFamily("dh_llm_latency_seconds", "Latency of successful LLM calls")
+        buckets = [(str(b), sums[f"le_{i}"]) for i, b in enumerate(LATENCY_BUCKETS_S)]
+        latency.add_metric(
+            [], [*buckets, ("+Inf", sums["n"])], sum_value=(sums["latency"] or 0) / 1000
+        )
+        yield latency
+
+    def _turns(self) -> Iterator[object]:
+        from dexterhouse.apps.agents.models import AgentTurn
+
+        turns = CounterMetricFamily("dh_agent_turns", "Agent turns by status", labels=["status"])
+        for row in AgentTurn.objects.values("status").annotate(n=Count("id")):
+            turns.add_metric([row["status"]], row["n"])
+        yield turns
+
+    def _projects(self) -> Iterator[object]:
+        from dexterhouse.apps.projects.models import Project
+        from dexterhouse.apps.workflows.models import Gate
+
+        projects = GaugeMetricFamily("dh_projects", "Projects by status", labels=["status"])
+        for row in Project.objects.values("status").annotate(n=Count("id")):
+            projects.add_metric([row["status"]], row["n"])
+        yield projects
+        gates = GaugeMetricFamily("dh_gates_open", "Open gates by type", labels=["type"])
+        for row in Gate.objects.filter(status="open").values("type").annotate(n=Count("id")):
+            gates.add_metric([row["type"]], row["n"])
+        yield gates
+
+    def _queues(self) -> object:
+        family = GaugeMetricFamily("dh_queue_length", "Celery queue length", labels=["queue"])
+        try:
+            client = redis.Redis.from_url(settings.CELERY_BROKER_URL, socket_timeout=2)
+            for queue in QUEUES:
+                family.add_metric([queue], client.llen(queue))
+        except (redis.RedisError, ValueError) as exc:
+            logger.warning("metrics.queue_length_failed", error=str(exc))
+        return family
+
+
+def registry() -> CollectorRegistry:
+    reg = CollectorRegistry(auto_describe=False)
+    reg.register(DexterHouseCollector())
+    return reg
+
+
+@require_GET
+def metrics(request: HttpRequest) -> HttpResponse:
+    """Prometheus text format; served on the internal network only (nginx does not proxy it)."""
+    return HttpResponse(generate_latest(registry()), content_type=CONTENT_TYPE_LATEST)

@@ -227,5 +227,7 @@ def test_snapshot_endpoint(client):
     assert snapshot["phases"][0]["status"] == "running"
     working = [a for a in snapshot["agents"] if a["status"] == "working"]
     assert [(a["role"], a["room"]) for a in working] == [("analyst", "meeting_room")]
-    assert snapshot["budget"] == {"budget": "20.000000", "spent": "0.000000"}
+    assert snapshot["budget"] == {
+        "budget": "20.000000", "spent": "0.000000", "unpriced_tokens": 0, "currency": "EUR"
+    }  # fmt: skip
     assert snapshot["last_event_id"]

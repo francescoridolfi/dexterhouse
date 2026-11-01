@@ -11,6 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from dexterhouse.apps.agents.models import AgentInstance
 from dexterhouse.apps.agents.services.roster import ensure_agent
+from dexterhouse.apps.observability.services import costs
 from dexterhouse.apps.projects.models import Project, ProjectStatus
 from dexterhouse.apps.projects.services.actors import SYSTEM, emit
 from dexterhouse.apps.projects.services.transitions import transition
@@ -322,7 +323,11 @@ def complete_phase(phase_run: PhaseRun) -> None:
     emit(
         phase_run.process_run.project,
         "phase.completed",
-        {"phase_id": phase_run.phase_id, "duration_s": duration(phase_run.started_at), "cost": 0},
+        {
+            "phase_id": phase_run.phase_id,
+            "duration_s": duration(phase_run.started_at),
+            "cost": costs.phase_cost(phase_run.id),
+        },
     )
 
 

@@ -20,6 +20,7 @@ AFTER = [
     ("projects", "0003_artifact_produced_by_turn"),
     ("gateway", "0003_integration_foreign_keys"),
     ("memory", "0002_memorychunk_project"),
+    ("observability", "0001_initial"),  # depends on projects: re-applied after the rollback
 ]
 NAMESPACE = uuid.UUID("5f0c8a52-4c1e-4d7e-9b2a-6d8e0f3a7c10")
 

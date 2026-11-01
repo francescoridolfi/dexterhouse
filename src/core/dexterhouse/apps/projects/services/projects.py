@@ -7,6 +7,7 @@ from typing import Any
 from django.utils.text import slugify
 
 from dexterhouse.apps.accounts.models import Organization, User
+from dexterhouse.apps.observability.services import budget
 from dexterhouse.apps.projects.models import ArtifactKind, Project, ProjectStatus
 from dexterhouse.apps.projects.services.actors import emit, user_actor
 from dexterhouse.apps.projects.services.artifacts import save_artifact, validate_data
@@ -117,4 +118,5 @@ def update_project(project: Project, user: User, data: dict[str, Any]) -> Projec
             {"old": old_budget, "new": project.budget},
             actor=user_actor(user),
         )
+        budget.on_project_budget_changed(project, user)
     return project

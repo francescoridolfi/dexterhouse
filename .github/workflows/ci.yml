@@ -122,6 +122,7 @@ jobs:
           cache: npm
           cache-dependency-path: src/frontend/package-lock.json
       - run: npm ci --no-audit --no-fund
+      - run: npm run lint
       - run: npm run typecheck
       - run: npm run test
       - run: npm run build
@@ -135,12 +136,43 @@ jobs:
       - name: Build images
         run: |
           cp .env.example .env
+          # The e2e smoke runs the built-in agents on the `fake` provider (no LLM).
+          sed -i 's#^GATEWAY_FAKE_RESPONDER=.*#GATEWAY_FAKE_RESPONDER=dexterhouse.apps.agents.demo.respond#' .env
           docker compose -f compose.yaml build
       - name: Smoke test the stack
         run: |
           docker compose -f compose.yaml up -d --wait --wait-timeout 180
           docker compose -f compose.yaml ps
           curl -fsS http://localhost/health/ready
+      - name: Create the first owner (e2e)
+        env:
+          DH_OWNER_PASSWORD: ci-e2e-owner-password  # pragma: allowlist secret (throwaway CI stack)
+        run: >-
+          docker compose -f compose.yaml exec -T -e DH_OWNER_PASSWORD web
+          dexterhouse-manage bootstrap_owner --username admin
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: src/frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: src/frontend/package-lock.json
+      - name: E2E smoke (Playwright, real core)
+        working-directory: src/frontend
+        env:
+          E2E_BASE_URL: http://localhost
+          E2E_PASSWORD: ci-e2e-owner-password  # pragma: allowlist secret
+        run: |
+          npm ci --no-audit --no-fund
+          npx playwright install --with-deps chromium
+          npm run e2e
+      - name: Metrics and health of every service
+        run: |
+          docker compose -f compose.yaml exec -T web curl -fsS http://localhost:8000/metrics | grep dh_projects
+          test -z "$(docker compose -f compose.yaml ps --format '{{.Service}} {{.Health}}' | grep -v healthy | grep -v '^\(secrets-init\|migrate\) ')"
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: playwright-report
+          path: src/frontend/playwright-report
       - name: Logs on failure
         if: failure()
         run: docker compose -f compose.yaml logs --no-color

@@ -7,6 +7,7 @@ from typing import Any, Literal
 from django.db.models import Max
 from django.utils import timezone
 
+from dexterhouse.apps.observability.services import costs
 from dexterhouse.apps.projects.models import Artifact, Project
 from dexterhouse.apps.projects.services.actors import SYSTEM, agent_actor, emit
 from dexterhouse.apps.workflows import actions
@@ -330,7 +331,7 @@ def complete_task(task: Task, *, forced: bool) -> None:
             "task_id": task.id,
             "iterations": task.iteration,
             "duration_s": common.duration(task.started_at),
-            "cost": 0,
+            "cost": costs.task_cost(task.id),
             "merged_commit": commit,
             "forced": forced,
         },

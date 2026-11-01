@@ -56,6 +56,7 @@ from dexterhouse.apps.gateway.providers import ProviderError
 from dexterhouse.apps.gateway.services.gateway import CallContext, generate
 from dexterhouse.apps.gateway.services.profiles import resolve_profile
 from dexterhouse.apps.memory.services.search import Hit, search
+from dexterhouse.apps.observability import tracing
 from dexterhouse_schema.turn_output import TurnOutput
 
 logger = structlog.get_logger(__name__)
@@ -279,7 +280,8 @@ def run_turn(turn_id: uuid.UUID) -> TurnOutput:
         except PermissionLimitError as exc:
             _fail(turn, TurnError.PERMISSION, str(exc))
         except ProviderError as exc:
-            if exc.retryable:
+            if exc.retryable or exc.code == "budget":
+                # Budget exhausted (F-012): the turn stays `running` and resumes once raised.
                 raise TransientTurnError(str(exc)) from exc
             code = (
                 TurnError.CONFIGURATION
@@ -471,7 +473,7 @@ def _call_llm(
                 organization_id=turn.organization_id,
                 project_id=turn.project_id,
                 agent_turn_id=turn.id,
-                trace_id=str(turn.id),
+                trace_id=tracing.current_trace_id(str(turn.id)),
                 data_residency=inputs.data_residency,
                 allow_downgrade=allow_downgrade,
             ),

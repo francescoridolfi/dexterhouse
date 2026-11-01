@@ -8,6 +8,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from dexterhouse.apps.accounts.models import User
+from dexterhouse.apps.observability.services import budget
 from dexterhouse.apps.projects.services.actors import emit, user_actor
 from dexterhouse.apps.workflows.engine import common, gates, loop, phases
 from dexterhouse.apps.workflows.models import (
@@ -30,7 +31,10 @@ def decide(gate_id: uuid.UUID, user: User, **body: Any) -> tuple[Gate, str]:
         project_id = Gate.objects.values_list("project_id", flat=True).get(pk=gate_id)
         _project, run = common.lock(project_id)
         gate = Gate.objects.select_for_update().get(pk=gate_id)
-        next_ = gates.decide_gate(run, gate, user, **body)
+        if budget.is_budget_gate(gate):
+            next_ = budget.decide_budget_gate(run, gate, user, **body)
+        else:
+            next_ = gates.decide_gate(run, gate, user, **body)
     gate.refresh_from_db()
     return gate, next_
 

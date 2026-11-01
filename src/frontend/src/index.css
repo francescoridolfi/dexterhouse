@@ -1,2 +1,94 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
 @import "tailwindcss";
+@import "@fontsource-variable/inter";
+@import "@fontsource/jetbrains-mono/400.css";
+
+/* Colour tokens: keep in sync with src/theme/tokens.json (checked by tokens.test.ts). */
+:root {
+  color-scheme: light;
+  --dh-bg: #f6f4ef;
+  --dh-surface: #ffffff;
+  --dh-text: #1f2328;
+  --dh-muted: #6b7280;
+  --dh-accent: #2f6fed;
+  --dh-status-idle: #9ca3af;
+  --dh-status-working: #2f6fed;
+  --dh-status-blocked: #f59e0b;
+  --dh-status-failed: #dc2626;
+  --dh-status-done: #16a34a;
+  --dh-mode-supervised: #0e7490;
+  --dh-mode-autonomous: #7c3aed;
+  --dh-budget-ok: #16a34a;
+  --dh-budget-warn: #f59e0b;
+  --dh-budget-over: #dc2626;
+  --dh-border: rgb(107 114 128 / 0.25);
+  --dh-shadow: 0 1px 2px rgb(0 0 0 / 0.06), 0 1px 3px rgb(0 0 0 / 0.08);
+}
+
+:root.dark {
+  color-scheme: dark;
+  --dh-bg: #15171c;
+  --dh-surface: #1e2127;
+  --dh-text: #e6e6e6;
+  --dh-muted: #9ca3af;
+  --dh-accent: #5b8def;
+  --dh-status-idle: #6b7280;
+  --dh-status-working: #5b8def;
+  --dh-status-blocked: #fbbf24;
+  --dh-status-failed: #f87171;
+  --dh-status-done: #4ade80;
+  --dh-mode-supervised: #22d3ee;
+  --dh-mode-autonomous: #a78bfa;
+  --dh-budget-ok: #4ade80;
+  --dh-budget-warn: #fbbf24;
+  --dh-budget-over: #f87171;
+  --dh-border: rgb(156 163 175 / 0.3);
+  --dh-shadow: none;
+}
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --color-bg: var(--dh-bg);
+  --color-surface: var(--dh-surface);
+  --color-fg: var(--dh-text);
+  --color-muted: var(--dh-muted);
+  --color-accent: var(--dh-accent);
+  --color-line: var(--dh-border);
+  --color-idle: var(--dh-status-idle);
+  --color-working: var(--dh-status-working);
+  --color-blocked: var(--dh-status-blocked);
+  --color-failed: var(--dh-status-failed);
+  --color-done: var(--dh-status-done);
+  --color-supervised: var(--dh-mode-supervised);
+  --color-autonomous: var(--dh-mode-autonomous);
+  --color-budget-ok: var(--dh-budget-ok);
+  --color-budget-warn: var(--dh-budget-warn);
+  --color-budget-over: var(--dh-budget-over);
+  --radius-card: 8px;
+  --shadow-card: var(--dh-shadow);
+  --ease-dh: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+html,
+body {
+  background: var(--dh-bg);
+  color: var(--dh-text);
+  font-family: var(--font-sans);
+}
+
+:focus-visible {
+  outline: 2px solid var(--dh-accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0s !important;
+    transition-duration: 0s !important;
+  }
+}
