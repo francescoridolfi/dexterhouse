@@ -4,6 +4,7 @@
 from pathlib import Path
 
 import dj_database_url
+from celery.schedules import crontab
 
 from dexterhouse.settings.env import get_env
 
@@ -27,6 +28,7 @@ INSTALLED_APPS = [
     "channels",
     "django_celery_beat",
     "dexterhouse.apps.accounts",
+    "dexterhouse.apps.events",
 ]
 
 MIDDLEWARE = [
@@ -97,7 +99,20 @@ CELERY_TASK_DEFAULT_QUEUE = "default"
 CELERY_TASK_ACKS_LATE = True
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 CELERY_TIMEZONE = TIME_ZONE
+CELERY_BEAT_SCHEDULE = {
+    "events-republish-pending": {
+        "task": "dexterhouse.apps.events.tasks.republish_pending",
+        "schedule": 30.0,
+    },
+    "events-maintain-partitions": {
+        "task": "dexterhouse.apps.events.tasks.maintain_partitions",
+        "schedule": crontab(minute=0, hour=3),
+    },
+}
+
 DEFAULT_ORG_SLUG = ENV.DEFAULT_ORG_SLUG
+EVENTS_RETENTION_MONTHS = ENV.EVENTS_RETENTION_MONTHS
+EVENTS_STREAM_MAXLEN = 10_000
 
 LOGGING = {
     "version": 1,

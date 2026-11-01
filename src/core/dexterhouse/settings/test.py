@@ -2,7 +2,7 @@
 """Test settings: real Postgres and Redis (CI services), eager Celery."""
 
 from dexterhouse.settings.base import *  # noqa: F403  (settings pattern: re-export base)
-from dexterhouse.settings.base import ENV, MIDDLEWARE
+from dexterhouse.settings.base import DATABASES, ENV, MIDDLEWARE
 
 # nosec B105 below: test-only key, never used outside pytest.
 SECRET_KEY = "test-key"  # noqa: S105 # nosec B105 # pragma: allowlist secret
@@ -18,3 +18,5 @@ STORAGES = {
     "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
 }
 MIDDLEWARE = [m for m in MIDDLEWARE if not m.startswith("whitenoise")]
+# Async consumers use DB connections from worker threads; do not keep them open.
+DATABASES["default"]["CONN_MAX_AGE"] = 0

@@ -6,7 +6,8 @@ from dexterhouse.apps.accounts.models import Membership, Organization, Role, Use
 
 @pytest.fixture
 def organization(db) -> Organization:
-    return Organization.objects.get(slug="default")
+    # get_or_create: transactional tests flush the seeded row.
+    return Organization.objects.get_or_create(slug="default", defaults={"name": "Default"})[0]
 
 
 @pytest.fixture
