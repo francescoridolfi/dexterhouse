@@ -439,7 +439,6 @@ const gates = {
       task_accepted: "The task is accepted as is.",
       task_dropped: "The task was dropped.",
       escalated: "Comments after the last round: an escalation was opened.",
-      project_resumed: "The project resumes.",
     },
   },
   inbox: {

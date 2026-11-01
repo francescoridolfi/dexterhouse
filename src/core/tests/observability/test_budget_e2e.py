@@ -26,7 +26,7 @@ def test_budget_pauses_and_resumes_a_real_run(client, settings):
     project.refresh_from_db()
     assert (project.status, project.waiting_reason) == ("waiting", "budget")
     assert project.spent >= project.budget
-    gate = Gate.objects.get(project=project, gate_id="budget", status="open")
+    gate = Gate.objects.get(project=project, payload__reason="budget_exceeded", status="open")
     assert "budget.exceeded" in event_types(project, "budget.")
     calls_at_stop = LLMCall.objects.filter(project=project).count()
     # The next step waits in the queue without having used up an attempt; nothing failed.

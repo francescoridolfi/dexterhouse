@@ -22,14 +22,13 @@ from dexterhouse.apps.accounts.models import Organization
 from dexterhouse.apps.gateway.providers.base import ProviderError
 from dexterhouse.apps.observability.services import costs
 from dexterhouse.apps.projects.models import Project, ProjectStatus, WaitingReason
-from dexterhouse.apps.projects.services.actors import SYSTEM, emit, user_actor
+from dexterhouse.apps.projects.services.actors import emit
 from dexterhouse.apps.projects.services.transitions import transition
 
 logger = structlog.get_logger(__name__)
 
 WARNING_PCT = 80
-BUDGET_GATE_ID = "budget"
-BUDGET_REASON = "budget"
+BUDGET_REASON = "budget_exceeded"  # escalation reason of `workflows.escalations` (E-06)
 ACTIVE = (ProjectStatus.RUNNING, ProjectStatus.WAITING, ProjectStatus.PAUSED)
 
 
@@ -132,40 +131,35 @@ def _record_org_spend(organization_id: uuid.UUID, project: Project) -> None:
 
 
 def on_budget_exhausted(project: Project) -> Any:
-    """Hook point for the escalation service of E-06 (human in the loop).
+    """100 %: escalate (`workflows.escalations.escalate`, reason `budget_exceeded`), move the
+    project to `waiting(budget)` and emit `budget.exceeded` once per escalation.
 
-    Today: open (once) an `escalation` gate with `reason: budget` on the active phase, move
-    the project to `waiting(budget)` and emit `budget.exceeded`. When E-06 (PR #7) is merged,
-    replace the gate creation and `_wait_for_budget` with
-    `workflows.escalations.escalate(project, "budget_exceeded", {"spent": ..., "budget": ...})`
-    (idempotent, it also moves the project to `waiting(budget)`), keep the `budget.exceeded`
-    event, and drop `decide_budget_gate` (E-06 resumes the project on `retry`). The caller
-    holds the project row lock. Returns the gate (or None without a process run).
+    The caller holds the project row lock. Returns the gate, or None when the project has no
+    running process to escalate (it then only waits for budget).
     """
-    from dexterhouse.apps.workflows.engine import common
-    from dexterhouse.apps.workflows.models import GateType
+    from dexterhouse.apps.workflows.escalations import escalate
+    from dexterhouse.common.errors import InvalidTransitionError
 
     gate = open_budget_gate(project)
     if gate is None:
-        phase_run = _active_phase_run(project)
-        if phase_run is None:
+        try:
+            gate = escalate(
+                project,
+                BUDGET_REASON,
+                {
+                    "title": "Budget exhausted",
+                    "summary": (
+                        f"The project spent {project.spent} EUR of its {project.budget} EUR "
+                        "budget. Raise the budget, then retry; or drop."
+                    ),
+                    "spent": str(project.spent),
+                    "budget": str(project.budget),
+                },
+            )
+        except InvalidTransitionError:
             _wait_for_budget(project, gate_id=None)
             return None
-        payload = common.GatePayload(
-            title="Budget exhausted",
-            summary=(
-                f"The project spent {project.spent} EUR of its {project.budget} EUR budget. "
-                "Raise the budget to continue, or drop the project."
-            ),
-            reason=BUDGET_REASON,
-        )
-        gate = common.open_gate(
-            phase_run,
-            gate_id=BUDGET_GATE_ID,
-            type=GateType.ESCALATION,
-            payload=payload,
-            block=False,
-        )
+        project.refresh_from_db()
         emit(
             project,
             "budget.exceeded",
@@ -177,28 +171,18 @@ def on_budget_exhausted(project: Project) -> Any:
 
 
 def open_budget_gate(project: Project) -> Any:
-    from dexterhouse.apps.workflows.models import Gate, GateStatus
+    from dexterhouse.apps.workflows.models import Gate, GateStatus, GateType
 
     return Gate.objects.filter(
-        project=project, gate_id=BUDGET_GATE_ID, status=GateStatus.OPEN
+        project=project,
+        type=GateType.ESCALATION,
+        status=GateStatus.OPEN,
+        payload__reason=BUDGET_REASON,
     ).first()
 
 
 def is_budget_gate(gate: Any) -> bool:
-    return gate.gate_id == BUDGET_GATE_ID and (gate.payload or {}).get("reason") == BUDGET_REASON
-
-
-def _active_phase_run(project: Project) -> Any:
-    from dexterhouse.apps.workflows.models import PhaseRun, PhaseStatus
-
-    rows = PhaseRun.objects.filter(process_run__project=project).select_related("process_run")
-    active = rows.filter(
-        status__in=(PhaseStatus.RUNNING, PhaseStatus.WAITING_GATE, PhaseStatus.REOPENED)
-    )
-    row = active.order_by("position").first() or rows.order_by("-position").first()
-    if row is not None:
-        row.process_run.project = project
-    return row
+    return gate.type == "escalation" and (gate.payload or {}).get("reason") == BUDGET_REASON
 
 
 def _wait_for_budget(project: Project, *, gate_id: Any) -> None:
@@ -219,7 +203,7 @@ def _wait_for_budget(project: Project, *, gate_id: Any) -> None:
 def on_project_budget_changed(project: Project, user: Any) -> None:
     """After `PATCH /projects/{id}` with a new budget (caller holds the row lock)."""
     if not _exhausted(project.spent, project.budget):
-        _close_budget_gate(project, user, decision="retry")
+        _close_budget_gate(project, user)
         _maybe_resume(project)
 
 
@@ -264,49 +248,44 @@ def ensure_org_can_start(organization: Organization) -> None:
 
 
 def decide_budget_gate(run: Any, gate: Any, user: Any, *, decision=None, comment=None, **_: Any):
-    """`POST /gates/{id}/decide` on the budget gate: `retry` (budget raised) or `drop`."""
-    from dexterhouse.apps.workflows.engine import common
-    from dexterhouse.apps.workflows.models import GateStatus, PhaseRun
-    from dexterhouse.common.errors import (
-        BudgetExhaustedError,
-        InvalidTransitionError,
-        ValidationFailedError,
-    )
+    """`POST /gates/{id}/decide` on the budget escalation: `retry` needs a raised budget (402
+    before); every decision then follows E-06's escalation logic (the caller holds the lock)."""
+    from dexterhouse.apps.workflows.engine import gates
 
     project = run.project
-    if gate.status != GateStatus.OPEN:
-        raise InvalidTransitionError(f"Gate already decided at {gate.decided_at}")
-    if decision not in ("retry", "drop"):
-        raise ValidationFailedError(
-            "invalid decision for a budget gate",
-            [{"field": "decision", "message": "one of drop, retry"}],
-        )
     if decision == "retry":
-        if _exhausted(project.spent, project.budget):
-            raise BudgetExhaustedError("raise the budget before retrying")
-        _close_budget_gate(project, user, decision="retry", comment=comment, gate=gate)
-        _maybe_resume(project)
-        return "project_resumed"
-    common.decide(gate, GateStatus.REJECTED, "drop", user=user, comment=comment)
-    common.gate_decided_event(gate, "phase_failed", actor=user_actor(user))
-    row = PhaseRun.objects.get(pk=gate.phase_run_id)
-    row.process_run = run
-    common.fail_phase(row, "budget_exhausted", comment or "")
-    return "phase_failed"
+        ensure_can_resume(project)
+    next_ = gates.decide_gate(run, gate, user, decision=decision, comment=comment)
+    _gate_wait(project)
+    return next_
 
 
-def _close_budget_gate(project: Project, user: Any, *, decision: str, comment=None, gate=None):
-    from dexterhouse.apps.workflows.engine import common
-    from dexterhouse.apps.workflows.models import GateStatus
+def _close_budget_gate(project: Project, user: Any) -> None:
+    """The budget was raised: decide the open budget escalation with `retry`."""
+    from dexterhouse.apps.workflows.engine import common, gates
 
-    gate = gate or open_budget_gate(project)
-    if gate is None:
+    gate = open_budget_gate(project)
+    if gate is None or user is None:
         return
-    gate.project = project
-    common.decide(gate, GateStatus.APPROVED, decision, user=user, comment=comment)
-    common.gate_decided_event(
-        gate, "project_resumed", actor=user_actor(user) if user is not None else SYSTEM
-    )
+    _project, run = common.lock(project.id)
+    if run is None:
+        return
+    gates.decide_gate(run, gate, user, decision="retry")
+    project.refresh_from_db()
+    _gate_wait(project)
+
+
+def _gate_wait(project: Project) -> None:
+    """Still waiting on another gate after the budget one closed: the reason is `gate`."""
+    from dexterhouse.apps.workflows.models import Gate, GateStatus
+
+    project.refresh_from_db()
+    gate = Gate.objects.filter(project=project, status=GateStatus.OPEN).order_by("-opened_at")
+    gate = gate.first()
+    if project.status == ProjectStatus.WAITING and project.waiting_reason == "budget" and gate:
+        project.waiting_reason = WaitingReason.GATE
+        project.save(update_fields=["waiting_reason", "updated_at"])
+        emit(project, "project.waiting", {"reason": "gate", "gate_id": gate.id})
 
 
 def _maybe_resume(project: Project) -> bool:

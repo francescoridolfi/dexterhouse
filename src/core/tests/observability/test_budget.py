@@ -79,8 +79,12 @@ def test_warning_at_80_then_exceeded_opens_budget_gate(running, make_call, organ
     budget.record_spend(organization.id, project.id)
     project.refresh_from_db()
     assert (project.status, project.waiting_reason) == ("waiting", "budget")
-    gate = Gate.objects.get(project=project, gate_id="budget")
-    assert (gate.type, gate.status, gate.payload["reason"]) == ("escalation", "open", "budget")
+    gate = Gate.objects.get(project=project, payload__reason="budget_exceeded")
+    assert (gate.type, gate.status, gate.payload["reason"]) == (
+        "escalation",
+        "open",
+        "budget_exceeded",
+    )
     exceeded = payload(project, "budget.exceeded")
     assert exceeded["gate_id"] == str(gate.id)
     assert types(project, "budget.").count("budget.warning") == 1
@@ -88,7 +92,7 @@ def test_warning_at_80_then_exceeded_opens_budget_gate(running, make_call, organ
     assert waiting == {"reason": "budget", "gate_id": str(gate.id)}
     # A second crossing does not open a second gate.
     budget.on_budget_exhausted(project)
-    assert Gate.objects.filter(project=project, gate_id="budget").count() == 1
+    assert Gate.objects.filter(project=project, payload__reason="budget_exceeded").count() == 1
 
 
 def test_complete_refuses_when_exhausted_and_records_spend(running, organization):
@@ -107,7 +111,9 @@ def test_complete_refuses_when_exhausted_and_records_spend(running, organization
     assert LLMCall.objects.filter(project=project).count() == 1
     project.refresh_from_db()
     assert project.waiting_reason == "budget"
-    assert Gate.objects.filter(project=project, gate_id="budget", status="open").exists()
+    assert Gate.objects.filter(
+        project=project, payload__reason="budget_exceeded", status="open"
+    ).exists()
 
 
 def test_org_budget_refuses_and_resumes_when_raised(running, organization, make_call):
@@ -122,7 +128,7 @@ def test_org_budget_refuses_and_resumes_when_raised(running, organization, make_
     assert info.value.scope == "organization"
     project.refresh_from_db()
     assert project.waiting_reason == "budget"
-    assert not Gate.objects.filter(project=project, gate_id="budget").exists()
+    assert not Gate.objects.filter(project=project, payload__reason="budget_exceeded").exists()
     with pytest.raises(BudgetExhaustedError):
         budget.ensure_org_can_start(organization)
     organization.refresh_from_db()
@@ -145,7 +151,7 @@ def test_raising_project_budget_closes_gate_and_resumes(client, running, make_ca
     project = running
     make_call(project, "2")
     budget.record_spend(organization.id, project.id)
-    gate = Gate.objects.get(project=project, gate_id="budget")
+    gate = Gate.objects.get(project=project, payload__reason="budget_exceeded")
     response = client.patch(f"/api/v1/projects/{project.id}", {"budget": "1.5"}, format="json")
     assert response.status_code == 200
     gate.refresh_from_db()
@@ -154,22 +160,22 @@ def test_raising_project_budget_closes_gate_and_resumes(client, running, make_ca
     gate.refresh_from_db()
     assert (gate.status, gate.decision) == (GateStatus.APPROVED, "retry")
     decided = payload(project, "gate.decided")
-    assert decided["next"] == "project_resumed"
+    assert decided["next"] == "phase_resumed"
     project.refresh_from_db()
     assert (project.status, project.waiting_reason) == ("waiting", "gate")
-    assert "project.resumed" in types(project, "project.")
+    assert payload(project, "project.waiting")["reason"] == "gate"
 
 
 def test_decide_budget_gate_retry_needs_budget_then_drop(client, running, make_call, organization):
     project = running
     make_call(project, "2")
     budget.record_spend(organization.id, project.id)
-    gate = Gate.objects.get(project=project, gate_id="budget")
+    gate = Gate.objects.get(project=project, payload__reason="budget_exceeded")
     url = f"/api/v1/gates/{gate.id}/decide"
     response = client.post(url, {"decision": "retry"}, format="json")
     assert response.status_code == 402
     assert response.json()["type"].endswith("/budget-exceeded")
-    assert client.post(url, {"decision": "accept"}, format="json").status_code == 400
+    assert client.post(url, {"decision": "approve"}, format="json").status_code == 400
     response = client.post(url, {"decision": "drop", "comment": "too expensive"}, format="json")
     assert response.status_code == 200
     assert response.json()["next"] == "phase_failed"
@@ -182,12 +188,12 @@ def test_decide_budget_gate_retry_after_raise(client, running, make_call, organi
     project = running
     make_call(project, "2")
     budget.record_spend(organization.id, project.id)
-    gate = Gate.objects.get(project=project, gate_id="budget")
+    gate = Gate.objects.get(project=project, payload__reason="budget_exceeded")
     project.budget = Decimal(3)  # raised outside the API (no hook)
     project.save(update_fields=["budget"])
     response = client.post(f"/api/v1/gates/{gate.id}/decide", {"decision": "retry"}, format="json")
     assert response.status_code == 200
-    assert response.json()["next"] == "project_resumed"
+    assert response.json()["next"] == "phase_resumed"
 
 
 def test_resume_and_start_answer_402(client, running, make_call, organization, user, make_project):
