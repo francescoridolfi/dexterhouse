@@ -19,7 +19,7 @@ export function resolveRoom(id: string | null | undefined): RoomDef {
 const LIVE = new Set(["running", "waiting_gate", "reopened"]);
 
 /** Rooms whose phase is in progress (their light is on), from `phases[].room`. */
-export function litRooms(state: ProjectState): Map<string, string> {
+export function litRooms(state: Pick<ProjectState, "phases" | "phaseOrder">): Map<string, string> {
   const lit = new Map<string, string>();
   for (const id of state.phaseOrder) {
     const phase = state.phases[id];

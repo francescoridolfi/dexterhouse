@@ -288,7 +288,20 @@ const projects = {
     noChanges: "Nessuna modifica tra queste versioni.",
     agentText: "Scritto dagli agenti: mostrato com'è, non tradotto.",
   },
+  agentPanel: {
+    currentTurn: "Turno corrente",
+    noTurn: "Nessun turno in corso.",
+    purpose: "Scopo",
+    tokensEst: "Token in ingresso (stima)",
+    task: "Task",
+    cost: "Costo",
+    turns: "Turni",
+    tools: "Tool usati",
+    recent: "Ultimi 10 eventi",
+    turn: "turno",
+  },
   log: {
+    replay: "Rivedi nell'ufficio 3D",
     live: "Log live",
     timeline: "Timeline degli eventi",
     eventsOnly: "solo eventi",
@@ -545,7 +558,11 @@ const settings = {
 
 const office = {
   office: {
-    soon: "L'ufficio 3D arriva con l'epica E-09; tutto ciò che mostrerà è già nelle viste 2D.",
+    fallback: {
+      "no-webgl": "Questo browser non ha WebGL 2: l'ufficio è mostrato in 2D.",
+      slow: "L'ufficio 3D è rimasto sotto i 20 fps per 10 secondi: passato alla vista 2D.",
+      retry: "Riprova il 3D",
+    },
   },
 };
 

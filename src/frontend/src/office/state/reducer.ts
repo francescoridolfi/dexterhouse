@@ -210,3 +210,19 @@ export function reconcile(model: OfficeModel, state: ProjectState, now: number):
   }
   return next;
 }
+
+/** Seeding from history: everyone already where the events left them (no walk on open). */
+export function settle(model: OfficeModel): OfficeModel {
+  const avatars: OfficeModel["avatars"] = {};
+  for (const avatar of Object.values(model.avatars)) {
+    if (avatar.leaving) continue;
+    avatars[avatar.id] = {
+      ...avatar,
+      walking: false,
+      hurry: false,
+      errand: null,
+      origin: avatar.cell,
+    };
+  }
+  return { ...model, avatars };
+}

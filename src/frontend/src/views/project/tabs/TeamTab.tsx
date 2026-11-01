@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { useQuery } from "@tanstack/react-query";
+import { Suspense, lazy, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { api } from "../../../api/endpoints.ts";
@@ -9,11 +10,16 @@ import { ComingSoon, EmptyState, ErrorState, LoadingBlock } from "../../../compo
 import { eur } from "../../../utils/format.ts";
 import { useProjectStore } from "../../../store/projectStore.ts";
 import { AgentAvatar } from "../panels/TeamNow.tsx";
+import { TurnDrawer } from "../panels/TurnDrawer.tsx";
+
+const AgentDrawer = lazy(() => import("../panels/AgentDrawer.tsx"));
 
 export function TeamTab() {
   const { t } = useTranslation();
   const projectId = useProjectStore((s) => s.projectId ?? "");
   const live = useProjectStore((s) => s.agents);
+  const [open, setOpen] = useState<string | null>(null);
+  const [turn, setTurn] = useState<string | null>(null);
   const agents = useQuery({
     queryKey: keys.agents(projectId),
     queryFn: () => api.agents(projectId),
@@ -57,7 +63,13 @@ export function TeamTab() {
                     <span className="flex items-center gap-2">
                       <AgentAvatar role={agent.role} color={now?.color} name={agent.display_name} />
                       <span>
-                        <span className="block font-medium">{agent.display_name}</span>
+                        <button
+                          type="button"
+                          onClick={() => setOpen(agent.id)}
+                          className="block font-medium text-accent hover:underline"
+                        >
+                          {agent.display_name}
+                        </button>
                         <span className="text-xs text-muted">
                           {t(`role.${agent.role}`, { defaultValue: agent.role })}
                         </span>
@@ -96,6 +108,17 @@ export function TeamTab() {
         </table>
       </div>
       <ComingSoon title={t("team.manageSoon")}>{t("team.manageSoonDetail")}</ComingSoon>
+      {open ? (
+        <Suspense fallback={null}>
+          <AgentDrawer
+            agentId={open}
+            spent={rows.find((a) => a.id === open)?.spent}
+            onOpenTurn={setTurn}
+            onClose={() => setOpen(null)}
+          />
+        </Suspense>
+      ) : null}
+      {turn ? <TurnDrawer turnId={turn} onClose={() => setTurn(null)} /> : null}
     </div>
   );
 }

@@ -29,7 +29,7 @@ export function primaryGate(state: ProjectState): GateView | null {
   return open.find((g) => g.type === "escalation") ?? open[0] ?? null;
 }
 
-export function boardColumns(state: ProjectState): Record<string, TaskView[]> {
+export function boardColumns(state: Pick<ProjectState, "tasks">): Record<string, TaskView[]> {
   const columns: Record<string, TaskView[]> = {};
   for (const column of BOARD_COLUMNS) columns[column.id] = [];
   for (const task of Object.values(state.tasks)) {
