@@ -14,7 +14,11 @@ from dexterhouse.apps.workflows.models import Gate, StepRun, StepRunStatus, Task
 from tests.workflows.conftest import drain, event_types, events, open_gate
 from tests.workflows.test_e2e import create, decide
 
-pytestmark = [pytest.mark.django_db(transaction=True), pytest.mark.usefixtures("real_runtime")]
+pytestmark = [
+    pytest.mark.slow,  # starts a stdio MCP server process per turn, dozens of turns
+    pytest.mark.django_db(transaction=True),
+    pytest.mark.usefixtures("real_runtime"),
+]
 
 
 def assert_turns_are_real(project) -> None:
