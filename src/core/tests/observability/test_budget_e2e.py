@@ -14,7 +14,11 @@ from dexterhouse.apps.workflows.models import Gate, StepRun
 from tests.workflows.conftest import drain, event_types, events
 from tests.workflows.test_e2e import create
 
-pytestmark = [pytest.mark.django_db(transaction=True), pytest.mark.usefixtures("real_runtime")]
+pytestmark = [
+    pytest.mark.slow,  # whole runs with the real runtime and MCP server processes
+    pytest.mark.django_db(transaction=True),
+    pytest.mark.usefixtures("real_runtime"),
+]
 
 
 def test_budget_pauses_and_resumes_a_real_run(client, settings):
