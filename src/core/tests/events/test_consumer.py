@@ -7,6 +7,7 @@ from channels.db import database_sync_to_async
 from channels.testing import WebsocketCommunicator
 
 from dexterhouse.apps.accounts.services.tokens import create_token
+from dexterhouse.apps.events.auth import OriginValidatorAllowingNonBrowsers
 from dexterhouse.apps.events.consumers import ProjectEventsConsumer
 from dexterhouse.apps.events.schemas import Actor
 from dexterhouse.apps.events.services import publisher, replay
@@ -127,3 +128,22 @@ def test_resync_limit_requests_snapshot(organization, project_id, monkeypatch):
     emit(organization, project_id, "b")
     monkeypatch.setattr(replay, "RESYNC_LIMIT", 1)
     assert replay.events_since(project_id, first.id) is None
+
+
+@pytest.mark.parametrize(
+    ("headers", "accepted"),
+    [
+        ([], True),
+        ([(b"origin", b"http://localhost")], True),
+        ([(b"origin", b"https://evil.example")], False),
+    ],
+)
+async def test_origin_validation(project_id, token, headers, accepted, settings):
+    settings.ALLOWED_HOSTS = ["localhost"]
+    application = OriginValidatorAllowingNonBrowsers(websocket_application)
+    communicator = WebsocketCommunicator(
+        application, f"/ws/projects/{project_id}?token={token}", headers=headers
+    )
+    connected, _ = await communicator.connect()
+    assert connected is accepted
+    await communicator.disconnect()

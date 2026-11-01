@@ -11,9 +11,11 @@ django_application = get_asgi_application()
 # Channels routing imports models, so it must come after Django is set up.
 from channels.auth import AuthMiddlewareStack  # noqa: E402
 from channels.routing import ProtocolTypeRouter, URLRouter  # noqa: E402
-from channels.security.websocket import AllowedHostsOriginValidator  # noqa: E402
 
-from dexterhouse.apps.events.auth import TokenAuthMiddleware  # noqa: E402
+from dexterhouse.apps.events.auth import (  # noqa: E402
+    OriginValidatorAllowingNonBrowsers,
+    TokenAuthMiddleware,
+)
 from dexterhouse.apps.events.routing import websocket_urlpatterns  # noqa: E402
 
 websocket_application = AuthMiddlewareStack(TokenAuthMiddleware(URLRouter(websocket_urlpatterns)))
@@ -21,6 +23,6 @@ websocket_application = AuthMiddlewareStack(TokenAuthMiddleware(URLRouter(websoc
 application = ProtocolTypeRouter(
     {
         "http": django_application,
-        "websocket": AllowedHostsOriginValidator(websocket_application),
+        "websocket": OriginValidatorAllowingNonBrowsers(websocket_application),
     }
 )
