@@ -127,7 +127,7 @@ def test_invoke_errors(runner: SimpleNamespace, workspace: uuid.UUID):
     assert invoke(runner, workspace, "git_status", seq=3).error.code == "timeout"
     runner.pool.fail = SessionError("crashed", broken=True)
     assert invoke(runner, workspace, "git_status", seq=4).error.code == "internal"
-    assert runner.callbacks.statuses()[-1] == "error"
+    assert runner.callbacks.statuses()[-1] == "ready"  # never reported as broken: code lives there
 
 
 def test_exec_output_over_the_limit_goes_to_the_artifact(
@@ -280,7 +280,7 @@ def test_exit_checks_and_tree(stack: dict, runner: SimpleNamespace, workspace: u
     assert failed.exit_code == 4
     assert failed.error is None
     timed = runner.service.exit_check(
-        ExitCheck(workspace_id=workspace, kind="command_ok", command="sleep 3", timeout_s=1)
+        ExitCheck(workspace_id=workspace, kind="command_ok", command="sleep 3", timeout_s=0.2)
     )
     assert not timed.ok
     assert "timed out" in timed.data["detail"]
@@ -349,3 +349,21 @@ def test_heartbeat_reports_workspaces_and_egress(runner: SimpleNamespace, worksp
     assert beat.workspaces == [workspace]
     assert beat.metrics["egress_denied_total"] >= 2
     assert runner.callbacks.sent[-1][0] == "heartbeat"
+
+
+def test_create_restarts_a_stopped_container(
+    runner: SimpleNamespace, workspace: uuid.UUID, stack: dict
+):
+    container = runner.docker.containers[str(workspace)]
+    container.status = "exited"
+
+    def start():
+        container.status = "running"
+
+    container.start = start
+    container.reload = lambda: None
+    result = runner.service.create(
+        WorkspaceCreate(project_id=uuid.uuid4(), workspace_id=workspace, stack=stack)
+    )
+    assert result.ok
+    assert runner.docker.destroyed == []

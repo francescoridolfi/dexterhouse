@@ -136,7 +136,7 @@ class ExitCheck(Message):
     workspace_id: uuid.UUID
     kind: Literal["tests_pass", "command_ok"]
     command: str
-    timeout_s: int = 900
+    timeout_s: float = 900
     probe_url: str | None = Field(
         default=None, description="A server command: start it and probe this URL inside."
     )

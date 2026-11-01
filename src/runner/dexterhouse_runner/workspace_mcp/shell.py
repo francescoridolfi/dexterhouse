@@ -82,7 +82,7 @@ def run(
     workdir = resolve(cfg.root, cwd)
     if not workdir.is_dir():
         raise ToolFailure("not_found", f"{cwd}: not a directory")
-    timeout = min(max(int(timeout_s or cfg.exec_timeout_s), 1), MAX_TIMEOUT_S)
+    timeout = min(max(float(timeout_s or cfg.exec_timeout_s), 0.1), MAX_TIMEOUT_S)
     started = time.monotonic()
     with tempfile.TemporaryFile() as out, tempfile.TemporaryFile() as err:
         process = subprocess.Popen(  # noqa: S603  # nosec B603 - see the module docstring
@@ -115,7 +115,7 @@ def run(
     if full:
         result["full_output"] = "\n".join(full)
     if timed_out:
-        raise ToolFailure("timeout", f"command timed out after {timeout}s", **result)
+        raise ToolFailure("timeout", f"command timed out after {timeout:g}s", **result)
     if code == SIGXFSZ_EXIT or (code != 0 and _FILE_TOO_LARGE.search(stderr[-2000:])):
         raise ToolFailure(
             "quota_exceeded",

@@ -29,7 +29,7 @@ from dexterhouse_schema.runner import RUNNER_QUEUE, RUNNER_TASKS, Message, ToolR
 logger = structlog.get_logger(__name__)
 
 settings = get_settings()
-app = Celery("dexterhouse_runner")
+app = Celery("dexterhouse_runner", set_as_current=False)
 app.conf.update(
     broker_url=settings.REDIS_URL,
     result_backend=settings.REDIS_URL,

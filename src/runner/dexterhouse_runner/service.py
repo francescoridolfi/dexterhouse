@@ -143,6 +143,15 @@ class RunnerService:
         if existing is not None and existing.status == "running":
             return ToolResult(ok=True, data=self._ready(ws, existing).dump())
         if existing is not None:
+            try:  # a stopped container keeps its volume: restart it rather than lose the code
+                existing.start()
+                existing.reload()
+                if existing.status == "running":
+                    return ToolResult(ok=True, data=self._ready(ws, existing).dump())
+            except DockerException as exc:
+                logger.warning(
+                    "runner.workspace_restart_failed", workspace_id=str(ws), error=str(exc)
+                )
             self.docker.destroy(ws)
         try:
             image = image_ref(str(msg.stack.get("workspace_image", "")), self.settings)
@@ -316,8 +325,8 @@ class RunnerService:
         except TimeoutError as exc:
             return ToolResult.failure("timeout", str(exc))
         except SessionError as exc:
-            if exc.broken:
-                self._changed(ws, "error", error_detail=str(exc))
+            if exc.broken:  # the container may be fine: never recreate it (the code is there)
+                logger.error("runner.mcp_server_broken", workspace_id=str(ws), error=str(exc))
             return ToolResult.failure("internal", str(exc))
         finally:
             try:
@@ -454,7 +463,7 @@ class RunnerService:
             self.docker.running(msg.workspace_id)
             command = msg.command
             if msg.probe_url:
-                wait = max(min(msg.timeout_s - 5, 60), 5)
+                wait = int(max(min(msg.timeout_s - 5, 60), 5))
                 command = "python3 -c " + " ".join(
                     shlex.quote(a) for a in (_PROBE, msg.command, msg.probe_url, str(wait))
                 )

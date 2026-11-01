@@ -42,7 +42,7 @@ def test_exec_truncates_and_times_out(cfg: Config):
     assert len(big["stdout"]) == OUTPUT_LIMIT
     assert len(big["full_output"]) > OUTPUT_LIMIT
     with pytest.raises(ToolFailure) as exc:
-        shell.run(cfg, "sleep 5", timeout_s=1)
+        shell.run(cfg, "sleep 5", timeout_s=0.2)
     assert exc.value.code == "timeout"
     assert exc.value.data["exit_code"] != 0
 
@@ -104,7 +104,7 @@ def test_run_tests(cfg: Config):
     failing = Config(root=cfg.root, test_command="echo '1 failed'; exit 1")
     assert shell.run_tests(failing)["ok"] is False
     slow = Config(root=cfg.root, test_command="sleep 3")
-    assert shell.run_tests(slow, timeout_s=1)["timed_out"] is True
+    assert shell.run_tests(slow, timeout_s=0.2)["timed_out"] is True
     with pytest.raises(ToolFailure):
         shell.run_tests(cfg, scope="bad")
 
