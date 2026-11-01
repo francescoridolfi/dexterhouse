@@ -6,3 +6,6 @@ class AccountsConfig(AppConfig):
     name = "dexterhouse.apps.accounts"
     label = "accounts"
     verbose_name = "Accounts"
+
+    def ready(self) -> None:
+        from dexterhouse.apps.accounts import schema  # noqa: F401  (registers the OpenAPI scheme)

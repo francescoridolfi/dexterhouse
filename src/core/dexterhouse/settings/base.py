@@ -6,6 +6,7 @@ from pathlib import Path
 import dj_database_url
 from celery.schedules import crontab
 
+from dexterhouse import __version__
 from dexterhouse.apps.observability.log import logging_config
 from dexterhouse.settings.env import get_env, read_secret_file
 
@@ -26,6 +27,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "django.contrib.postgres",
     "rest_framework",
+    "drf_spectacular",
     "channels",
     "django_celery_beat",
     "dexterhouse.apps.accounts",
@@ -101,10 +103,24 @@ REST_FRAMEWORK = {
         "dexterhouse.apps.accounts.authentication.ApiTokenAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_THROTTLE_CLASSES": [
         "dexterhouse.common.throttling.ClientRateThrottle",
         "dexterhouse.common.throttling.AnonRateThrottle",
     ],
+}
+# OpenAPI 3.1 of REST v1, served at /api/v1/openapi.json (docs/api.md).
+SPECTACULAR_SETTINGS = {
+    "TITLE": "DexterHouse API",
+    "DESCRIPTION": "REST v1. Errors are RFC 9457 problems; see docs/api.md.",
+    "VERSION": __version__,
+    "OAS_VERSION": "3.1.0",
+    "SCHEMA_PATH_PREFIX": "/api/v1",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "SERVE_PERMISSIONS": ["rest_framework.permissions.AllowAny"],
+    "SERVE_AUTHENTICATION": [],
+    "LICENSE": {"name": "AGPL-3.0-or-later"},
+    "DISABLE_ERRORS_AND_WARNINGS": True,
 }
 # Rate limits (T7, T16): per token or user, per anonymous IP, login attempts per IP.
 # API_TRUSTED_PROXIES = reverse proxies in front of web (nginx; 2 behind Caddy in prod).

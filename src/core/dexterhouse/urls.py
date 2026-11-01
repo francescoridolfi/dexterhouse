@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 from django.contrib import admin
 from django.urls import include, path
+from drf_spectacular.views import SpectacularJSONAPIView
 
 from dexterhouse import health, meta
 from dexterhouse.apps.observability import metrics
@@ -21,4 +22,5 @@ urlpatterns = [
     path("api/v1/", include("dexterhouse.apps.notifications.urls")),
     path("api/v1/", include("dexterhouse.apps.packages.urls")),
     path("api/v1/meta", meta.MetaView.as_view(), name="meta"),
+    path("api/v1/openapi.json", SpectacularJSONAPIView.as_view(), name="openapi"),
 ]

@@ -33,6 +33,7 @@ dependencies = [
   "opentelemetry-sdk>=1.30",
   "opentelemetry-exporter-otlp-proto-http>=1.30",
   "typer>=0.15",
+  "drf-spectacular>=0.28",
 ]
 
 [project.scripts]

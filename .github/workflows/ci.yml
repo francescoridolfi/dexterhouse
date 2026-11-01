@@ -61,6 +61,12 @@ jobs:
           enable-cache: true
       - run: uv sync --all-groups --frozen
       - run: uv run manage.py makemigrations --check --dry-run
+      - name: OpenAPI schema builds and validates (served at /api/v1/openapi.json)
+        run: uv run manage.py spectacular --format openapi-json --file openapi.json --validate
+      - uses: actions/upload-artifact@v7
+        with:
+          name: openapi
+          path: openapi.json
       - name: Fast suite (unit and integration, no process-spawning tests)
         # Budget: under 3 minutes here, under 60 s locally (06_engineering/testing.md).
         run: uv run pytest -m "not slow and not security" --cov --cov-report=term-missing --cov-report=xml
