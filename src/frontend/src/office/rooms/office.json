@@ -1,0 +1,1108 @@
+{
+  "schema": 1,
+  "grid": {
+    "w": 40,
+    "h": 30,
+    "cell_m": 1
+  },
+  "rooms": [
+    {
+      "id": "archive",
+      "label": {
+        "en": "Archive",
+        "it": "Archivio"
+      },
+      "rect": {
+        "x": 0,
+        "y": 0,
+        "w": 10,
+        "h": 6
+      },
+      "capacity": 0,
+      "seats": [],
+      "props": [
+        {
+          "model": "dh/shelf",
+          "x": 2,
+          "y": 1,
+          "rot": 0
+        },
+        {
+          "model": "dh/shelf",
+          "x": 4,
+          "y": 1,
+          "rot": 0
+        },
+        {
+          "model": "dh/shelf",
+          "x": 6,
+          "y": 1,
+          "rot": 0
+        },
+        {
+          "model": "dh/shelf",
+          "x": 8,
+          "y": 1,
+          "rot": 0
+        },
+        {
+          "model": "dh/table",
+          "x": 5,
+          "y": 4,
+          "rot": 0,
+          "w": 2,
+          "bind": "documents"
+        }
+      ],
+      "light": {
+        "color_token": "room.archive",
+        "bind": "phase_light"
+      },
+      "doors": [
+        {
+          "x": 10,
+          "y": 3
+        }
+      ]
+    },
+    {
+      "id": "reception",
+      "label": {
+        "en": "Reception",
+        "it": "Reception"
+      },
+      "rect": {
+        "x": 10,
+        "y": 0,
+        "w": 10,
+        "h": 12
+      },
+      "capacity": 2,
+      "seats": [
+        {
+          "x": 14,
+          "y": 4,
+          "facing": "S"
+        },
+        {
+          "x": 17,
+          "y": 4,
+          "facing": "S"
+        }
+      ],
+      "props": [
+        {
+          "model": "dh/counter",
+          "x": 14,
+          "y": 5,
+          "rot": 0,
+          "w": 4
+        },
+        {
+          "model": "dh/bell",
+          "x": 16,
+          "y": 5,
+          "rot": 0,
+          "bind": "bell"
+        },
+        {
+          "model": "dh/budget_lamp",
+          "x": 14,
+          "y": 5,
+          "rot": 0,
+          "bind": "budget_lamp"
+        },
+        {
+          "model": "dh/plant",
+          "x": 19,
+          "y": 1,
+          "rot": 0
+        },
+        {
+          "model": "dh/plant",
+          "x": 11,
+          "y": 1,
+          "rot": 0
+        },
+        {
+          "model": "dh/sofa",
+          "x": 18,
+          "y": 9,
+          "rot": 0,
+          "w": 2
+        }
+      ],
+      "light": {
+        "color_token": "room.reception",
+        "bind": "phase_light"
+      },
+      "doors": [
+        {
+          "x": 12,
+          "y": 0
+        },
+        {
+          "x": 10,
+          "y": 3
+        },
+        {
+          "x": 10,
+          "y": 9
+        },
+        {
+          "x": 20,
+          "y": 3
+        },
+        {
+          "x": 20,
+          "y": 9
+        },
+        {
+          "x": 12,
+          "y": 12
+        },
+        {
+          "x": 16,
+          "y": 12
+        }
+      ]
+    },
+    {
+      "id": "meeting_room",
+      "label": {
+        "en": "Meeting room",
+        "it": "Sala riunioni"
+      },
+      "rect": {
+        "x": 20,
+        "y": 0,
+        "w": 20,
+        "h": 6
+      },
+      "capacity": 8,
+      "seats": [
+        {
+          "x": 27,
+          "y": 1,
+          "facing": "S"
+        },
+        {
+          "x": 29,
+          "y": 1,
+          "facing": "S"
+        },
+        {
+          "x": 31,
+          "y": 1,
+          "facing": "S"
+        },
+        {
+          "x": 33,
+          "y": 1,
+          "facing": "S"
+        },
+        {
+          "x": 27,
+          "y": 5,
+          "facing": "N"
+        },
+        {
+          "x": 29,
+          "y": 5,
+          "facing": "N"
+        },
+        {
+          "x": 31,
+          "y": 5,
+          "facing": "N"
+        },
+        {
+          "x": 33,
+          "y": 5,
+          "facing": "N"
+        }
+      ],
+      "props": [
+        {
+          "model": "dh/table_oval",
+          "x": 26,
+          "y": 2,
+          "rot": 0,
+          "w": 8,
+          "h": 3,
+          "bind": "documents"
+        },
+        {
+          "model": "dh/whiteboard",
+          "x": 38,
+          "y": 2,
+          "rot": 0,
+          "h": 3
+        },
+        {
+          "model": "dh/plant",
+          "x": 21,
+          "y": 1,
+          "rot": 0
+        }
+      ],
+      "light": {
+        "color_token": "room.meeting",
+        "bind": "phase_light"
+      },
+      "doors": [
+        {
+          "x": 20,
+          "y": 3
+        },
+        {
+          "x": 30,
+          "y": 6
+        }
+      ]
+    },
+    {
+      "id": "design_studio",
+      "label": {
+        "en": "Design studio",
+        "it": "Studio di progettazione"
+      },
+      "rect": {
+        "x": 20,
+        "y": 6,
+        "w": 20,
+        "h": 6
+      },
+      "capacity": 4,
+      "seats": [
+        {
+          "x": 25,
+          "y": 9,
+          "facing": "N"
+        },
+        {
+          "x": 26,
+          "y": 9,
+          "facing": "N"
+        },
+        {
+          "x": 33,
+          "y": 9,
+          "facing": "N"
+        },
+        {
+          "x": 34,
+          "y": 9,
+          "facing": "N"
+        }
+      ],
+      "props": [
+        {
+          "model": "dh/drafting_table",
+          "x": 25,
+          "y": 8,
+          "rot": 0,
+          "w": 2
+        },
+        {
+          "model": "dh/desk",
+          "x": 33,
+          "y": 8,
+          "rot": 0,
+          "w": 2
+        },
+        {
+          "model": "dh/whiteboard",
+          "x": 38,
+          "y": 8,
+          "rot": 0,
+          "h": 3
+        },
+        {
+          "model": "dh/table",
+          "x": 28,
+          "y": 10,
+          "rot": 0,
+          "bind": "documents"
+        },
+        {
+          "model": "dh/poster",
+          "x": 36,
+          "y": 7,
+          "rot": 0
+        }
+      ],
+      "light": {
+        "color_token": "room.design",
+        "bind": "phase_light"
+      },
+      "doors": [
+        {
+          "x": 20,
+          "y": 9
+        },
+        {
+          "x": 30,
+          "y": 6
+        },
+        {
+          "x": 30,
+          "y": 12
+        }
+      ]
+    },
+    {
+      "id": "hr_office",
+      "label": {
+        "en": "HR office",
+        "it": "Ufficio HR"
+      },
+      "rect": {
+        "x": 0,
+        "y": 6,
+        "w": 10,
+        "h": 6
+      },
+      "capacity": 2,
+      "seats": [
+        {
+          "x": 4,
+          "y": 9,
+          "facing": "N"
+        },
+        {
+          "x": 5,
+          "y": 9,
+          "facing": "N"
+        }
+      ],
+      "props": [
+        {
+          "model": "dh/desk",
+          "x": 4,
+          "y": 8,
+          "rot": 0,
+          "w": 2
+        },
+        {
+          "model": "dh/agent_door",
+          "x": 1,
+          "y": 10,
+          "rot": 0
+        },
+        {
+          "model": "dh/package_box",
+          "x": 7,
+          "y": 10,
+          "rot": 0,
+          "bind": "package_box"
+        },
+        {
+          "model": "dh/plant",
+          "x": 9,
+          "y": 7,
+          "rot": 0
+        }
+      ],
+      "light": {
+        "color_token": "room.hr",
+        "bind": "phase_light"
+      },
+      "doors": [
+        {
+          "x": 10,
+          "y": 9
+        }
+      ]
+    },
+    {
+      "id": "pm_office",
+      "label": {
+        "en": "PM office",
+        "it": "Ufficio PM"
+      },
+      "rect": {
+        "x": 0,
+        "y": 12,
+        "w": 14,
+        "h": 6
+      },
+      "capacity": 2,
+      "seats": [
+        {
+          "x": 5,
+          "y": 15,
+          "facing": "N"
+        },
+        {
+          "x": 8,
+          "y": 15,
+          "facing": "N"
+        }
+      ],
+      "props": [
+        {
+          "model": "dh/kanban_board",
+          "x": 3,
+          "y": 13,
+          "rot": 0,
+          "w": 7,
+          "bind": "kanban"
+        },
+        {
+          "model": "dh/plant",
+          "x": 1,
+          "y": 17,
+          "rot": 0
+        },
+        {
+          "model": "dh/shelf",
+          "x": 12,
+          "y": 13,
+          "rot": 0
+        }
+      ],
+      "light": {
+        "color_token": "room.pm",
+        "bind": "phase_light"
+      },
+      "doors": [
+        {
+          "x": 12,
+          "y": 12
+        },
+        {
+          "x": 14,
+          "y": 15
+        },
+        {
+          "x": 6,
+          "y": 18
+        }
+      ]
+    },
+    {
+      "id": "open_space",
+      "label": {
+        "en": "Open space",
+        "it": "Open space"
+      },
+      "rect": {
+        "x": 14,
+        "y": 12,
+        "w": 26,
+        "h": 12
+      },
+      "capacity": 12,
+      "seats": [
+        {
+          "x": 18,
+          "y": 15,
+          "facing": "S"
+        },
+        {
+          "x": 19,
+          "y": 15,
+          "facing": "S"
+        },
+        {
+          "x": 18,
+          "y": 18,
+          "facing": "N"
+        },
+        {
+          "x": 19,
+          "y": 18,
+          "facing": "N"
+        },
+        {
+          "x": 24,
+          "y": 15,
+          "facing": "S"
+        },
+        {
+          "x": 25,
+          "y": 15,
+          "facing": "S"
+        },
+        {
+          "x": 24,
+          "y": 18,
+          "facing": "N"
+        },
+        {
+          "x": 25,
+          "y": 18,
+          "facing": "N"
+        },
+        {
+          "x": 30,
+          "y": 15,
+          "facing": "S"
+        },
+        {
+          "x": 31,
+          "y": 15,
+          "facing": "S"
+        },
+        {
+          "x": 30,
+          "y": 18,
+          "facing": "N"
+        },
+        {
+          "x": 31,
+          "y": 18,
+          "facing": "N"
+        }
+      ],
+      "props": [
+        {
+          "model": "dh/desk",
+          "x": 18,
+          "y": 16,
+          "rot": 0,
+          "w": 2
+        },
+        {
+          "model": "dh/desk",
+          "x": 18,
+          "y": 17,
+          "rot": 0,
+          "w": 2
+        },
+        {
+          "model": "dh/desk",
+          "x": 24,
+          "y": 16,
+          "rot": 0,
+          "w": 2
+        },
+        {
+          "model": "dh/desk",
+          "x": 24,
+          "y": 17,
+          "rot": 0,
+          "w": 2
+        },
+        {
+          "model": "dh/desk",
+          "x": 30,
+          "y": 16,
+          "rot": 0,
+          "w": 2
+        },
+        {
+          "model": "dh/desk",
+          "x": 30,
+          "y": 17,
+          "rot": 0,
+          "w": 2
+        },
+        {
+          "model": "dh/pc",
+          "x": 18,
+          "y": 16,
+          "rot": 0,
+          "bind": "workspace_pc"
+        },
+        {
+          "model": "dh/pc",
+          "x": 19,
+          "y": 16,
+          "rot": 0,
+          "bind": "workspace_pc"
+        },
+        {
+          "model": "dh/pc",
+          "x": 18,
+          "y": 17,
+          "rot": 0,
+          "bind": "workspace_pc"
+        },
+        {
+          "model": "dh/pc",
+          "x": 19,
+          "y": 17,
+          "rot": 0,
+          "bind": "workspace_pc"
+        },
+        {
+          "model": "dh/pc",
+          "x": 24,
+          "y": 16,
+          "rot": 0,
+          "bind": "workspace_pc"
+        },
+        {
+          "model": "dh/pc",
+          "x": 25,
+          "y": 16,
+          "rot": 0,
+          "bind": "workspace_pc"
+        },
+        {
+          "model": "dh/pc",
+          "x": 24,
+          "y": 17,
+          "rot": 0,
+          "bind": "workspace_pc"
+        },
+        {
+          "model": "dh/pc",
+          "x": 25,
+          "y": 17,
+          "rot": 0,
+          "bind": "workspace_pc"
+        },
+        {
+          "model": "dh/pc",
+          "x": 30,
+          "y": 16,
+          "rot": 0,
+          "bind": "workspace_pc"
+        },
+        {
+          "model": "dh/pc",
+          "x": 31,
+          "y": 16,
+          "rot": 0,
+          "bind": "workspace_pc"
+        },
+        {
+          "model": "dh/pc",
+          "x": 30,
+          "y": 17,
+          "rot": 0,
+          "bind": "workspace_pc"
+        },
+        {
+          "model": "dh/pc",
+          "x": 31,
+          "y": 17,
+          "rot": 0,
+          "bind": "workspace_pc"
+        },
+        {
+          "model": "dh/table",
+          "x": 36,
+          "y": 21,
+          "rot": 0,
+          "bind": "documents"
+        },
+        {
+          "model": "dh/plant",
+          "x": 38,
+          "y": 13,
+          "rot": 0
+        },
+        {
+          "model": "dh/plant",
+          "x": 15,
+          "y": 23,
+          "rot": 0
+        }
+      ],
+      "light": {
+        "color_token": "room.open",
+        "bind": "phase_light"
+      },
+      "doors": [
+        {
+          "x": 16,
+          "y": 12
+        },
+        {
+          "x": 30,
+          "y": 12
+        },
+        {
+          "x": 14,
+          "y": 15
+        },
+        {
+          "x": 14,
+          "y": 21
+        },
+        {
+          "x": 20,
+          "y": 24
+        },
+        {
+          "x": 32,
+          "y": 24
+        }
+      ]
+    },
+    {
+      "id": "review_corner",
+      "label": {
+        "en": "Review corner",
+        "it": "Angolo review"
+      },
+      "rect": {
+        "x": 0,
+        "y": 18,
+        "w": 14,
+        "h": 6
+      },
+      "capacity": 3,
+      "seats": [
+        {
+          "x": 9,
+          "y": 21,
+          "facing": "N"
+        },
+        {
+          "x": 10,
+          "y": 21,
+          "facing": "N"
+        },
+        {
+          "x": 11,
+          "y": 21,
+          "facing": "N"
+        }
+      ],
+      "props": [
+        {
+          "model": "dh/big_monitor",
+          "x": 9,
+          "y": 19,
+          "rot": 0,
+          "w": 3
+        },
+        {
+          "model": "dh/lamp",
+          "x": 13,
+          "y": 19,
+          "rot": 0
+        },
+        {
+          "model": "dh/armchair",
+          "x": 2,
+          "y": 22,
+          "rot": 0
+        },
+        {
+          "model": "dh/table",
+          "x": 4,
+          "y": 20,
+          "rot": 0,
+          "bind": "documents"
+        }
+      ],
+      "light": {
+        "color_token": "room.review",
+        "bind": "phase_light"
+      },
+      "doors": [
+        {
+          "x": 6,
+          "y": 18
+        },
+        {
+          "x": 14,
+          "y": 21
+        }
+      ]
+    },
+    {
+      "id": "qa_lab",
+      "label": {
+        "en": "QA Lab",
+        "it": "Laboratorio QA"
+      },
+      "rect": {
+        "x": 0,
+        "y": 24,
+        "w": 14,
+        "h": 5
+      },
+      "capacity": 3,
+      "seats": [
+        {
+          "x": 3,
+          "y": 26,
+          "facing": "N"
+        },
+        {
+          "x": 6,
+          "y": 26,
+          "facing": "N"
+        },
+        {
+          "x": 9,
+          "y": 26,
+          "facing": "N"
+        }
+      ],
+      "props": [
+        {
+          "model": "dh/desk_lab",
+          "x": 3,
+          "y": 25,
+          "rot": 0
+        },
+        {
+          "model": "dh/desk_lab",
+          "x": 6,
+          "y": 25,
+          "rot": 0
+        },
+        {
+          "model": "dh/desk_lab",
+          "x": 9,
+          "y": 25,
+          "rot": 0
+        },
+        {
+          "model": "dh/traffic_light",
+          "x": 12,
+          "y": 25,
+          "rot": 0,
+          "bind": "test_light"
+        },
+        {
+          "model": "dh/rack",
+          "x": 1,
+          "y": 28,
+          "rot": 0
+        },
+        {
+          "model": "dh/table",
+          "x": 6,
+          "y": 28,
+          "rot": 0,
+          "bind": "documents"
+        }
+      ],
+      "light": {
+        "color_token": "room.qa",
+        "bind": "phase_light"
+      },
+      "doors": [
+        {
+          "x": 14,
+          "y": 26
+        }
+      ]
+    },
+    {
+      "id": "break_room",
+      "label": {
+        "en": "Break room",
+        "it": "Area relax"
+      },
+      "rect": {
+        "x": 14,
+        "y": 24,
+        "w": 12,
+        "h": 5
+      },
+      "capacity": 12,
+      "seats": [
+        {
+          "x": 16,
+          "y": 26,
+          "facing": "S"
+        },
+        {
+          "x": 16,
+          "y": 28,
+          "facing": "N"
+        },
+        {
+          "x": 17,
+          "y": 26,
+          "facing": "S"
+        },
+        {
+          "x": 17,
+          "y": 28,
+          "facing": "N"
+        },
+        {
+          "x": 18,
+          "y": 26,
+          "facing": "S"
+        },
+        {
+          "x": 18,
+          "y": 28,
+          "facing": "N"
+        },
+        {
+          "x": 22,
+          "y": 26,
+          "facing": "S"
+        },
+        {
+          "x": 22,
+          "y": 28,
+          "facing": "N"
+        },
+        {
+          "x": 23,
+          "y": 26,
+          "facing": "S"
+        },
+        {
+          "x": 23,
+          "y": 28,
+          "facing": "N"
+        },
+        {
+          "x": 24,
+          "y": 26,
+          "facing": "S"
+        },
+        {
+          "x": 24,
+          "y": 28,
+          "facing": "N"
+        }
+      ],
+      "props": [
+        {
+          "model": "dh/coffee_table",
+          "x": 16,
+          "y": 27,
+          "rot": 0,
+          "w": 3
+        },
+        {
+          "model": "dh/coffee_table",
+          "x": 22,
+          "y": 27,
+          "rot": 0,
+          "w": 3
+        },
+        {
+          "model": "dh/coffee_machine",
+          "x": 15,
+          "y": 25,
+          "rot": 0
+        },
+        {
+          "model": "dh/pinball",
+          "x": 25,
+          "y": 28,
+          "rot": 0
+        }
+      ],
+      "light": {
+        "color_token": "room.break",
+        "bind": "phase_light"
+      },
+      "doors": [
+        {
+          "x": 14,
+          "y": 26
+        },
+        {
+          "x": 20,
+          "y": 24
+        },
+        {
+          "x": 26,
+          "y": 26
+        }
+      ]
+    },
+    {
+      "id": "release_dock",
+      "label": {
+        "en": "Release dock",
+        "it": "Banchina di rilascio"
+      },
+      "rect": {
+        "x": 26,
+        "y": 24,
+        "w": 14,
+        "h": 5
+      },
+      "capacity": 4,
+      "seats": [
+        {
+          "x": 29,
+          "y": 26,
+          "facing": "E"
+        },
+        {
+          "x": 30,
+          "y": 26,
+          "facing": "E"
+        },
+        {
+          "x": 29,
+          "y": 28,
+          "facing": "E"
+        },
+        {
+          "x": 30,
+          "y": 28,
+          "facing": "E"
+        }
+      ],
+      "props": [
+        {
+          "model": "dh/dock_door",
+          "x": 38,
+          "y": 26,
+          "rot": 0,
+          "h": 2
+        },
+        {
+          "model": "dh/conveyor",
+          "x": 33,
+          "y": 27,
+          "rot": 0,
+          "w": 4
+        },
+        {
+          "model": "dh/dock_light",
+          "x": 37,
+          "y": 25,
+          "rot": 0,
+          "bind": "dock_light"
+        },
+        {
+          "model": "dh/crate",
+          "x": 37,
+          "y": 28,
+          "rot": 0
+        },
+        {
+          "model": "dh/crate",
+          "x": 28,
+          "y": 25,
+          "rot": 0
+        }
+      ],
+      "light": {
+        "color_token": "room.dock",
+        "bind": "phase_light"
+      },
+      "doors": [
+        {
+          "x": 26,
+          "y": 26
+        },
+        {
+          "x": 32,
+          "y": 24
+        }
+      ]
+    }
+  ],
+  "walls": "rle:0,12,1,28,9,1,9,1,18,2,9,1,9,1,18,2,38,2,9,1,9,1,18,2,9,1,9,1,18,12,9,10,1,10,9,1,9,1,18,2,9,1,9,1,18,2,38,2,9,1,9,1,18,2,9,1,9,1,18,13,1,3,1,13,1,10,13,1,24,2,13,1,24,2,38,2,13,1,24,2,13,1,24,7,1,8,24,2,13,1,24,2,13,1,24,2,38,2,13,1,24,2,13,1,24,21,1,11,1,8,13,1,11,1,12,2,38,2,13,1,11,1,12,2,13,1,11,1,12,41",
+  "spawn": {
+    "x": 12,
+    "y": 10
+  },
+  "exit": {
+    "x": 12,
+    "y": 0
+  }
+}

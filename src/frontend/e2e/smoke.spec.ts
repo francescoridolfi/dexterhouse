@@ -30,6 +30,7 @@ async function useFakeProvider(page: Page) {
 
 test("create a project, follow it live and decide its gates", async ({ page }) => {
   test.skip(!PASSWORD, "E2E_PASSWORD is not set");
+  test.setTimeout(240_000);
   const name = `Smoke ${Date.now()}`;
   await login(page);
   await useFakeProvider(page);
@@ -83,4 +84,13 @@ test("create a project, follow it live and decide its gates", async ({ page }) =
   await expect(page.getByText("fake/fake-model").first()).toBeVisible();
   await page.getByRole("tab", { name: "Log" }).click();
   await expect(page.getByText("Event timeline")).toBeVisible();
+
+  // The 3D office: lazy chunk, canvas mounted, the team in the scene, replay from events.
+  await page.getByRole("tab", { name: "Office 3D" }).click();
+  await expect(page.locator("[data-testid=office-canvas] canvas")).toBeVisible();
+  await expect(page.getByRole("img", { name: /\d+ agents/ })).toBeVisible();
+  await page.getByRole("button", { name: "Replay", exact: true }).click();
+  await expect(page.getByRole("slider", { name: "Replay position" })).toBeVisible();
+  await page.getByRole("button", { name: "Next gate" }).click();
+  await page.getByRole("button", { name: "Back to live" }).click();
 });

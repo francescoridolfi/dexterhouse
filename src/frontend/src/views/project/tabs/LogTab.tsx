@@ -2,6 +2,7 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Link } from "react-router-dom";
 
 import { api } from "../../../api/endpoints.ts";
 import { keys } from "../../../api/queries.ts";
@@ -140,6 +141,12 @@ export function LogTab() {
                     <pre className="overflow-auto whitespace-pre-wrap">
                       {JSON.stringify(event.payload, null, 2)}
                     </pre>
+                    <Link
+                      to={`/projects/${projectId}/office?replay=${encodeURIComponent(event.created_at)}`}
+                      className="mr-3 text-accent underline"
+                    >
+                      {t("log.replay")}
+                    </Link>
                     {turnId && event.type.startsWith("agent.turn.") ? (
                       <button
                         type="button"

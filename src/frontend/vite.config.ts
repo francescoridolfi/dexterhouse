@@ -27,6 +27,8 @@ export default defineConfig({
   },
   build: {
     sourcemap: true,
+    // The lazy 3D chunk (three + R3F, ~250 kB gzip) is loaded only by the Office tab.
+    chunkSizeWarningLimit: 1_000,
   },
   test: {
     environment: "jsdom",

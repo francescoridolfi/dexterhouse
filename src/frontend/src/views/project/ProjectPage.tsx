@@ -65,6 +65,9 @@ export function ProjectPage() {
   const firstGate = useProjectStore((s) => primaryGate(s)?.id ?? null);
   const [gateId, setGateId] = useState<string | null>(null);
   const active: Tab = (TABS as readonly string[]).includes(tab) ? (tab as Tab) : "overview";
+  // Once opened, the office stays mounted (5 fps behind the 2D tabs) to keep its state.
+  const [officeOpened, setOfficeOpened] = useState<string | null>(null);
+  if (active === "office" && officeOpened !== projectId) setOfficeOpened(projectId);
   const go = (next: string) =>
     void navigate(
       next === "overview" ? `/projects/${projectId}` : `/projects/${projectId}/${next}`,
@@ -104,15 +107,26 @@ export function ProjectPage() {
         onChange={go}
         idPrefix="project"
       />
-      <div role="tabpanel" id={`project-panel-${active}`} aria-labelledby={`project-${active}`}>
-        {active === "overview" ? <OverviewTab socket={socket} onOpenGate={setGateId} /> : null}
-        {active === "board" ? <BoardTab /> : null}
-        {active === "team" ? <TeamTab /> : null}
-        {active === "artifacts" ? <ArtifactsTab /> : null}
-        {active === "log" ? <LogTab /> : null}
-        {active === "costs" ? <CostsTab /> : null}
-        {active === "office" ? <OfficeTab /> : null}
-      </div>
+      {active !== "office" ? (
+        <div role="tabpanel" id={`project-panel-${active}`} aria-labelledby={`project-${active}`}>
+          {active === "overview" ? <OverviewTab socket={socket} onOpenGate={setGateId} /> : null}
+          {active === "board" ? <BoardTab /> : null}
+          {active === "team" ? <TeamTab /> : null}
+          {active === "artifacts" ? <ArtifactsTab /> : null}
+          {active === "log" ? <LogTab /> : null}
+          {active === "costs" ? <CostsTab /> : null}
+        </div>
+      ) : null}
+      {officeOpened === projectId ? (
+        <div
+          role="tabpanel"
+          id="project-panel-office"
+          aria-labelledby="project-office"
+          hidden={active !== "office"}
+        >
+          <OfficeTab active={active === "office"} onOpenGate={setGateId} />
+        </div>
+      ) : null}
       {gateId ? <GatePanel gateId={gateId} onClose={() => setGateId(null)} /> : null}
     </div>
   );

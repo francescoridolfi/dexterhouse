@@ -284,7 +284,20 @@ const projects = {
     noChanges: "No changes between these versions.",
     agentText: "Written by the agents: shown as is, not translated.",
   },
+  agentPanel: {
+    currentTurn: "Current turn",
+    noTurn: "No turn in progress.",
+    purpose: "Purpose",
+    tokensEst: "Input tokens (estimate)",
+    task: "Task",
+    cost: "Cost",
+    turns: "Turns",
+    tools: "Tools used",
+    recent: "Last 10 events",
+    turn: "turn",
+  },
   log: {
+    replay: "Replay in the 3D office",
     live: "Live log",
     timeline: "Event timeline",
     eventsOnly: "events only",
@@ -536,7 +549,11 @@ const settings = {
 
 const office = {
   office: {
-    soon: "The 3D office arrives with epic E-09; everything it shows is already in the 2D views.",
+    fallback: {
+      "no-webgl": "This browser has no WebGL 2: the office is shown in 2D.",
+      slow: "The 3D office ran under 20 fps for 10 seconds: switched to the 2D view.",
+      retry: "Try the 3D again",
+    },
   },
 };
 
