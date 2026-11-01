@@ -218,3 +218,6 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# DexterHouse: documentazione di lavoro interna, non versionata
+dev_docs/
