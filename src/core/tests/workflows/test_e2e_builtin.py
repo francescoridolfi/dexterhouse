@@ -10,7 +10,7 @@ from dexterhouse.apps.agents.models import AgentInstance, AgentTurn, ToolCall
 from dexterhouse.apps.projects.models import Artifact
 from dexterhouse.apps.workflows.models import Gate, StepRun, Task
 from tests.brief_samples import structure
-from tests.conftest import TEAM_PACKAGES
+from tests.conftest import TEAM_PACKAGES, install_test_packages
 from tests.workflows.conftest import drain, event_types, events, open_gate
 from tests.workflows.test_e2e import STACK, create, decide
 from tests.workflows.test_e2e_agents import assert_turns_are_real
@@ -82,7 +82,7 @@ def test_autonomous_software_house_default_with_review_rounds_and_a_hire(client,
         "hire": True,
         "verdicts": {"reviewer:T-02": ["request_changes", "request_changes", "approve"]},
     }
-    settings.AGENTS_PACKAGE_DIRS = [*settings.AGENTS_PACKAGE_DIRS, str(TEAM_PACKAGES)]
+    install_test_packages(TEAM_PACKAGES)  # extra roles; the built-in team stays
     project = create(client, execution_mode="autonomous")
     client.post(f"/api/v1/projects/{project.id}/start")
     drain(project)

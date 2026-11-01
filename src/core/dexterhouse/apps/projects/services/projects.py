@@ -31,7 +31,7 @@ def _unique_slug(organization: Organization, name: str) -> str:
 def create_project(organization: Organization, user: User, data: dict[str, Any]) -> Project:
     """Create a `draft` project, its `brief` artifact v1 and `project.created`."""
     process_name = data.get("process") or DEFAULT_PROCESS
-    installed = get_process(process_name)
+    installed = get_process(process_name, organization.id)
     if installed is None:
         raise ValidationFailedError(
             "unknown process",
@@ -96,7 +96,7 @@ def update_project(project: Project, user: User, data: dict[str, Any]) -> Projec
                 continue
             project.stack = None
         elif name == "process":
-            installed = get_process(value)
+            installed = get_process(value, project.organization_id)
             if installed is None:
                 raise ValidationFailedError(
                     "unknown process", [{"field": "process", "message": f"{value} not installed"}]

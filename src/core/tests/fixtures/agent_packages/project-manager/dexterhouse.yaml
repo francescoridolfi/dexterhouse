@@ -1,6 +1,6 @@
 schema: 1
 kind: agent
-name: project-manager
+name: team-project-manager
 version: 1.0.0
 description: "Test PM used by the integration tests"
 author: { name: "DexterHouse", github: francescoridolfi }

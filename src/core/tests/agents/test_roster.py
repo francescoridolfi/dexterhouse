@@ -8,7 +8,7 @@ import pytest
 from dexterhouse.apps.agents.models import AgentInstance
 from dexterhouse.apps.agents.services import roster
 from dexterhouse.apps.events.models import Event
-from tests.conftest import TEAM_PACKAGES
+from tests.conftest import TEAM_PACKAGES, install_test_packages
 
 pytestmark = pytest.mark.django_db
 PROPOSAL = {
@@ -19,12 +19,14 @@ PROPOSAL = {
 }
 
 
-def test_packages_are_found_in_order_and_invalid_ones_skipped(settings, tmp_path):
+def test_packages_are_found_in_order_and_invalid_ones_skipped(db, tmp_path):
     broken = tmp_path / "broken"
-    broken.mkdir()
+    shutil.copytree(TEAM_PACKAGES / "tester", broken)
     (broken / "agent.yaml").write_text("schema: 1\n")
-    settings.AGENTS_PACKAGE_DIRS = [str(tmp_path / "missing"), str(tmp_path), str(TEAM_PACKAGES)]
-    assert roster.find_package(role="tester").name == "tester"
+    assert install_test_packages(tmp_path) == []  # rejected by the installer
+    install_test_packages(TEAM_PACKAGES)  # the built-in roles are taken: only the extra one
+    assert roster.find_package(role="tester").source == "builtin"
+    assert roster.find_package(role="tester").version_id is not None
     assert roster.find_package(name="htmx-frontend-developer").agent.role == (
         "htmx_frontend_developer"
     )
@@ -55,11 +57,22 @@ def test_placeholder_without_package(project, no_packages):
     assert hired.payload["package"] == {"name": "placeholder-project-manager", "version": "0.0.0"}
 
 
-def test_builtin_source(project, settings, tmp_path):
-    settings.BUILTIN_DIR = str(tmp_path)
-    shutil.copytree(TEAM_PACKAGES / "tester", tmp_path / "agents" / "tester")
-    settings.AGENTS_PACKAGE_DIRS = [str(tmp_path / "agents")]
-    assert roster.ensure_agent(project, "tester").source == "builtin"
+def test_builtin_source_and_pinned_version(project):
+    agent = roster.ensure_agent(project, "tester")
+    assert agent.source == "builtin"
+    assert agent.installed_version.package.name == "tester"
+    assert agent.package_path == agent.installed_version.install_path
+
+
+def test_missing_installed_files_are_skipped(project):
+    from dexterhouse.apps.packages.models import Package
+
+    package = Package.objects.get(name="tester", organization__isnull=True)
+    shutil.move(package.enabled_version.install_path, project.id.hex)
+    try:
+        assert roster.find_package(role="tester") is None
+    finally:
+        shutil.move(project.id.hex, package.enabled_version.install_path)
 
 
 def test_hire_proposed_grants_the_proposal_permissions(project, team_packages):

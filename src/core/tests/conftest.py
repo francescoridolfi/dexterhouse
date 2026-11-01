@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
+import shutil
 from pathlib import Path
 
 import pytest
@@ -32,10 +33,82 @@ def project(organization, user):
     )
 
 
+def install_test_packages(base: Path, *, replace: bool = False) -> list[str]:
+    """Install every package folder under `base` from its path (global, source `local`).
+
+    `replace` first disables the enabled agent packages whose role a folder provides (the
+    built-in team); otherwise a folder whose role is taken is rejected and skipped.
+    Returns the names installed.
+    """
+    import yaml
+
+    from dexterhouse.apps.packages.models import InstallStatus, Package
+    from dexterhouse.apps.packages.services import installer, lifecycle
+    from dexterhouse.apps.packages.services.builtin import ensure_builtin
+    from dexterhouse.common.errors import ConflictError
+
+    ensure_builtin()
+    folders = sorted(p for p in base.iterdir() if (p / "dexterhouse.yaml").is_file())
+    if replace:
+        roles = {
+            yaml.safe_load((f / "agent.yaml").read_text())["role"]
+            for f in folders
+            if (f / "agent.yaml").is_file()
+        }
+        for package in Package.objects.filter(
+            kind="agent", enabled_version__isnull=False, deleted_at__isnull=True
+        ).select_related("enabled_version"):
+            if package.enabled_version.definition.get("role") in roles:
+                lifecycle.disable(package, reason="replaced by test fixtures")
+    installed = []
+    for folder in folders:
+        name = yaml.safe_load((folder / "dexterhouse.yaml").read_text())["name"]
+        parked = Package.objects.filter(
+            organization__isnull=True, name=name, status="disabled", source="local"
+        ).first()
+        if parked is not None and parked.source_url == str(folder.resolve()):
+            try:  # installed (disabled) at session start: enabling is much cheaper
+                lifecycle.enable(parked)
+                installed.append(name)
+            except ConflictError:
+                pass
+            continue
+        done = installer.install(organization=None, source=str(folder))
+        if done.status == InstallStatus.INSTALLED:
+            installed.append(done.name)
+    return installed
+
+
+def _park_test_team() -> None:
+    """Install the test team once, disabled: `team_packages` only has to enable it."""
+    from dexterhouse.apps.packages.models import Package
+    from dexterhouse.apps.packages.services import lifecycle
+
+    names = install_test_packages(TEAM_PACKAGES, replace=True)
+    for package in Package.objects.filter(name__in=names, organization__isnull=True):
+        lifecycle.disable(package, reason="test team, enabled by team_packages")
+    for package in Package.objects.filter(source="builtin", kind="agent", status="disabled"):
+        lifecycle.enable(package)
+
+
+@pytest.fixture(scope="session")
+def django_db_setup(django_db_setup, django_db_blocker):
+    """Install the built-in packages once (tests roll back to this state)."""
+    from django.conf import settings
+
+    from dexterhouse.apps.packages.services.builtin import sync_builtin
+
+    with django_db_blocker.unblock():
+        sync_builtin()
+        _park_test_team()
+    yield
+    shutil.rmtree(settings.PACKAGES_DIR, ignore_errors=True)
+
+
 @pytest.fixture
-def team_packages(settings) -> Path:
-    """Agent packages are looked up in the test team fixtures."""
-    settings.AGENTS_PACKAGE_DIRS = [str(TEAM_PACKAGES)]
+def team_packages(db) -> Path:
+    """The test team fixtures replace the built-in agents (installed from their folders)."""
+    install_test_packages(TEAM_PACKAGES, replace=True)
     return TEAM_PACKAGES
 
 
@@ -76,9 +149,13 @@ def _reset_gateway_state():
 
 
 @pytest.fixture
-def no_packages(settings, tmp_path) -> None:
+def no_packages(db) -> None:
     """No agent package at all: every role is hired as a placeholder."""
-    settings.AGENTS_PACKAGE_DIRS = [str(tmp_path / "no-packages")]
+    from dexterhouse.apps.packages.models import Package
+    from dexterhouse.apps.packages.services.builtin import ensure_builtin
+
+    ensure_builtin()
+    Package.objects.filter(kind="agent").update(enabled_version=None, status="disabled")
 
 
 @pytest.fixture

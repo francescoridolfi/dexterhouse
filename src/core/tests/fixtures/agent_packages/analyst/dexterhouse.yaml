@@ -1,6 +1,6 @@
 schema: 1
 kind: agent
-name: analyst
+name: team-analyst
 version: 1.0.0
 description: "Test Analyst used by the integration tests"
 author: { name: "DexterHouse", github: francescoridolfi }

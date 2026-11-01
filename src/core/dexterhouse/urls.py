@@ -18,5 +18,6 @@ urlpatterns = [
     path("api/v1/", include("dexterhouse.apps.gateway.urls")),
     path("api/v1/", include("dexterhouse.apps.observability.urls")),
     path("api/v1/", include("dexterhouse.apps.notifications.urls")),
+    path("api/v1/", include("dexterhouse.apps.packages.urls")),
     path("api/v1/meta", meta.MetaView.as_view(), name="meta"),
 ]

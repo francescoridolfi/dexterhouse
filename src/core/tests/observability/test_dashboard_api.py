@@ -147,7 +147,7 @@ def test_model_profiles_providers_pricing(client, monkeypatch, make_member):
 
 def test_meta(client):
     body = client.get("/api/v1/meta").json()
-    assert body["features"]["packages"] is False
+    assert body["features"]["packages"] is True
     names = [p["name"] for p in body["processes"]]
     assert "software-house-default" in names
     phases = next(p for p in body["processes"] if p["name"] == "software-house-default")["phases"]

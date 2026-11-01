@@ -1,6 +1,6 @@
 schema: 1
 kind: agent
-name: architect
+name: team-architect
 version: 1.0.0
 description: "Test Architect used by the integration tests"
 author: { name: "DexterHouse", github: francescoridolfi }
