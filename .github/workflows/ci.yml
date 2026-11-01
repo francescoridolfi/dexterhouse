@@ -67,6 +67,18 @@ jobs:
 
   test-slow:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Three groups of similar duration run in parallel; each is a separate runner.
+        group:
+          - name: brief-samples
+            args: src/core/tests/brief_samples
+          - name: e2e-builtin
+            args: src/core/tests/workflows/test_e2e_builtin.py
+          - name: runtime
+            args: --ignore=src/core/tests/brief_samples --ignore=src/core/tests/workflows/test_e2e_builtin.py
+    name: test-slow (${{ matrix.group.name }})
     services:
       postgres:
         image: pgvector/pgvector:pg16
@@ -95,7 +107,7 @@ jobs:
           enable-cache: true
       - run: uv sync --all-groups --frozen
       - name: Slow suite (real Celery worker, end-to-end runs with MCP server processes)
-        run: uv run pytest -m "slow and not security" --no-cov
+        run: uv run pytest -m "slow and not security" --no-cov ${{ matrix.group.args }}
 
   frontend:
     runs-on: ubuntu-latest
