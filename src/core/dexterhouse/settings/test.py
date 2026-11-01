@@ -20,3 +20,5 @@ STORAGES = {
 MIDDLEWARE = [m for m in MIDDLEWARE if not m.startswith("whitenoise")]
 # Async consumers use DB connections from worker threads; do not keep them open.
 DATABASES["default"]["CONN_MAX_AGE"] = 0
+# Throwaway Fernet key for encrypted columns in tests.
+FERNET_KEY = "dGVzdC1mZXJuZXQta2V5LW5vdC1hLXNlY3JldC0wMDA="  # pragma: allowlist secret

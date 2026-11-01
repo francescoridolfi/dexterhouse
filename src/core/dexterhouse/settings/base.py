@@ -30,6 +30,8 @@ INSTALLED_APPS = [
     "dexterhouse.apps.accounts",
     "dexterhouse.apps.events",
     "dexterhouse.apps.gateway",
+    "dexterhouse.apps.projects",
+    "dexterhouse.apps.workflows",
 ]
 
 MIDDLEWARE = [
@@ -116,6 +118,17 @@ EVENTS_RETENTION_MONTHS = ENV.EVENTS_RETENTION_MONTHS
 EVENTS_STREAM_MAXLEN = 10_000
 PRICES_FILE = ENV.PRICES_FILE
 FX_EUR_PER_USD = ENV.FX_EUR_PER_USD
+FERNET_KEY = ENV.fernet_key()
+BUILTIN_DIR = Path(ENV.BUILTIN_DIR) if ENV.BUILTIN_DIR else BASE_DIR.parent.parent / "builtin"
+WORKFLOWS_TURN_RUNNER = "dexterhouse.apps.workflows.runners.fake.FakeTurnRunner"
+WORKFLOWS_FAKE_RUNNER: dict[str, object] = {}  # FakeTurnRunner script, see runners/fake.py
+WORKFLOWS_STEP_LEASE_S = 900
+WORKFLOWS_STEP_MAX_ATTEMPTS = 3
+WORKFLOWS_REPO_CHECKER = "dexterhouse.apps.projects.services.validation.git_ls_remote"
+CELERY_BEAT_SCHEDULE["workflows-reconcile"] = {
+    "task": "dexterhouse.apps.workflows.tasks.reconcile",
+    "schedule": 60.0,
+}
 
 LOGGING = {
     "version": 1,

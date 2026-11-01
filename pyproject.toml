@@ -65,7 +65,8 @@ ignore = ["S101"] # assert in tests
 "**/migrations/**" = ["E501", "RUF012"]
 # Django declares admin options and Meta attributes as mutable class attributes by design.
 "**/admin.py" = ["RUF012"]
-"**/models.py" = ["RUF012"]
+# The data model contracts use NULL for absent strings (rendered as JSON null by the API).
+"**/models.py" = ["RUF012", "DJ001"]
 
 [tool.bandit]
 exclude_dirs = ["tests", "src/frontend"]
