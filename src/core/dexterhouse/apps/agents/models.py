@@ -60,7 +60,15 @@ class AgentInstance(BaseModel):
 
     organization = models.ForeignKey(Organization, on_delete=models.PROTECT, related_name="+")
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="agents")
-    package_version_id = models.UUIDField(null=True, blank=True)  # FK added with E-07 packages
+    # The installed version this agent is pinned to (null: placeholder or test fixture).
+    installed_version = models.ForeignKey(
+        "packages.PackageVersion",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="agents",
+        db_column="package_version_id",
+    )
     package_name = models.CharField(max_length=120)
     package_version = models.CharField(max_length=32)
     package_path = models.CharField(max_length=300)  # directory holding agent.yaml

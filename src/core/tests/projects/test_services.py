@@ -1,6 +1,5 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 import subprocess
-from pathlib import Path
 
 import pytest
 from django.core.exceptions import ImproperlyConfigured
@@ -57,12 +56,16 @@ def test_crypto_requires_a_key(settings):
         crypto.encrypt("x")
 
 
-def test_registry_skips_invalid_packages(tmp_path: Path, settings):
-    bad = tmp_path / "processes" / "broken"
-    bad.mkdir(parents=True)
-    (bad / "process.yaml").write_text("schema: 1\nname: broken\n")
-    settings.BUILTIN_DIR = tmp_path
-    assert registry.installed_processes() == {}
+@pytest.mark.django_db
+def test_registry_lists_the_installed_processes_only():
+    from dexterhouse.apps.packages.models import Package
+    from dexterhouse.apps.packages.services.lifecycle import disable
+
+    assert set(registry.installed_processes()) == {"code-review-only", "software-house-default"}
+    disable(Package.objects.get(name="code-review-only"))
+    assert set(registry.installed_processes()) == {"software-house-default"}
+    assert registry.get_process("code-review-only") is None
+    assert registry.get_process("code-review-only", version="1.0.0").version == "1.0.0"
 
 
 @pytest.mark.django_db

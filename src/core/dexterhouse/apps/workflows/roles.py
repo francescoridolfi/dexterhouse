@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Agent roles and rooms of the processes; the agents themselves live in `agents.roster`."""
 
+import uuid
+
 from dexterhouse_schema import Process
 from dexterhouse_schema.process import Phase
 
@@ -20,11 +22,11 @@ ROLE_ROOMS = {
 FALLBACK_ROOM = "open_space"
 
 
-def installed_roles() -> frozenset[str]:
+def installed_roles(organization_id: uuid.UUID | None = None) -> frozenset[str]:
     """Roles a process may reference: the built-in team plus the installed agent packages."""
     from dexterhouse.apps.agents.services.roster import installed_package_roles
 
-    return BUILTIN_ROLES | installed_package_roles()
+    return BUILTIN_ROLES | installed_package_roles(organization_id)
 
 
 def role_room(role: str) -> str:

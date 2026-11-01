@@ -51,6 +51,9 @@ class Env(BaseSettings):
     NOTIFICATIONS_EMAIL: bool = False
     PUBLIC_URL: str = "http://localhost"
     GATEWAY_FAKE_RESPONDER: str = ""
+    PACKAGES_DIR: str = "/data/packages"
+    REGISTRY_INDEX_URL: str = ""
+    PACKAGES_ALLOW_LOCAL: bool = False
 
     def secret_key(self) -> str:
         """SECRET_KEY from env, else from SECRET_KEY_FILE."""

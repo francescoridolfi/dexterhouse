@@ -115,7 +115,7 @@ def create_agent_instance(
             id=agent_id or uuid.uuid4(),
             organization_id=organization_id,
             project_id=project_id,
-            package_version_id=package_version_id,
+            installed_version_id=package_version_id,
             package_name=package.name,
             package_version=package.version,
             package_path=str(package.root),
@@ -263,7 +263,7 @@ def run_turn(turn_id: uuid.UUID) -> TurnOutput:
         tools = ToolGateway(
             turn,
             pool,
-            load_tool_catalog(),
+            load_tool_catalog(organization_id=turn.organization_id),
             turn_tools(agent.allowed_tools, inputs.mode),
             policies=package.agent.args_policy,
         )

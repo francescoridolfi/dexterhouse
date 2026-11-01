@@ -24,7 +24,7 @@ from dexterhouse.apps.workflows import tasks
 from dexterhouse.apps.workflows.engine import steps
 from dexterhouse.apps.workflows.models import StepRun, StepRunStatus
 from dexterhouse.apps.workflows.runners.fake import FakeTurnRunner
-from tests.conftest import TEAM_PACKAGES
+from tests.conftest import TEAM_PACKAGES, install_test_packages
 from tests.workflows.agents_runtime import use_fake_profiles
 from tests.workflows.conftest import DyingRunner, KilledError, drain
 
@@ -148,7 +148,7 @@ def test_killing_a_real_worker_mid_phase_loses_and_duplicates_nothing(
         "DATABASE_URL": f"postgres://{db['USER']}@{db['HOST']}:{db['PORT']}/{db['NAME']}",
     }
     if runner == "agents":
-        settings.AGENTS_PACKAGE_DIRS = [str(TEAM_PACKAGES)]  # the team hired at start
+        install_test_packages(TEAM_PACKAGES, replace=True)  # the team hired at start
         use_fake_profiles(organization)
     log = tmp_path / "worker.log"
     worker = _start_worker(log, env)

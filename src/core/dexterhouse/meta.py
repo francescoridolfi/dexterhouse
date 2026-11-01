@@ -12,7 +12,7 @@ from dexterhouse.common.api import ApiView
 
 #: API areas not implemented yet; the SPA shows "coming soon" for them.
 FEATURES = {
-    "packages": False,  # E-07
+    "packages": True,  # E-07: installed packages API
     "marketplace": False,  # E-11
     "office_3d": False,  # E-09
     "organization_ws": False,
@@ -23,8 +23,8 @@ FEATURES = {
 
 class MetaView(ApiView):
     def get(self, request: Request) -> Response:
-        self.require(Role.VIEWER, Scope.PROJECTS_READ)
-        processes = installed_processes()
+        ctx = self.require(Role.VIEWER, Scope.PROJECTS_READ)
+        processes = installed_processes(ctx.organization.id)
         return Response(
             {
                 "version": __version__,
