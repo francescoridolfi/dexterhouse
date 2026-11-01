@@ -282,6 +282,7 @@ def test_cli_command_bridge_and_transcript(build, settings):
     ]:
         assert argv[argv.index(flag) + 1] == value
     assert "--strict-mcp-config" in argv
+    assert argv[argv.index("--tools") + 1] == ""  # no built-in tools
     assert "Bash" in argv[argv.index("--disallowedTools") + 1]
     assert record["system"] == "You are the Analyst."
     assert record["cwd"].endswith("cwd")

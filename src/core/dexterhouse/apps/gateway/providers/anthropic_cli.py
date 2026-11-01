@@ -148,6 +148,8 @@ class AnthropicCliProvider:
             "--system-prompt-file",
             str(system),
             "--strict-mcp-config",
+            "--tools",
+            "",  # no built-in tool at all (the deny-list below alone leaves some enabled)
             "--disallowedTools",
             DISALLOWED_TOOLS,
             "--permission-mode",
@@ -290,6 +292,8 @@ def translate(lines: Any) -> Iterator[StreamEvent]:
         if kind == "system" and event.get("subtype") == "init":
             _check_bridge(event)
         elif kind == "assistant":
+            if event.get("error") == "authentication_failed":
+                raise ProviderError(NOT_AUTHENTICATED, code="authentication")
             for block in (event.get("message") or {}).get("content") or []:
                 if block.get("type") == "text" and block.get("text"):
                     yield TextDelta(text=block["text"])

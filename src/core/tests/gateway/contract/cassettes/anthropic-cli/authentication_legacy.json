@@ -1,0 +1,16 @@
+{
+  "model": "claude-sonnet-5-5",
+  "stdout": [
+    "{\"type\": \"system\", \"subtype\": \"init\", \"cwd\": \"/tmp/dh-turn/cwd\", \"session_id\": \"0f6c8a2e\", \"tools\": [\"mcp__dexterhouse__memory__search\"], \"mcp_servers\": [{\"name\": \"dexterhouse\", \"status\": \"connected\"}], \"model\": \"claude-sonnet-5-5\", \"permissionMode\": \"dontAsk\", \"apiKeySource\": \"none\", \"claude_code_version\": \"2.1.278\", \"output_style\": \"default\"}",
+    "{\"type\": \"assistant\", \"message\": {\"id\": \"msg_01\", \"type\": \"message\", \"role\": \"assistant\", \"model\": \"claude-sonnet-5-5\", \"content\": [{\"type\": \"text\", \"text\": \"Failed to authenticate: OAuth session expired and could not be refreshed\"}], \"stop_reason\": null, \"stop_sequence\": null, \"usage\": {\"input_tokens\": 0, \"cache_creation_input_tokens\": 0, \"cache_read_input_tokens\": 0, \"output_tokens\": 0}}, \"parent_tool_use_id\": null, \"session_id\": \"0f6c8a2e\"}",
+    "{\"type\": \"result\", \"subtype\": \"success\", \"is_error\": true, \"duration_ms\": 2817, \"duration_api_ms\": 2402, \"num_turns\": 1, \"session_id\": \"0f6c8a2e\", \"total_cost_usd\": 0, \"usage\": {\"input_tokens\": 0, \"cache_creation_input_tokens\": 0, \"cache_read_input_tokens\": 0, \"output_tokens\": 0}, \"permission_denials\": [], \"result\": \"Failed to authenticate: OAuth session expired and could not be refreshed\", \"terminal_reason\": \"api_error\"}"
+  ],
+  "expect": {
+    "error": {
+      "status": "error",
+      "code": "authentication",
+      "retryable": false,
+      "retry_after": null
+    }
+  }
+}
