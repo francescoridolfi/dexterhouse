@@ -2,15 +2,19 @@
 """Deterministic provider for tests and CI: never calls the network (testing.md).
 
 Responses come from a script (or a JSON cassette with `{"responses": [...]}`) and are served
-in order; without a script, or once it is exhausted, the provider echoes the last user text.
+in order; without a script, or once it is exhausted, a *responder* answers: the callable named
+by `settings.GATEWAY_FAKE_RESPONDER` (`request -> FakeResponse`, used by end-to-end tests and
+demos), else the provider echoes the last user text.
 """
 
 import json
 import math
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any, Literal
 
+from django.conf import settings
+from django.utils.module_loading import import_string
 from pydantic import BaseModel, ConfigDict, Field
 
 from dexterhouse.apps.gateway.messages import (
@@ -52,11 +56,22 @@ def estimate_tokens(text: str) -> int:
     return math.ceil(len(text) / CHARS_PER_TOKEN) if text else 0
 
 
+Responder = Callable[[CompletionRequest], FakeResponse]
+
+
+def configured_responder() -> Responder | None:
+    path = getattr(settings, "GATEWAY_FAKE_RESPONDER", "")
+    return import_string(path) if path else None
+
+
 class FakeProvider:
     name = "fake"
 
-    def __init__(self, responses: list[FakeResponse] | None = None) -> None:
+    def __init__(
+        self, responses: list[FakeResponse] | None = None, responder: Responder | None = None
+    ) -> None:
         self.responses = list(responses or [])
+        self.responder = responder
         self.requests: list[CompletionRequest] = []
 
     def capabilities(self) -> Capabilities:
@@ -69,7 +84,10 @@ class FakeProvider:
 
     def stream(self, request: CompletionRequest) -> Iterator[StreamEvent]:
         self.requests.append(request)
-        response = self.responses.pop(0) if self.responses else self._echo(request)
+        if self.responses:
+            response = self.responses.pop(0)
+        else:
+            response = (self.responder or self._echo)(request)
         if response.error:
             raise ProviderError(
                 f"fake {response.error}",

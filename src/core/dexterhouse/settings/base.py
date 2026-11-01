@@ -146,6 +146,7 @@ CELERY_TASK_ROUTES = {
     "dexterhouse.apps.workflows.tasks.run_step": {"queue": "agents"},
 }
 GATEWAY_RETRY_DELAYS = (2.0, 4.0, 8.0)
+GATEWAY_FAKE_RESPONDER = ""  # dotted path answering the `fake` provider (tests, demos)
 AGENTS_TOOL_PACKAGE_DIRS = ["/data/packages/tools"]
 # Agent packages by lookup order: built-in team (E-04), then installed packages (E-07).
 AGENTS_PACKAGE_DIRS = [str(BUILTIN_DIR / "agents"), "/data/packages/agents"]
