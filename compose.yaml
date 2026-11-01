@@ -1,0 +1,126 @@
+# DexterHouse: `cp .env.example .env && docker compose up -d` (see infra/deployment in dev docs).
+name: dexterhouse
+
+x-core: &core
+  image: ${DH_IMAGE_PREFIX:-ghcr.io/francescoridolfi}/dexterhouse-core:${DH_VERSION:-0.1.0}
+  build: { context: ., dockerfile: docker/Dockerfile.core }
+  env_file: .env
+  environment: &core-env
+    SECRET_KEY_FILE: /run/dh-secrets/secret_key
+    DATABASE_PASSWORD_FILE: /run/dh-secrets/pg_password
+    FERNET_KEY_FILE: /run/dh-secrets/fernet_key
+    RUNNER_KEY_FILE: /run/dh-secrets/runner_key
+  volumes: &core-volumes
+    - dh_secrets:/run/dh-secrets:ro
+  depends_on: &core-depends
+    postgres: { condition: service_healthy }
+    redis: { condition: service_healthy }
+    migrate: { condition: service_completed_successfully }
+  networks: [internal]
+  restart: unless-stopped
+
+services:
+  secrets-init:
+    <<: *core
+    command: ["python", "-m", "dexterhouse.tools.init_secrets", "/run/dh-secrets"]
+    volumes: [dh_secrets:/run/dh-secrets]
+    depends_on: {}
+    networks: []
+    network_mode: none
+    restart: "no"
+
+  migrate:
+    <<: *core
+    command: ["dexterhouse-manage", "migrate", "--noinput"]
+    depends_on:
+      postgres: { condition: service_healthy }
+    restart: "no"
+
+  web:
+    <<: *core
+    command: >-
+      uvicorn dexterhouse.asgi:application --host 0.0.0.0 --port 8000
+      --workers ${WEB_WORKERS:-2} --proxy-headers --forwarded-allow-ips=*
+    networks: [internal, public]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health/ready"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    deploy: { resources: { limits: { cpus: "1.0", memory: 1g } } }
+
+  worker:
+    <<: *core
+    command: >-
+      celery -A dexterhouse worker -Q agents,default,core-callbacks
+      -c ${WORKER_CONCURRENCY:-4} -l info
+    volumes: [dh_secrets:/run/dh-secrets:ro, packages:/data/packages]
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A dexterhouse inspect ping -d celery@$$HOSTNAME -t 5"]
+      interval: 30s
+      timeout: 15s
+      retries: 3
+      start_period: 20s
+
+  beat:
+    <<: *core
+    command: >-
+      celery -A dexterhouse beat -l info --pidfile /tmp/celerybeat.pid
+      --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os; os.kill(int(open('/tmp/celerybeat.pid').read()), 0)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  frontend:
+    image: ${DH_IMAGE_PREFIX:-ghcr.io/francescoridolfi}/dexterhouse-frontend:${DH_VERSION:-0.1.0}
+    build: { context: ., dockerfile: docker/Dockerfile.frontend }
+    ports: ["${HTTP_PORT:-80}:80"]
+    networks: [public]
+    depends_on: [web]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+  postgres:
+    image: pgvector/pgvector:pg16@sha256:0dd3149a06e4579a0d70d8fef9945636cd514005e7237deb27f9b67886f8dc4f
+    environment:
+      POSTGRES_DB: dexterhouse
+      POSTGRES_USER: dexterhouse
+      POSTGRES_PASSWORD_FILE: /run/dh-secrets/pg_password
+    volumes: [pgdata:/var/lib/postgresql/data, dh_secrets:/run/dh-secrets:ro]
+    depends_on:
+      secrets-init: { condition: service_completed_successfully }
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dexterhouse -d dexterhouse"]
+      interval: 10s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:7.4-alpine@sha256:8da19c7399dca900c6822a1cf30f9d2285585e2c4b457ff4095b0f4500054d3f
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy noeviction
+    volumes: [redisdata:/data]
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      retries: 5
+    restart: unless-stopped
+
+networks:
+  public: {}
+  internal: { internal: true }
+
+volumes:
+  pgdata: {}
+  redisdata: {}
+  packages: {}
+  dh_secrets: {}
