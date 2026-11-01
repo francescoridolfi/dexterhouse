@@ -66,8 +66,11 @@ class _Session:
                     name, args, future = item
                     try:
                         future.set_result(await client.call_tool(name, args))
-                    except Exception as exc:  # delivered to the caller
+                    except Exception as exc:
+                        # Tool failures come back as results: an exception is the session's
+                        # own (connection closed, protocol error), so it ends here.
                         future.set_exception(exc)
+                        raise
         except Exception as exc:
             if not self.ready.done():
                 self.ready.set_exception(exc)
