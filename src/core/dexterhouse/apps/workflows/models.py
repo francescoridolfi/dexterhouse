@@ -235,6 +235,7 @@ class Gate(BaseModel):
     decided_at = models.DateTimeField(null=True, blank=True)
     expires_at = models.DateTimeField(null=True, blank=True)
     notified_at = models.DateTimeField(null=True, blank=True)
+    reminders = models.PositiveSmallIntegerField(default=0)  # `gate.renotified` sent so far
 
     class Meta:
         db_table = "dh_workflows_gate"

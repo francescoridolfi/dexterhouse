@@ -178,6 +178,11 @@ def test_recent_and_tasks(organization, project_id, fake_embed_profile):
     )
 
 
+def test_comment_task_without_embedder_is_skipped(organization, project_id):
+    """No `embed` profile: the comment is not indexed (logged), the decision goes on."""
+    assert index_comment_task(str(organization.id), str(project_id), str(uuid.uuid4()), "FIFO") == 0
+
+
 def test_untrusted_wrapping():
     assert wrap_untrusted("x", "web") == "<<untrusted source=web>>\nx\n<</untrusted>>"
 

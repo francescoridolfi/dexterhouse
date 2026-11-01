@@ -20,11 +20,13 @@ from dexterhouse.apps.workflows.api.serializers import (
     step_json,
     task_json,
 )
-from dexterhouse.apps.workflows.models import Gate, GateStatus, PhaseRun, Task
+from dexterhouse.apps.workflows.models import Gate, GateStatus, GateType, PhaseRun, Task
 from dexterhouse.common.api import ApiView, OrgContext
 from dexterhouse.common.api.pagination import AscendingCursorPage
 
 DECIDE = (Role.ADMIN, Scope.GATES_DECIDE)
+ANSWER = (Role.MEMBER, Scope.GATES_DECIDE)  # question gates: member+ (ux_2d_flows.md F3)
+GATE_RELATED = ("decided_by", "project", "phase_run")
 
 
 def _phase(ctx: OrgContext, phase_id: uuid.UUID) -> PhaseRun:
@@ -39,7 +41,7 @@ def _task(ctx: OrgContext, task_id: uuid.UUID) -> Task:
 
 
 def _gate(ctx: OrgContext, gate_id: uuid.UUID) -> Gate:
-    rows = Gate.objects.filter(project__organization=ctx.organization).select_related("decided_by")
+    rows = Gate.objects.filter(project__organization=ctx.organization).select_related(*GATE_RELATED)
     return get_object_or_404(rows, pk=gate_id)
 
 
@@ -116,17 +118,20 @@ class GateInboxView(ApiView):
     def get(self, request: Request) -> Response:
         ctx = self.require(*READ)
         rows = Gate.objects.filter(project__organization=ctx.organization).select_related(
-            "decided_by"
+            *GATE_RELATED
         )
-        if value := request.query_params.get("status"):
-            rows = rows.filter(status=value)
+        for name in ("status", "type"):
+            if value := request.query_params.get(name):
+                rows = rows.filter(**{name: value})
+        if value := request.query_params.get("project"):
+            rows = rows.filter(project_id=value)
         return self.paginate(rows, gate_json)
 
 
 class ProjectGatesView(ApiView):
     def get(self, request: Request, project_id: uuid.UUID) -> Response:
         project = get_project(self.require(*READ), project_id)
-        rows = Gate.objects.filter(project=project).select_related("decided_by")
+        rows = Gate.objects.filter(project=project).select_related(*GATE_RELATED)
         return self.paginate(rows, gate_json, page=AscendingCursorPage)
 
 
@@ -143,9 +148,12 @@ class GateDetailView(ApiView):
 
 class GateDecideView(ApiView):
     def post(self, request: Request, gate_id: uuid.UUID) -> Response:
-        ctx = self.require(*DECIDE)
-        gate = _gate(ctx, gate_id)
+        gate = _gate(self.require(*ANSWER), gate_id)
+        ctx = self.require(*(ANSWER if gate.type == GateType.QUESTION else DECIDE))
         body = DecideInput(data=request.data)
         body.is_valid(raise_exception=True)
         gate, next_ = services.decide(gate.id, ctx.user, **body.validated_data)
-        return Response({**gate_json(gate), "next": next_})
+        data = {**gate_json(gate), "next": next_}
+        if next_ == "tasks_created":
+            data["tasks_created"] = [task_json(t) for t in services.created_by(gate)]
+        return Response(data)

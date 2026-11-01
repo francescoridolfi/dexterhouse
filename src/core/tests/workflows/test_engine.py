@@ -81,14 +81,27 @@ def test_escalation_retry_reopens_and_drop_fails(started, user):
     assert project.status == "failed"
 
 
-def test_reject_without_reopen_rule_fails_the_project(started, user):
+def test_reject_reopens_with_the_comment_then_escalates_after_two_rounds(started, user):
+    """F-004: `reject` reopens the phase like `approve_with_comments` (max 2 rounds)."""
     project = started()
     gate = run_until_gate(project, "approve_requirements")
-    assert services.decide(gate.id, user, decision="reject", comment="no")[1] == "phase_failed"
+    with pytest.raises(ValidationFailedError):
+        services.decide(gate.id, user, decision="reject", comment="")
+    assert services.decide(gate.id, user, decision="reject", comment="no")[1] == "phase_reopened"
+    analysis = phase(project, "analysis")
+    assert analysis.status in ("reopened", "running")
+    assert (analysis.reopen_count, analysis.context["comment"]) == (1, "no")
+    gate = run_until_gate(project, "approve_requirements")
+    requests = StepRun.objects.filter(project=project, role="analyst").order_by("seq")
+    assert requests.last().request["comment"] == "no"
+    services.decide(gate.id, user, decision="reject", comment="still no")
+    gate = run_until_gate(project, "approve_requirements")
+    assert services.decide(gate.id, user, decision="reject", comment="3rd")[1] == "escalated"
+    escalation = open_gate(project)
+    assert escalation.payload["reason"] == "rounds_exhausted"
+    assert services.decide(escalation.id, user, decision="drop")[1] == "phase_failed"
     project.refresh_from_db()
     assert project.status == "failed"
-    types = event_types(project)
-    assert types[-3:] == ["phase.failed", "process.failed", "project.failed"]
 
 
 def test_decisions_are_validated_and_single_shot(started, user):
@@ -245,15 +258,52 @@ def test_on_exhausted_fail_fails_the_phase(started, settings):
     assert phase(project, "implementation").error_code == "loop_exhausted"
 
 
-def test_turn_failures_retry_then_fail_and_project_retry_resumes(started, user, settings):
+def test_turn_failures_retry_then_escalate_and_retry_resumes(started, user, settings):
+    """F-004: an error repeated 3 times opens a human escalation, even in autonomous mode."""
     settings.WORKFLOWS_FAKE_RUNNER = {"ask_questions": False, "fail": {"architect": 3}}
     project = started(execution_mode="autonomous")
     drain(project)
     project.refresh_from_db()
-    assert project.status == "failed"
+    assert (project.status, project.waiting_reason) == ("waiting", "gate")
     failed = StepRun.objects.get(project=project, status="failed")
     assert (failed.role, failed.attempts) == ("architect", 3)
     assert failed.error.startswith("provider_error")
+    escalation = open_gate(project)
+    assert (escalation.type, escalation.payload["reason"]) == ("escalation", "turn_failed")
+    assert escalation.payload["details"]["role"] == "architect"
+    assert phase(project, "architecture").status == "waiting_gate"
+    settings.WORKFLOWS_FAKE_RUNNER = {"ask_questions": False}
+    _, next_ = services.decide(escalation.id, user, decision="retry", comment="try again")
+    assert next_ == "phase_resumed"
+    drain(project)
+    project.refresh_from_db()
+    assert project.status == "completed"
+    decided = events(project, "gate.decided")
+    assert decided[-1].payload["next"] != "phase_resumed"  # later gates were auto-approved
+    assert any(e.payload["next"] == "phase_resumed" for e in decided)
+
+
+def test_turn_failure_escalation_accept_skips_the_step(started, user, settings):
+    settings.WORKFLOWS_FAKE_RUNNER = {"ask_questions": False, "fail": {"architect": 3}}
+    project = started(execution_mode="autonomous")
+    drain(project)
+    escalation = open_gate(project)
+    settings.WORKFLOWS_FAKE_RUNNER = {"ask_questions": False}
+    # `accept` skips the failed step; the phase `exit` then runs it again if it must.
+    assert services.decide(escalation.id, user, decision="accept")[1] == "phase_resumed"
+    drain(project)
+    project.refresh_from_db()
+    assert project.status == "completed"
+
+
+def test_turn_failure_escalation_drop_fails_and_project_retry_resumes(started, user, settings):
+    settings.WORKFLOWS_FAKE_RUNNER = {"ask_questions": False, "fail": {"architect": 3}}
+    project = started(execution_mode="autonomous")
+    drain(project)
+    escalation = open_gate(project)
+    assert services.decide(escalation.id, user, decision="drop")[1] == "phase_failed"
+    project.refresh_from_db()
+    assert project.status == "failed"
     settings.WORKFLOWS_FAKE_RUNNER = {"ask_questions": False}
     lifecycle.retry_project(project.id, user)
     drain(project)

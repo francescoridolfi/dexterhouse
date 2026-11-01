@@ -61,15 +61,31 @@ def index_artifact_task(
     ).created
 
 
-@shared_task(name="dexterhouse.apps.memory.tasks.index_comment")
+@shared_task(
+    name="dexterhouse.apps.memory.tasks.index_comment",
+    autoretry_for=(ConnectionError,),
+    retry_backoff=True,
+    max_retries=5,
+)
 def index_comment_task(
     organization_id: str, project_id: str, source_id: str, text: str, kind: str = "gate_comment"
 ) -> int:
-    """Index a gate comment (weight 1.5) or a user note."""
+    """Index a gate comment (weight 1.5) or a user note; skipped without an embedder."""
+    project = Project.objects.only("data_residency").get(pk=project_id)
+    try:
+        embedder = resolve_embedder(
+            uuid.UUID(organization_id), project.id, data_residency=project.data_residency
+        )
+    except ProviderError as exc:
+        if exc.retryable:
+            raise
+        logger.warning("memory.index_skipped", source_id=source_id, reason=str(exc))
+        return 0
     return index_comment(
         organization_id=uuid.UUID(organization_id),
-        project_id=uuid.UUID(project_id),
+        project_id=project.id,
         source_id=uuid.UUID(source_id),
         text=text,
         kind=kind,
+        embedder=embedder,
     ).created

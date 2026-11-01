@@ -31,6 +31,15 @@ def migrate(targets):
     return executor.loader.project_state(targets).apps
 
 
+@pytest.fixture(autouse=True)
+def _back_to_latest():
+    """Later migrations (E-06 and on) exist: leave the schema at the leaf nodes again."""
+    yield
+    executor = MigrationExecutor(connection)
+    executor.loader.build_graph()
+    migrate(executor.loader.graph.leaf_nodes())
+
+
 @pytest.mark.django_db(transaction=True)
 def test_e02_rows_get_placeholder_agents_and_orphans_are_dropped(organization, user):
     apps = migrate(BEFORE)

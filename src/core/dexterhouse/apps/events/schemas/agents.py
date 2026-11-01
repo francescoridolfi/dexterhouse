@@ -164,7 +164,7 @@ class AgentTurnCancelled(EventPayload):
 class Question(_Strict):
     id: str
     text: str
-    kind: Literal["text", "choice"]
+    kind: Literal["text", "choice", "boolean"]
     options: list[str] | None = None
 
 

@@ -19,6 +19,7 @@ from django.db.models import Max
 from dexterhouse.apps.agents.models import AgentTurn
 from dexterhouse.apps.agents.schemas import TurnInputs
 from dexterhouse.apps.projects.models import Artifact, Note
+from dexterhouse.apps.projects.services import notes as notes_service
 from dexterhouse.apps.workflows.models import Task
 
 RESULT_LIMIT = 64 * 1024
@@ -150,10 +151,10 @@ def notes(ctx: ToolContext, unconsumed_only: bool = True) -> dict[str, Any]:
             for n in rows.select_for_update().order_by("-created_at")
             if not (unconsumed_only and n.consumed_by_turn_ids)
         ]
-        for note in selected:
-            if turn.id not in note.consumed_by_turn_ids:
-                note.consumed_by_turn_ids = [*note.consumed_by_turn_ids, turn.id]
-                note.save(update_fields=["consumed_by_turn_ids", "updated_at"])
+        agent = turn.agent_instance
+        notes_service.consume(
+            agent.project, [n.id for n in selected], turn.id, agent.id, agent.role
+        )
     return {
         "notes": [
             {"id": str(n.id), "content": n.content, "created_at": n.created_at.isoformat()}
