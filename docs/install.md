@@ -119,6 +119,13 @@ Gate notifications by email need SMTP settings: `NOTIFICATIONS_EMAIL=true`, `EMA
 `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_USE_TLS`, and the password in a file named by
 `EMAIL_HOST_PASSWORD_FILE` (mounted into `web` and `worker`), never in `.env`.
 
+## Several installations on one host
+
+Each stack needs its own Compose project name (`docker compose -p staging …`, or the folder
+name) and its own ports. The runner labels its workspaces with that name
+(`dexterhouse.installation`, override with `RUNNER_INSTALLATION`) and only manages its own,
+so two stacks on one Docker daemon never clean up each other's workspaces.
+
 ## Upgrade and rollback
 
 1. Back up (next section) and read the release notes in `CHANGELOG.md`.
