@@ -1,0 +1,18 @@
+{
+  "model": "qwen3:14b",
+  "status": 503,
+  "headers": {
+    "content-type": "application/json"
+  },
+  "body": [
+    "{\"error\": \"server busy, please try again.  maximum pending requests exceeded\"}"
+  ],
+  "expect": {
+    "error": {
+      "status": "error",
+      "code": "provider",
+      "retryable": true,
+      "retry_after": null
+    }
+  }
+}

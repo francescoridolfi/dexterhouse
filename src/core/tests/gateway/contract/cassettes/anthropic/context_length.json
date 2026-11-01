@@ -1,0 +1,19 @@
+{
+  "model": "claude-sonnet-5-5",
+  "status": 400,
+  "headers": {
+    "content-type": "application/json",
+    "request-id": "req_011CU"
+  },
+  "body": [
+    "{\"type\": \"error\", \"error\": {\"type\": \"invalid_request_error\", \"message\": \"prompt is too long: 215000 tokens > 200000 maximum\"}}"
+  ],
+  "expect": {
+    "error": {
+      "status": "error",
+      "code": "context_length",
+      "retryable": false,
+      "retry_after": null
+    }
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "model": "gpt-5",
+  "status": 200,
+  "headers": {
+    "content-type": "text/event-stream"
+  },
+  "body": [
+    "data: {\"id\": \"chatcmpl-CXq9\", \"object\": \"chat.completion.chunk\", \"created\": 1761998400, \"model\": \"gpt-5\", \"system_fingerprint\": \"fp_1\", \"choices\": [{\"index\": 0, \"delta\": {\"role\": \"assistant\", \"content\": \"\", \"refusal\": null}, \"logprobs\": null, \"finish_reason\": null}], \"usage\": null}",
+    "",
+    "data: {\"id\": \"chatcmpl-CXq9\", \"object\": \"chat.completion.chunk\", \"created\": 1761998400, \"model\": \"gpt-5\", \"system_fingerprint\": \"fp_1\", \"choices\": [{\"index\": 0, \"delta\": {\"content\": \"The brief asks \"}, \"logprobs\": null, \"finish_reason\": null}], \"usage\": null}",
+    "",
+    "data: {\"id\": \"chatcmpl-CXq9\", \"object\": \"chat.completion.chunk\", \"created\": 1761998400, \"model\": \"gpt-5\", \"system_fingerprint\": \"fp_1\", \"choices\": [{\"index\": 0, \"delta\": {\"content\": \"for a gym \"}, \"logprobs\": null, \"finish_reason\": null}], \"usage\": null}",
+    "",
+    "data: {\"id\": \"chatcmpl-CXq9\", \"object\": \"chat.completion.chunk\", \"created\": 1761998400, \"model\": \"gpt-5\", \"system_fingerprint\": \"fp_1\", \"choices\": [{\"index\": 0, \"delta\": {\"content\": \"booking app.\"}, \"logprobs\": null, \"finish_reason\": null}], \"usage\": null}",
+    "",
+    "data: {\"id\": \"chatcmpl-CXq9\", \"object\": \"chat.completion.chunk\", \"created\": 1761998400, \"model\": \"gpt-5\", \"system_fingerprint\": \"fp_1\", \"choices\": [{\"index\": 0, \"delta\": {}, \"logprobs\": null, \"finish_reason\": \"stop\"}], \"usage\": null}",
+    "",
+    "data: {\"id\": \"chatcmpl-CXq9\", \"object\": \"chat.completion.chunk\", \"created\": 1761998400, \"model\": \"gpt-5\", \"system_fingerprint\": \"fp_1\", \"choices\": [], \"usage\": {\"prompt_tokens\": 1120, \"completion_tokens\": 20, \"total_tokens\": 1140, \"prompt_tokens_details\": {\"cached_tokens\": 1000, \"audio_tokens\": 0}, \"completion_tokens_details\": {\"reasoning_tokens\": 0}}}",
+    "",
+    "data: [DONE]",
+    ""
+  ],
+  "expect": {
+    "text": "The brief asks for a gym booking app.",
+    "tool_calls": [],
+    "stop": "end",
+    "usage": {
+      "input": 1120,
+      "output": 20,
+      "cached_read": 1000,
+      "cached_write": 0
+    },
+    "cost_eur": "0.000437",
+    "price_version": "2026-11-01"
+  }
+}

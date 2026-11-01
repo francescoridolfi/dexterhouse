@@ -1,0 +1,26 @@
+{
+  "model": "qwen3:14b",
+  "status": 200,
+  "headers": {
+    "content-type": "application/x-ndjson"
+  },
+  "body": [
+    "{\"model\": \"qwen3:14b\", \"created_at\": \"2026-11-01T12:00:00.000000Z\", \"message\": {\"role\": \"assistant\", \"content\": \"The brief asks \"}, \"done\": false}",
+    "{\"model\": \"qwen3:14b\", \"created_at\": \"2026-11-01T12:00:00.000000Z\", \"message\": {\"role\": \"assistant\", \"content\": \"for a gym \"}, \"done\": false}",
+    "{\"model\": \"qwen3:14b\", \"created_at\": \"2026-11-01T12:00:00.000000Z\", \"message\": {\"role\": \"assistant\", \"content\": \"booking app.\"}, \"done\": false}",
+    "{\"model\": \"qwen3:14b\", \"created_at\": \"2026-11-01T12:00:00.000000Z\", \"message\": {\"role\": \"assistant\", \"content\": \"\"}, \"done\": true, \"done_reason\": \"stop\", \"prompt_eval_count\": 1120, \"eval_count\": 20, \"total_duration\": 4935886791, \"load_duration\": 534986708, \"prompt_eval_duration\": 107345000, \"eval_duration\": 4289432000}"
+  ],
+  "expect": {
+    "text": "The brief asks for a gym booking app.",
+    "tool_calls": [],
+    "stop": "end",
+    "usage": {
+      "input": 1120,
+      "output": 20,
+      "cached_read": 0,
+      "cached_write": 0
+    },
+    "cost_eur": "0.000000",
+    "price_version": "2026-11-01"
+  }
+}

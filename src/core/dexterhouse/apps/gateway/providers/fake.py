@@ -24,7 +24,7 @@ from dexterhouse.apps.gateway.messages import (
     ToolCallStart,
     Usage,
 )
-from dexterhouse.apps.gateway.providers.base import ProviderError
+from dexterhouse.apps.gateway.providers.base import Capabilities, ProviderError
 
 CHARS_PER_TOKEN = 3.5
 CHUNK = 16
@@ -44,6 +44,7 @@ class FakeResponse(BaseModel):
     usage: Usage | None = None
     stop: StopReason | None = None
     error: Literal["error", "rate_limited", "timeout"] | None = None
+    error_code: str = "provider"
 
 
 def estimate_tokens(text: str) -> int:
@@ -58,6 +59,9 @@ class FakeProvider:
         self.responses = list(responses or [])
         self.requests: list[CompletionRequest] = []
 
+    def capabilities(self) -> Capabilities:
+        return Capabilities(local=True)
+
     @classmethod
     def from_cassette(cls, path: Path) -> "FakeProvider":
         data = json.loads(path.read_text(encoding="utf-8"))
@@ -67,7 +71,12 @@ class FakeProvider:
         self.requests.append(request)
         response = self.responses.pop(0) if self.responses else self._echo(request)
         if response.error:
-            raise ProviderError(f"fake {response.error}", status=response.error)
+            raise ProviderError(
+                f"fake {response.error}",
+                status=response.error,
+                code=response.error_code,
+                retryable=response.error_code == "provider",
+            )
         for start in range(0, len(response.text), CHUNK):
             yield TextDelta(text=response.text[start : start + CHUNK])
         for call in response.tool_calls:

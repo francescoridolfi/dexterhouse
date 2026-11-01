@@ -33,6 +33,7 @@ dependencies = [
 
 [project.scripts]
 dexterhouse-manage = "dexterhouse.manage:main"
+dexterhouse-mcp-bridge = "dexterhouse.apps.gateway.bridge:main"
 
 [build-system]
 requires = ["hatchling>=1.26"]

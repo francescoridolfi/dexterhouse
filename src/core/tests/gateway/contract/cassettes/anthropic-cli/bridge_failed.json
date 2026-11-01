@@ -1,0 +1,14 @@
+{
+  "model": "claude-sonnet-5-5",
+  "stdout": [
+    "{\"type\": \"system\", \"subtype\": \"init\", \"cwd\": \"/tmp/dh-turn/cwd\", \"session_id\": \"0f6c8a2e\", \"tools\": [\"mcp__dexterhouse__memory__search\"], \"mcp_servers\": [{\"name\": \"dexterhouse\", \"status\": \"failed\"}], \"model\": \"claude-sonnet-5-5\", \"permissionMode\": \"dontAsk\", \"apiKeySource\": \"none\", \"claude_code_version\": \"2.1.278\", \"output_style\": \"default\"}"
+  ],
+  "expect": {
+    "error": {
+      "status": "error",
+      "code": "configuration",
+      "retryable": false,
+      "retry_after": null
+    }
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "model": "llama-3.3-70b-instruct",
+  "status": 200,
+  "headers": {
+    "content-type": "text/event-stream"
+  },
+  "body": [
+    "data: {\"id\": \"chatcmpl-CXq9\", \"object\": \"chat.completion.chunk\", \"created\": 1761998400, \"model\": \"llama-3.3-70b-instruct\", \"system_fingerprint\": \"fp_1\", \"choices\": [{\"index\": 0, \"delta\": {\"role\": \"assistant\", \"content\": \"Let me search the memory.\"}, \"logprobs\": null, \"finish_reason\": null}], \"usage\": null}",
+    "",
+    "data: {\"id\": \"chatcmpl-CXq9\", \"object\": \"chat.completion.chunk\", \"created\": 1761998400, \"model\": \"llama-3.3-70b-instruct\", \"system_fingerprint\": \"fp_1\", \"choices\": [{\"index\": 0, \"delta\": {\"tool_calls\": [{\"index\": 0, \"id\": \"call_Dq3VhbsPMxA1\", \"type\": \"function\", \"function\": {\"name\": \"memory__search\", \"arguments\": \"\"}}]}, \"logprobs\": null, \"finish_reason\": null}], \"usage\": null}",
+    "",
+    "data: {\"id\": \"chatcmpl-CXq9\", \"object\": \"chat.completion.chunk\", \"created\": 1761998400, \"model\": \"llama-3.3-70b-instruct\", \"system_fingerprint\": \"fp_1\", \"choices\": [{\"index\": 0, \"delta\": {\"tool_calls\": [{\"index\": 0, \"function\": {\"arguments\": \"{\\\"query\\\": \\\"booki\"}}]}, \"logprobs\": null, \"finish_reason\": null}], \"usage\": null}",
+    "",
+    "data: {\"id\": \"chatcmpl-CXq9\", \"object\": \"chat.completion.chunk\", \"created\": 1761998400, \"model\": \"llama-3.3-70b-instruct\", \"system_fingerprint\": \"fp_1\", \"choices\": [{\"index\": 0, \"delta\": {\"tool_calls\": [{\"index\": 0, \"function\": {\"arguments\": \"ng rules\\\", \\\"k\\\": 3}\"}}]}, \"logprobs\": null, \"finish_reason\": null}], \"usage\": null}",
+    "",
+    "data: {\"id\": \"chatcmpl-CXq9\", \"object\": \"chat.completion.chunk\", \"created\": 1761998400, \"model\": \"llama-3.3-70b-instruct\", \"system_fingerprint\": \"fp_1\", \"choices\": [{\"index\": 0, \"delta\": {}, \"logprobs\": null, \"finish_reason\": \"tool_calls\"}], \"usage\": null}",
+    "",
+    "data: {\"id\": \"chatcmpl-CXq9\", \"object\": \"chat.completion.chunk\", \"created\": 1761998400, \"model\": \"llama-3.3-70b-instruct\", \"system_fingerprint\": \"fp_1\", \"choices\": [], \"usage\": {\"prompt_tokens\": 950, \"completion_tokens\": 45, \"total_tokens\": 995, \"prompt_tokens_details\": {\"cached_tokens\": 0, \"audio_tokens\": 0}, \"completion_tokens_details\": {\"reasoning_tokens\": 0}}}",
+    "",
+    "data: [DONE]",
+    ""
+  ],
+  "expect": {
+    "text": "Let me search the memory.",
+    "tool_calls": [
+      {
+        "name": "memory.search",
+        "args": {
+          "query": "booking rules",
+          "k": 3
+        }
+      }
+    ],
+    "stop": "tool_use",
+    "usage": {
+      "input": 950,
+      "output": 45,
+      "cached_read": 0,
+      "cached_write": 0
+    }
+  }
+}

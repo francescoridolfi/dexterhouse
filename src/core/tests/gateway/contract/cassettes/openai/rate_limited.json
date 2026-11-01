@@ -1,0 +1,19 @@
+{
+  "model": "gpt-5",
+  "status": 429,
+  "headers": {
+    "content-type": "application/json",
+    "retry-after": "7"
+  },
+  "body": [
+    "{\"error\": {\"message\": \"Rate limit reached for requests\", \"type\": \"requests\", \"param\": null, \"code\": \"rate_limit_exceeded\"}}"
+  ],
+  "expect": {
+    "error": {
+      "status": "rate_limited",
+      "code": "provider",
+      "retryable": true,
+      "retry_after": 7.0
+    }
+  }
+}
