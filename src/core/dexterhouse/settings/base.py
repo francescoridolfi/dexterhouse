@@ -197,6 +197,8 @@ CELERY_BEAT_SCHEDULE["workspaces-cleanup"] = {
 PACKAGES_DIR = Path(ENV.PACKAGES_DIR)
 REGISTRY_INDEX_URL = ENV.REGISTRY_INDEX_URL
 REGISTRY_INDEX_TTL_S = 300
+# Opt-in install telemetry target (CD-026); used only by organizations with telemetry on.
+MARKETPLACE_URL = ENV.MARKETPLACE_URL.rstrip("/")
 PACKAGES_ALLOW_LOCAL = ENV.PACKAGES_ALLOW_LOCAL  # local paths and git+file:// (development)
 CELERY_BEAT_SCHEDULE["packages-collect-unused"] = {
     "task": "dexterhouse.apps.packages.tasks.collect_unused",

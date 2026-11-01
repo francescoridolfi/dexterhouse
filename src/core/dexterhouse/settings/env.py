@@ -60,6 +60,7 @@ class Env(BaseSettings):
     WORKSPACE_IDLE_DESTROY_H: int = 24
     PACKAGES_DIR: str = "/data/packages"
     REGISTRY_INDEX_URL: str = ""
+    MARKETPLACE_URL: str = ""
     PACKAGES_ALLOW_LOCAL: bool = False
 
     def secret_key(self) -> str:

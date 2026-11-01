@@ -29,6 +29,7 @@ GATEWAY_RETRY_DELAYS = (0.0, 0.0, 0.0)
 # Installed packages of this test run (removed by the session fixture in tests/conftest.py).
 PACKAGES_DIR = Path(tempfile.mkdtemp(prefix="dh-test-packages-")).resolve()
 REGISTRY_INDEX_URL = ""
+MARKETPLACE_URL = ""
 PACKAGES_ALLOW_LOCAL = True
 # Engine tests script their turns; end-to-end tests opt in to AgentsTurnRunner (the default).
 WORKFLOWS_TURN_RUNNER = "dexterhouse.apps.workflows.runners.fake.FakeTurnRunner"
