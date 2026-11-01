@@ -185,6 +185,7 @@ def build_inputs(request: TurnRequest, step_run: StepRun) -> TurnInputs:
         installed_roles=_roles(project.id),
         task_ids=_task_ids(project.id),
         stack_test_command=stack.get("test_command"),
+        workspace_tree=workspace_tree(project.id),
     )
 
 
@@ -347,11 +348,52 @@ def _smoke(request: TurnRequest, project_id: Any, stack: dict[str, Any], *_: Any
     ]
 
 
-def _release(*_: Any) -> list[str]:
+def _release(request: TurnRequest, project_id: Any, *_: Any) -> list[str]:
+    commits = commit_log(project_id)
+    if not commits:
+        return [
+            "Write release_notes.md from the test reports, task board, assumptions and stack "
+            "below. No commit log is available: say so under Commits."
+        ]
     return [
         "Write release_notes.md from the test reports, task board, assumptions and stack "
-        "below. No commit log is available to you yet: say so under Commits."
+        f"below; under Commits summarise these {len(commits)} commits of main (newest first):",
+        *(f"- {c['commit'][:8]} {c['message']} ({c['author']})" for c in commits),
     ]
+
+
+# Workspace (E-05) -----------------------------------------------------------------------
+
+
+def _runner(task: str, message: Any) -> dict[str, Any] | None:
+    from dexterhouse.apps.workspaces.client import get_client
+
+    result = get_client().call(task, message)
+    return result.data if result.ok and isinstance(result.data, dict) else None
+
+
+def workspace_tree(project_id: Any) -> str | None:
+    """The live workspace's file tree (depth 3) for the context builder, else None."""
+    from dexterhouse.apps.workspaces.services import live
+    from dexterhouse_schema.runner import Tree
+
+    workspace = live(project_id)
+    if workspace is None:
+        return None
+    data = _runner("runner.system.tree", Tree(workspace_id=workspace.id, depth=3))
+    return str(data["tree"]) if data and data.get("tree") else None
+
+
+def commit_log(project_id: Any, limit: int = 60) -> list[dict[str, str]]:
+    """Commits of `main` in the workspace, for the PM's release notes."""
+    from dexterhouse.apps.workspaces.services import live
+    from dexterhouse_schema.runner import CommitLog
+
+    workspace = live(project_id)
+    if workspace is None:
+        return []
+    data = _runner("runner.system.commit_log", CommitLog(workspace_id=workspace.id, max=limit))
+    return list(data.get("commits", [])) if data else []
 
 
 def _retrospective(request: TurnRequest, project_id: Any, *_: Any) -> list[str]:
