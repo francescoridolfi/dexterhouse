@@ -151,6 +151,7 @@ class GateDecided(EventPayload):
         "task_accepted",
         "task_dropped",
         "escalated",
+        "project_resumed",
     ]
 
 

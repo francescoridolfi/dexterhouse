@@ -17,6 +17,8 @@ from dexterhouse.apps.gateway.messages import (
 from dexterhouse.apps.gateway.models import CallStatus, LLMCall
 from dexterhouse.apps.gateway.pricing import QUANTUM, get_prices
 from dexterhouse.apps.gateway.providers import Provider, ProviderError, collect
+from dexterhouse.apps.observability import tracing
+from dexterhouse.apps.observability.services import budget
 
 logger = structlog.get_logger(__name__)
 
@@ -40,6 +42,10 @@ def complete(
     With an `idempotency_key`, a successful call already recorded under that key is returned
     from its stored response without calling the provider again (ADR-0013: a resumed turn
     never pays twice). `on_event` sees every streaming event (used for `agent.speaking`).
+
+    Raises:
+        BudgetExceededError: the project or organization budget is exhausted (F-012); no
+            provider call and no `LLMCall` are made.
     """
     if idempotency_key:
         done = LLMCall.objects.filter(
@@ -47,6 +53,32 @@ def complete(
         ).first()
         if done is not None:
             return CompletionResult.model_validate(done.response), done
+    budget.check_before_call(organization_id, project_id)
+    with tracing.span("llm.call", provider=provider.name, model=request.model):
+        result, call = _call(
+            request,
+            provider,
+            organization_id,
+            project_id,
+            agent_turn_id,
+            trace_id,
+            idempotency_key,
+            on_event,
+        )
+    budget.record_spend(organization_id, project_id)
+    return result, call
+
+
+def _call(
+    request: CompletionRequest,
+    provider: Provider,
+    organization_id: uuid.UUID,
+    project_id: uuid.UUID,
+    agent_turn_id: uuid.UUID | None,
+    trace_id: str,
+    idempotency_key: str,
+    on_event: StreamCallback | None,
+) -> tuple[CompletionResult, LLMCall]:
     started = time.monotonic()
     call = LLMCall(
         organization_id=organization_id,
@@ -65,6 +97,9 @@ def complete(
         call.error_detail = f"{exc.code}: {exc}"
         call.latency_ms = _elapsed_ms(started)
         call.save()
+        logger.warning(
+            "gateway.call_failed", provider=call.provider, model=call.model, status=call.status
+        )
         raise
     call.latency_ms = _elapsed_ms(started)
     call.status = CallStatus.OK
@@ -72,6 +107,15 @@ def complete(
     call.response = result.model_dump(mode="json")
     _apply_usage(call, result.usage)
     call.save()
+    logger.info(
+        "gateway.call_completed",
+        provider=call.provider,
+        model=call.model,
+        latency_ms=call.latency_ms,
+        input_tokens=call.input_tokens,
+        output_tokens=call.output_tokens,
+        cost=str(call.cost) if call.cost is not None else None,
+    )
     return result, call
 
 

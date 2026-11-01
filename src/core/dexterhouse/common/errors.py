@@ -29,6 +29,14 @@ class ConflictError(DomainError):
     title = "Conflict"
 
 
+class BudgetExhaustedError(DomainError):
+    """A budget (project or organization) is exhausted: 402 `budget-exceeded`."""
+
+    status = 402
+    slug = "budget-exceeded"
+    title = "Budget exceeded"
+
+
 class ValidationFailedError(DomainError):
     """Input or pre-start validation failed; `errors` lists `{field, message}`."""
 

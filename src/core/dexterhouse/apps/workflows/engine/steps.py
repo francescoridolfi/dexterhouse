@@ -243,6 +243,15 @@ def record_failure(step_run_id: uuid.UUID, attempt: int | None, code: str, detai
         _run, row, step_run = locked
         step_run.error = f"{code}: {detail}" if detail else code
         step_run.lease_expires_at = None
+        if code == "budget":
+            # The project waits for a budget raise (F-012): the attempt does not count and
+            # `resume_run` re-dispatches the step.
+            step_run.status = StepRunStatus.QUEUED
+            step_run.attempts = max(step_run.attempts - 1, 0)
+            step_run.save(
+                update_fields=["error", "lease_expires_at", "status", "attempts", "updated_at"]
+            )
+            return
         if step_run.attempts < settings.WORKFLOWS_STEP_MAX_ATTEMPTS:
             step_run.status = StepRunStatus.QUEUED
             step_run.save(update_fields=["error", "lease_expires_at", "status", "updated_at"])

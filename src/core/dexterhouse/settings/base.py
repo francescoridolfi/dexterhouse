@@ -6,6 +6,7 @@ from pathlib import Path
 import dj_database_url
 from celery.schedules import crontab
 
+from dexterhouse.apps.observability.log import logging_config
 from dexterhouse.settings.env import get_env
 
 ENV = get_env()
@@ -34,6 +35,7 @@ INSTALLED_APPS = [
     "dexterhouse.apps.workflows",
     "dexterhouse.apps.memory",
     "dexterhouse.apps.agents",
+    "dexterhouse.apps.observability",
 ]
 
 MIDDLEWARE = [
@@ -45,6 +47,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "dexterhouse.apps.observability.middleware.RequestContextMiddleware",
 ]
 
 ROOT_URLCONF = "dexterhouse.urls"
@@ -127,17 +130,17 @@ WORKFLOWS_FAKE_RUNNER: dict[str, object] = {}  # FakeTurnRunner script, see runn
 WORKFLOWS_STEP_LEASE_S = 900
 WORKFLOWS_STEP_MAX_ATTEMPTS = 3
 WORKFLOWS_REPO_CHECKER = "dexterhouse.apps.projects.services.validation.git_ls_remote"
+CELERY_BEAT_SCHEDULE["observability-rollup-llm-calls"] = {
+    "task": "dexterhouse.apps.observability.tasks.rollup_llm_calls",
+    "schedule": crontab(minute=30, hour=3, day_of_month=1),
+}
 CELERY_BEAT_SCHEDULE["workflows-reconcile"] = {
     "task": "dexterhouse.apps.workflows.tasks.reconcile",
     "schedule": 60.0,
 }
 
-LOGGING = {
-    "version": 1,
-    "disable_existing_loggers": False,
-    "handlers": {"console": {"class": "logging.StreamHandler"}},
-    "root": {"handlers": ["console"], "level": ENV.LOG_LEVEL},
-}
+# JSON logs with trace/project/turn context (F-012); LOG_FORMAT=console for local dev.
+LOGGING = logging_config(ENV.LOG_LEVEL, ENV.LOG_FORMAT)
 
 # Agents runtime and LLM gateway (E-03)
 # `run_step` runs the agent turn synchronously (AgentsTurnRunner): it belongs on `agents`.

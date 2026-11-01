@@ -29,6 +29,9 @@ dependencies = [
   "pgvector>=0.5",
   "pyjwt>=2.10",
   "httpx2>=2.16",
+  "prometheus-client>=0.21",
+  "opentelemetry-sdk>=1.30",
+  "opentelemetry-exporter-otlp-proto-http>=1.30",
 ]
 
 [project.scripts]

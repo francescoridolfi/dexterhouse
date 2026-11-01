@@ -3,11 +3,14 @@ from django.contrib import admin
 from django.urls import include, path
 
 from dexterhouse import health
+from dexterhouse.apps.observability import metrics
 
 urlpatterns = [
     path("health/live", health.live, name="health-live"),
     path("health/ready", health.ready, name="health-ready"),
+    path("metrics", metrics.metrics, name="metrics"),
     path("admin/", admin.site.urls),
     path("api/v1/", include("dexterhouse.apps.projects.urls")),
     path("api/v1/", include("dexterhouse.apps.workflows.urls")),
+    path("api/v1/", include("dexterhouse.apps.observability.urls")),
 ]

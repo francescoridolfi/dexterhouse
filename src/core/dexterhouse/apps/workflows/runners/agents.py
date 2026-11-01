@@ -22,6 +22,7 @@ from dexterhouse.apps.agents.services import (
     queue_turn,
     run_turn,
 )
+from dexterhouse.apps.observability import tracing
 from dexterhouse.apps.workflows.engine import common
 from dexterhouse.apps.workflows.models import StepRun
 from dexterhouse.apps.workflows.runner import TurnFailedError, TurnRequest
@@ -49,12 +50,15 @@ class AgentsTurnRunner:
         turn = self._turn(step_run, request, agent)
         StepRun.objects.filter(pk=step_run.pk, attempts=request.attempt).update(agent_turn=turn)
         try:
-            return run_turn(turn.id)
+            with tracing.turn_context(step_run.project_id, turn.id):
+                return run_turn(turn.id)
         except AgentTurnFailedError as exc:
             raise TurnFailedError(exc.error_code or "failed", exc.detail) from exc
         except TransientTurnError as exc:
             # The turn stays `running`: the engine's next attempt resumes it.
-            raise TurnFailedError("provider_unavailable", str(exc)) from exc
+            cause = getattr(exc.__cause__, "code", "")
+            code = "budget" if cause == "budget" else "provider_unavailable"
+            raise TurnFailedError(code, str(exc)) from exc
 
     @staticmethod
     def _agent(step_run: StepRun) -> AgentInstance:

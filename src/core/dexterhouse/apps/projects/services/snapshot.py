@@ -58,6 +58,11 @@ def build_snapshot(project: Project) -> dict[str, Any]:
         "gates_open": [gate_json(g) for g in open_gates],
         "agents": _agents(project),
         "workspace": None,
-        "budget": {"budget": str(project.budget), "spent": str(project.spent)},
+        "budget": {
+            "budget": str(project.budget),
+            "spent": str(project.spent),
+            "unpriced_tokens": project.spent_unpriced_tokens,
+            "currency": "EUR",
+        },
         "last_event_id": str(last.id) if last else None,
     }
