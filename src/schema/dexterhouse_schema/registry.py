@@ -54,6 +54,11 @@ class RegistryPackage(StrictModel):
     repo: HttpUrl
     author_github: GithubUser
     versions: Annotated[list[PublishedVersion], Field(min_length=1)]
+    description: Annotated[str, StringConstraints(max_length=200)] = Field(
+        default="", description="Copied into the index; must equal the latest manifest."
+    )
+    tags: Annotated[list[Tag], Field(max_length=10)] = Field(default_factory=list)
+    risk: Risk = Field(default="low", description="Index `risk`; for tools >= max permission.")
     verified: bool = False
     deprecated: bool = False
     replaced_by: PackageName | None = None
@@ -109,6 +114,8 @@ class IndexEntry(StrictModel):
     versions: Annotated[list[IndexVersion], Field(min_length=1)]
     repo: HttpUrl
     risk: Risk = Field(description="Highest permission risk (tools) or of the required tools.")
+    deprecated: bool = Field(default=False, description="Emitted only when true.")
+    replaced_by: PackageName | None = None
 
     @model_validator(mode="after")
     def _check(self) -> "IndexEntry":

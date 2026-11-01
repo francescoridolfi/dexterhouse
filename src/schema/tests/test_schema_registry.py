@@ -89,3 +89,21 @@ def test_registry_update_rejects_older_new_version() -> None:
     data["versions"].append(old.model_dump(mode="json")["versions"][1])
     new = RegistryPackage.model_validate(data)
     assert check_registry_update(old, new) == ["new version 1.2.5 must be greater than 1.3.0"]
+
+
+def test_index_and_entry_optional_fields() -> None:
+    package = RegistryPackage.model_validate(
+        {**PACKAGE, "description": "OWASP review", "tags": ["security"], "risk": "medium"}
+    )
+    assert (package.description, package.tags, package.risk) == (
+        "OWASP review",
+        ["security"],
+        "medium",
+    )
+    assert RegistryPackage.model_validate(PACKAGE).risk == "low"
+    assert_invalid(RegistryPackage, {**PACKAGE, "tags": ["Not A Tag"]}, "pattern")
+    entry = patched(INDEX, {"packages.0.deprecated": True, "packages.0.replaced_by": "other-pkg"})
+    index = RegistryIndex.model_validate(entry)
+    assert index.packages[0].deprecated
+    assert index.packages[0].replaced_by == "other-pkg"
+    assert RegistryIndex.model_validate(INDEX).packages[0].deprecated is False
