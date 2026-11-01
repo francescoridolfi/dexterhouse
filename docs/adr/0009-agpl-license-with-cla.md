@@ -19,3 +19,5 @@ The project is open source, but the project owner wants to keep the exclusive op
 − Some companies avoid AGPL even for internal use: the docs must explain that internal use imposes no obligations.
 − The CLA adds friction for contributors (CLA-assistant bot on GitHub).
 − Action: replace `LICENSE`, add SPDX headers and `CLA.md`.
+
+> Implementation note: done. `LICENSE` is AGPL-3.0, every source file has an SPDX header and `CLA.md` is at the root; the CLA text awaits legal review before the first external contribution.

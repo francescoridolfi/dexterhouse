@@ -69,6 +69,7 @@ class Env(BaseSettings):
     API_RATE_LOGIN: str = "10/min"
     API_TRUSTED_PROXIES: int = Field(default=1, ge=0)
     WS_CONNECTIONS_PER_PROJECT: int = Field(default=1, ge=1)
+    COOKIE_SECURE: bool = True
 
     def secret_key(self) -> str:
         """SECRET_KEY from env, else from SECRET_KEY_FILE."""
