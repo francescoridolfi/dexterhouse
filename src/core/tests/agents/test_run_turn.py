@@ -66,7 +66,7 @@ def test_full_turn_through_the_celery_task(
     assert manifest["profile"] == "balanced"
     assert manifest["cap"] == 60_000
     assert manifest["sections"]["artifacts"][0]["sections"] == "whole"
-    assert manifest["skills"] == ["brief-reading"]
+    assert manifest["skills"] == ["brief-reading", "markdown-artifacts"]  # package, then shared
     assert "echo.say" in manifest["tools"]
     assert "workspace.read" not in manifest["tools"]  # runner tool: not reachable yet
     assert turn.input_tokens > 0
