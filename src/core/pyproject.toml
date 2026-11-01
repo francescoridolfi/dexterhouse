@@ -36,6 +36,7 @@ dependencies = [
 ]
 
 [project.scripts]
+dexterhouse = "dexterhouse.cli.main:app"
 dexterhouse-manage = "dexterhouse.manage:main"
 dexterhouse-mcp-bridge = "dexterhouse.apps.gateway.bridge:main"
 
