@@ -64,6 +64,11 @@ class Env(BaseSettings):
     PACKAGES_ALLOW_LOCAL: bool = False
     PACKAGES_GIT_MIRRORS: dict[str, str] = Field(default_factory=dict)  # JSON {prefix: mirror}
     MARKETPLACE_RAW_URL: str = ""
+    API_RATE_CLIENT: str = "600/min"
+    API_RATE_ANON: str = "60/min"
+    API_RATE_LOGIN: str = "10/min"
+    API_TRUSTED_PROXIES: int = Field(default=1, ge=0)
+    WS_CONNECTIONS_PER_PROJECT: int = Field(default=1, ge=1)
 
     def secret_key(self) -> str:
         """SECRET_KEY from env, else from SECRET_KEY_FILE."""

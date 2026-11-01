@@ -18,6 +18,7 @@ from rest_framework.response import Response
 from dexterhouse.apps.accounts.models import Membership, Organization, Role, Scope, User
 from dexterhouse.common.api import ApiView
 from dexterhouse.common.errors import DomainError
+from dexterhouse.common.throttling import AnonRateThrottle, LoginRateThrottle
 
 READ = (Role.VIEWER, Scope.PROJECTS_READ)
 OWNER = (Role.OWNER, Scope.PROJECTS_WRITE)
@@ -75,6 +76,7 @@ class CsrfView(ApiView):
 class LoginView(ApiView):
     authentication_classes = ()
     permission_classes = (AllowAny,)
+    throttle_classes = (AnonRateThrottle, LoginRateThrottle)
 
     def post(self, request: Request) -> Response:
         body = LoginInput(data=request.data)

@@ -101,9 +101,31 @@ REST_FRAMEWORK = {
         "dexterhouse.apps.accounts.authentication.ApiTokenAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
+    "DEFAULT_THROTTLE_CLASSES": [
+        "dexterhouse.common.throttling.ClientRateThrottle",
+        "dexterhouse.common.throttling.AnonRateThrottle",
+    ],
 }
+# Rate limits (T7, T16): per token or user, per anonymous IP, login attempts per IP.
+# API_TRUSTED_PROXIES = reverse proxies in front of web (nginx; 2 behind Caddy in prod).
+API_THROTTLE_RATES: dict[str, str | None] = {
+    "client": ENV.API_RATE_CLIENT or None,
+    "anon": ENV.API_RATE_ANON or None,
+    "login": ENV.API_RATE_LOGIN or None,
+}
+API_TRUSTED_PROXIES = ENV.API_TRUSTED_PROXIES
+# WebSocket connections per project per client (session or token); 4429 beyond.
+WS_CONNECTIONS_PER_PROJECT = ENV.WS_CONNECTIONS_PER_PROJECT
 
 REDIS_URL = ENV.REDIS_URL
+# Shared by every web worker: rate-limit counters, idempotency records.
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": ENV.REDIS_URL,
+        "KEY_PREFIX": "dh:cache",
+    }
+}
 CELERY_BROKER_URL = ENV.REDIS_URL
 # Runner results (E-05) come back through Redis; the core's own tasks store none.
 CELERY_RESULT_BACKEND = ENV.REDIS_URL

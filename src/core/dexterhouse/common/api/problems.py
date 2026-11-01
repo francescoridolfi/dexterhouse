@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """RFC 9457 `application/problem+json` for every API error (contracts/api/README.md)."""
 
+import math
 from typing import Any
 
 from django.http import Http404
@@ -77,6 +78,17 @@ def problem_exception_handler(exc: Exception, context: dict[str, Any]) -> Respon
             instance=instance,
             errors=flatten_errors(exc.detail),
         )
+    if isinstance(exc, exceptions.Throttled):
+        response = problem(
+            status=429,
+            slug="rate-limited",
+            title="Too many requests",
+            detail=str(exc.detail),
+            instance=instance,
+        )
+        if exc.wait is not None:
+            response["Retry-After"] = str(max(1, math.ceil(exc.wait)))
+        return response
     if isinstance(exc, exceptions.APIException):
         response = problem(
             status=exc.status_code,
