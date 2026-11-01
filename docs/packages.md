@@ -54,3 +54,18 @@ Admins install with `POST /api/v1/packages` (`{"source": "git+https://…@v1.2.0
 upgrading a package never changes a running project: its agents stay on the version they
 were hired with until the project ends. A package used by an active project cannot be
 removed.
+
+## Install telemetry (opt-in)
+
+Off by default. When an organization owner sets `"telemetry": true` in the organization
+settings (`PATCH /api/v1/organization` with `{"settings": {"telemetry": true}}`) and
+`MARKETPLACE_URL` is set, each successful install of a registry package by that
+organization sends `{package, version, core_version, instance_hash}` to
+`{MARKETPLACE_URL}/api/v1/installs`. Nothing else is sent: no IP address is stored by the
+marketplace, no user or project data leaves the core. `instance_hash` is
+`sha256(installation id + "YYYY-MM")`; the installation id is random, kept in
+`PACKAGES_DIR/.instance/installation_id` and never sent, so the hash changes every month
+and installs cannot be linked across months. Local, built-in and global (CLI without
+`--org`) installs are never reported; a failed report is only logged.
+
+To publish your own packages, see [authors.md](authors.md).
