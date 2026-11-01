@@ -6,14 +6,24 @@ import pytest
 from channels.db import database_sync_to_async
 from channels.testing import WebsocketCommunicator
 
+from dexterhouse.apps.accounts.models import Membership, Organization
 from dexterhouse.apps.accounts.services.tokens import create_token
 from dexterhouse.apps.events.auth import OriginValidatorAllowingNonBrowsers
 from dexterhouse.apps.events.consumers import ProjectEventsConsumer
 from dexterhouse.apps.events.schemas import Actor
-from dexterhouse.apps.events.services import publisher, replay
+from dexterhouse.apps.events.services import publisher, replay, streams
+from dexterhouse.apps.projects.services.projects import create_project
 from dexterhouse.asgi import websocket_application
 
 pytestmark = pytest.mark.django_db(transaction=True)
+
+
+@pytest.fixture
+def project_id(organization, user):
+    """A real project (access is checked per project); its stream is deleted afterwards."""
+    project = create_project(organization, user, {"name": "WS", "brief": "b", "budget": "1"})
+    yield project.id
+    streams.get_client().delete(streams.stream_key(project.id))
 
 
 @pytest.fixture
@@ -59,6 +69,9 @@ async def test_snapshot_live_events_speaking_and_ping(organization, project_id, 
     snapshot = await communicator.receive_json_from()
     assert snapshot["type"] == "snapshot"
     assert snapshot["last_event_id"] == str(first.id)
+    assert snapshot["project"]["id"] == str(project_id)
+    assert snapshot["project"]["status"] == "draft"
+    assert {a["role"] for a in snapshot["agents"]} >= {"analyst", "developer"}
 
     second = await database_sync_to_async(emit)(organization, project_id, "design")
     message = await communicator.receive_json_from(timeout=5)
@@ -115,11 +128,25 @@ async def test_heartbeat_is_periodic(project_id, token, monkeypatch):
     await asyncio.sleep(0)
 
 
-def test_session_user_needs_membership(user, django_user_model):
+def test_session_user_needs_membership_of_the_project_org(user, project_id, django_user_model):
     outsider = django_user_model.objects.create_user(username="eve")
-    assert replay.can_read_events(user, None) is True
-    assert replay.can_read_events(outsider, None) is False
-    assert replay.can_read_events(None, None) is False
+    assert replay.access(user, None, project_id) == "ok"
+    assert replay.access(outsider, None, project_id) == "forbidden"
+    assert replay.access(None, None, project_id) == "unauthorized"
+    assert replay.access(user, None, uuid.uuid4()) == "not_found"
+
+
+def test_token_of_another_organization_is_forbidden(user, project_id):
+    other = Organization.objects.create(slug="other", name="Other")
+    Membership.objects.create(user=user, organization=other, role="owner")
+    token, _ = create_token(organization=other, user=user, name="x", scopes=["events:read"])
+    assert replay.access(user, token, project_id) == "forbidden"
+
+
+async def test_unknown_project_closes_with_4404(token):
+    communicator = await connect(uuid.uuid4(), token)
+    assert (await communicator.receive_json_from())["code"] == "not_found"
+    assert (await communicator.receive_output())["code"] == 4404
 
 
 def test_resync_limit_requests_snapshot(organization, project_id, monkeypatch):

@@ -21,7 +21,7 @@ logger = structlog.get_logger(__name__)
 HEARTBEAT_S = 25.0
 READ_BLOCK_MS = 5_000
 SEEN_IDS = 5_000
-CLOSE_UNAUTHORIZED = 4401
+CLOSE_CODES = {"unauthorized": 4401, "forbidden": 4403, "not_found": 4404}
 SPEAKING = "agent.speaking"
 
 
@@ -36,12 +36,13 @@ class ProjectEventsConsumer(AsyncJsonWebsocketConsumer):
         self.seen: deque[str] = deque(maxlen=SEEN_IDS)
         self.tasks: list[asyncio.Task[None]] = []
         await self.accept()
-        allowed = await database_sync_to_async(replay.can_read_events)(
-            self.scope.get("user"), self.scope.get("api_token")
+        verdict = await database_sync_to_async(replay.access)(
+            self.scope.get("user"), self.scope.get("api_token"), self.project_id
         )
-        if not allowed:
-            await self.send_json({"type": "error", "code": "forbidden", "detail": "unauthorized"})
-            await self.close(code=CLOSE_UNAUTHORIZED)
+        if verdict != "ok":
+            code = "not_found" if verdict == "not_found" else "forbidden"
+            await self.send_json({"type": "error", "code": code, "detail": verdict})
+            await self.close(code=CLOSE_CODES[verdict])
             return
         self.redis = streams.get_async_client()
         start_id = await self._latest_stream_id()

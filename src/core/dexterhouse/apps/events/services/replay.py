@@ -2,7 +2,7 @@
 """Read side for WebSocket clients: access check, snapshot and resync from Postgres."""
 
 import uuid
-from typing import Any
+from typing import Any, Literal
 
 from django.contrib.auth.models import AnonymousUser
 
@@ -10,36 +10,36 @@ from dexterhouse.apps.accounts.models import ApiToken, Membership, Scope, User
 from dexterhouse.apps.events.models import Event
 from dexterhouse.apps.events.schemas import EventEnvelope
 from dexterhouse.apps.events.services.publisher import to_envelope
+from dexterhouse.apps.projects.models import Project
+from dexterhouse.apps.projects.services.snapshot import build_snapshot
 
 RESYNC_LIMIT = 5_000
 
 
-def can_read_events(user: User | AnonymousUser | None, token: ApiToken | None) -> bool:
-    """Tokens need `events:read`; session users need a membership.
+def access(
+    user: User | AnonymousUser | None, token: ApiToken | None, project_id: uuid.UUID
+) -> Literal["ok", "unauthorized", "forbidden", "not_found"]:
+    """Who may follow `/ws/projects/{id}`: members of the project's organization.
 
-    The per-project organization check arrives with the `projects` app (Sprint 1).
+    Tokens also need `events:read` and must belong to that organization.
     """
     if user is None or not user.is_authenticated:
-        return False
+        return "unauthorized"
+    project = Project.objects.filter(pk=project_id).only("organization_id").first()
+    if project is None:
+        return "not_found"
     if token is not None:
-        return token.has_scope(Scope.EVENTS_READ)
-    return Membership.objects.filter(user=user).exists()
+        ok = token.has_scope(Scope.EVENTS_READ) and token.organization_id == project.organization_id
+        return "ok" if ok else "forbidden"
+    member = Membership.objects.filter(user=user, organization_id=project.organization_id)
+    return "ok" if member.exists() else "forbidden"
 
 
 def snapshot(project_id: uuid.UUID) -> dict[str, Any]:
-    """Full state for a new client; in Sprint 0 only `last_event_id` is real."""
-    last = Event.objects.filter(project_id=project_id).order_by("-created_at", "-id").first()
-    return {
-        "type": "snapshot",
-        "project": {"id": str(project_id)},
-        "phases": [],
-        "tasks": [],
-        "gates_open": [],
-        "agents": [],
-        "workspace": None,
-        "budget": None,
-        "last_event_id": str(last.id) if last else None,
-    }
+    """Full state for a new client (same payload as `GET /projects/{id}/snapshot`)."""
+    return build_snapshot(
+        Project.objects.select_related("organization", "created_by").get(pk=project_id)
+    )
 
 
 def events_since(project_id: uuid.UUID, since_event_id: uuid.UUID) -> list[EventEnvelope] | None:
