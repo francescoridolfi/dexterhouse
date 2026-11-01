@@ -1,0 +1,3 @@
+# The workspace MCP server's own venv (/opt/dexterhouse), never the project's environment.
+mcp==2.3.0
+detect-secrets==1.5.0
