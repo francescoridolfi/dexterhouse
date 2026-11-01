@@ -1,0 +1,10 @@
+# Invoicing for freelancers, supervised with a review round and a hired specialist.
+name: QuickBill
+execution_mode: supervised
+script:
+  hire: true
+  tasks: 4
+  verdicts: { "reviewer:T-02": [request_changes, approve], "tester:T-03": [fail, pass] }
+brief: >-
+  Freelancers create clients, issue numbered invoices with VAT, export them as PDF and mark
+  them paid. A dashboard shows unpaid invoices by due date. Italian and English UI.

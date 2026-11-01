@@ -1,0 +1,7 @@
+# A lending library run by volunteers, autonomous: assumptions instead of questions.
+name: LibroShelf
+execution_mode: autonomous
+brief: >-
+  A small neighbourhood library lends books to registered readers. Volunteers add books,
+  register readers, record loans and returns, and see overdue loans. Readers search the
+  catalogue and reserve a book that is on loan; they get an email when it comes back.
