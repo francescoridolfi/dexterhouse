@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Smoke (testing.md): projects list → project page → gate decisions, against the real core.
-// The stack runs the default turn runner, so no real LLM provider is called.
+// Smoke (testing.md): projects list → project page → gate decisions, against the real core
+// with the built-in agents on the gateway's `fake` provider (the stack must run with
+// GATEWAY_FAKE_RESPONDER=dexterhouse.apps.agents.demo.respond): no real LLM is called.
 import { type Page, expect, test } from "@playwright/test";
 
 const USER = process.env.E2E_USER ?? "admin";
@@ -14,10 +15,24 @@ async function login(page: Page) {
   await expect(page.getByRole("heading", { name: "Projects" })).toBeVisible();
 }
 
+/** What an admin does in Settings → Model profiles: every chat profile on `fake`. */
+async function useFakeProvider(page: Page) {
+  const cookies = await page.context().cookies();
+  const csrf = cookies.find((c) => c.name === "csrftoken")?.value ?? "";
+  for (const profile of ["strong", "balanced", "fast"]) {
+    const response = await page.request.put(`/api/v1/model-profiles/${profile}`, {
+      headers: { "X-CSRFToken": csrf },
+      data: { provider: "fake", model: "fake-model", is_local: true },
+    });
+    expect(response.ok()).toBeTruthy();
+  }
+}
+
 test("create a project, follow it live and decide its gates", async ({ page }) => {
   test.skip(!PASSWORD, "E2E_PASSWORD is not set");
   const name = `Smoke ${Date.now()}`;
   await login(page);
+  await useFakeProvider(page);
 
   await page.getByRole("link", { name: "New project" }).first().click();
   await page.getByLabel("Name").fill(name);
@@ -33,8 +48,8 @@ test("create a project, follow it live and decide its gates", async ({ page }) =
   await expect(page.getByRole("meter", { name: "Budget used" })).toBeVisible();
   await expect(page.getByText("live", { exact: true })).toBeVisible();
 
-  // Back to the list: the project is there, with its open gate.
-  await expect(page.getByText(/Open gate/i)).toBeVisible({ timeout: 60_000 });
+  // Back to the list: the project is there; open it again from the list.
+  await expect(page.getByText(/Open gate/i)).toBeVisible({ timeout: 90_000 });
   await page.getByRole("link", { name: "Projects" }).first().click();
   const row = page.getByRole("link", { name: new RegExp(name) });
   await expect(row).toBeVisible();
@@ -47,19 +62,25 @@ test("create a project, follow it live and decide its gates", async ({ page }) =
   for (const group of await panel.getByRole("radiogroup").all()) {
     await group.getByRole("radio").first().check();
   }
+  for (const assume of await panel.getByRole("button", { name: "Use the assumption" }).all()) {
+    await assume.click();
+  }
   await panel.getByRole("button", { name: "Send answers" }).click();
   await expect(panel.getByText(/the agent resumes/)).toBeVisible();
   await panel.getByRole("button", { name: "Close" }).click();
 
   // Next gate: approval of the analysis, decided from the panel.
-  await expect(page.getByText(/Approval — /)).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByText(/Approval — /)).toBeVisible({ timeout: 90_000 });
   await page.getByRole("button", { name: "Open panel" }).click();
+  await expect(page.getByRole("dialog").getByRole("tab").first()).toBeVisible();
   await page.getByRole("dialog").getByRole("button", { name: "Approve", exact: true }).click();
   await expect(page.getByText(/moves to the next phase/)).toBeVisible();
   await page.getByRole("dialog").getByRole("button", { name: "Close" }).click();
 
-  // The pipeline moved on and the decision is in the live log.
+  // The decision is in the live log, and the turns were paid on the fake provider.
   await expect(page.getByText(/gate decided: approve by/).first()).toBeVisible();
+  await page.getByRole("tab", { name: "Costs" }).click();
+  await expect(page.getByText("fake/fake-model").first()).toBeVisible();
   await page.getByRole("tab", { name: "Log" }).click();
-  await expect(page.getByRole("heading", { name: "Event timeline" })).toBeVisible();
+  await expect(page.getByText("Event timeline")).toBeVisible();
 });

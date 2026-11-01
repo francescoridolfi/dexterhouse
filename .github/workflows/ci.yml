@@ -90,6 +90,8 @@ jobs:
       - name: Build images
         run: |
           cp .env.example .env
+          # The e2e smoke runs the built-in agents on the `fake` provider (no LLM).
+          sed -i 's#^GATEWAY_FAKE_RESPONDER=.*#GATEWAY_FAKE_RESPONDER=dexterhouse.apps.agents.demo.respond#' .env
           docker compose -f compose.yaml build
       - name: Smoke test the stack
         run: |

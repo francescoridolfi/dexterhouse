@@ -95,11 +95,8 @@ def test_team_and_turns(client, started, organization):
     )  # fmt: skip
     team = client.get(f"/api/v1/projects/{project.id}/agents").json()["results"]
     analyst = next(a for a in team if a["role"] == "analyst")
-    assert (analyst["turns_count"], analyst["spent"], analyst["placeholder"]) == (
-        1,
-        "0.250000",
-        True,
-    )
+    assert (analyst["turns_count"], analyst["spent"]) == (1, "0.250000")
+    assert analyst["placeholder"] is (not agent.package_path)
     detail = client.get(f"/api/v1/agents/{agent.id}").json()
     assert detail["turns"][0]["purpose"] == "analysis"
     turns = client.get(f"/api/v1/agents/{agent.id}/turns").json()["results"]
