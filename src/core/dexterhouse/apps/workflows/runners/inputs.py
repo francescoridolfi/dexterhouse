@@ -269,8 +269,26 @@ def _recruiter(request: TurnRequest, project_id: Any, *_: Any) -> list[str]:
     return [
         f"Current team: {_roster(project_id)}.",
         f"Execution mode {request.execution_mode}: {install}.",
+        _marketplace_line(),
         "Write team_proposal.json; task ids must come from the task board.",
     ]
+
+
+def _marketplace_line() -> str:
+    from dexterhouse.apps.packages.services import marketplace
+
+    state = marketplace.status()
+    registry = state["registry"]
+    if state["status"] == "unreachable":
+        reason = str(registry.get("error") or "no registry").splitlines()[0][:160]
+        return (
+            f"Marketplace unreachable ({reason}): declare "
+            "marketplace_status unreachable, propose nothing, the built-in team continues."
+        )
+    return (
+        f"Marketplace {state['status']} (source {state['source']}, "
+        f"{registry.get('packages', 0)} packages; ratings and installs are not published yet)."
+    )
 
 
 def _replan(request: TurnRequest, project_id: Any, *_: Any) -> list[str]:

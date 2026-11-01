@@ -13,7 +13,9 @@ commits it, and the tester runs the suite: the runner, git and the exit checks r
 
 - `ask_questions` (default True): the analyst asks when the step allows it;
 - `tasks` (default 3): tasks on the board, `T-01` is the scaffold;
-- `hire` (default False): the recruiter proposes `htmx-frontend-developer`;
+- `hire` (default False): when the marketplace has no candidate, the recruiter proposes the
+  pre-installed `htmx-frontend-developer` anyway (otherwise it searches the marketplace for
+  real, `demo.recruiter`);
 - `verdicts`: `{"reviewer:T-02": ["request_changes", "approve"], "tester:smoke": ["fail"]}`,
   indexed by task iteration (or step attempt outside loops); missing entries are positive.
 """
@@ -25,7 +27,7 @@ from typing import Any
 
 from django.conf import settings
 
-from dexterhouse.apps.agents.demo import content
+from dexterhouse.apps.agents.demo import content, recruiter
 from dexterhouse.apps.agents.models import AgentTurn
 from dexterhouse.apps.agents.schemas import TurnInputs
 from dexterhouse.apps.gateway.messages import CompletionRequest, ToolCallPart, ToolResultPart
@@ -95,11 +97,29 @@ def respond(request: CompletionRequest) -> FakeResponse:
         script=dict(getattr(settings, "AGENTS_DEMO_SCRIPT", {})),
         calls=_tool_results(request),
     )
+    if turn.kind == "recruiter":
+        return _recruiter_turn(turn, request)
     if not any(m.role == "assistant" for m in request.messages):
         calls = first_calls(turn)
         if calls:
             return FakeResponse(text="Let me check first.", tool_calls=calls)
     output = final_output(turn)
+    return FakeResponse(text="Done.\n" + json.dumps(output, ensure_ascii=False))
+
+
+def _recruiter_turn(turn: Turn, request: CompletionRequest) -> FakeResponse:
+    """Several rounds of tool calls (search, details, propose/install), then the output."""
+    results = {
+        p.call_id: p.content
+        for m in request.messages
+        for p in m.parts
+        if isinstance(p, ToolResultPart)
+    }
+    rounds = sum(1 for m in request.messages if m.role == "assistant")
+    calls = recruiter.next_calls(turn, results, rounds)
+    if calls:
+        return FakeResponse(text="Let me check the marketplace.", tool_calls=calls)
+    output = recruiter.output(turn, results)
     return FakeResponse(text="Done.\n" + json.dumps(output, ensure_ascii=False))
 
 
@@ -173,7 +193,6 @@ def final_output(turn: Turn) -> dict[str, Any]:
         "analyst": _analyst,
         "architect": _architect,
         "project_manager": _project_manager,
-        "recruiter": _recruiter,
         "developer": _developer,
         "reviewer": _reviewer,
         "tester": _tester,
@@ -321,17 +340,6 @@ def _project_manager(turn: Turn) -> dict[str, Any]:
     return _done(
         f"Task board with {len(board['tasks'])} tasks.",
         [{"kind": "task_board", "name": "task_board.json", "data": board}],
-    )
-
-
-def _recruiter(turn: Turn) -> dict[str, Any]:
-    data = content.team_proposal(
-        bool(turn.script.get("hire")),
-        turn.inputs.task_ids or [],
-        reachable="marketplace.search" in turn.tools,
-    )
-    return _done(
-        data["summary"], [{"kind": "team_proposal", "name": "team_proposal.json", "data": data}]
     )
 
 

@@ -352,6 +352,10 @@ def test_hire_enables_the_replan_step(started, user, settings, team_packages):
     assert [s.step for s in steps] == ["project_manager", "recruiter", "replan"]
     boards = Artifact.objects.filter(project=project, kind="task_board")
     assert sorted(boards.values_list("version", flat=True)) == [1, 2]
+    gate = Gate.objects.get(project=project, gate_id="approve_plan")
+    team = gate.payload["team"]
+    assert (team["marketplace_status"], team["installed"]) == ("reachable", [])
+    assert [p["name"] for p in team["proposals"]] == ["htmx-frontend-developer"]
 
 
 def test_failed_artifacts_exit_retries_then_escalates(started, user, monkeypatch):

@@ -62,6 +62,8 @@ class Env(BaseSettings):
     REGISTRY_INDEX_URL: str = ""
     MARKETPLACE_URL: str = ""
     PACKAGES_ALLOW_LOCAL: bool = False
+    PACKAGES_GIT_MIRRORS: dict[str, str] = Field(default_factory=dict)  # JSON {prefix: mirror}
+    MARKETPLACE_RAW_URL: str = ""
 
     def secret_key(self) -> str:
         """SECRET_KEY from env, else from SECRET_KEY_FILE."""

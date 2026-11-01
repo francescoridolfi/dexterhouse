@@ -1,0 +1,12 @@
+schema: 1
+kind: tool
+name: packages
+version: 0.1.0
+description: "Packages: installed packages, proposals and autonomous installs of the Recruiter (MCP server)"
+author:
+  name: "DexterHouse"
+  github: francescoridolfi
+license: AGPL-3.0-or-later
+compat:
+  core: ">=0.1,<2.0"
+tags: [packages, builtin]

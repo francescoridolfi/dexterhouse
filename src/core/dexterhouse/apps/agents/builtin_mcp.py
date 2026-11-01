@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """`dexterhouse-builtin`: the built-in MCP tools of a turn in a single process.
 
-The three built-in tool packages (`memory`, `project`, `skills`) declare the same command,
-so the agents runtime starts one stdio server per turn instead of one per package: the
-Django bootstrap of a server process costs more than a second, and a turn used to pay it
-up to three times. Each permission still maps to its own MCP tool name; the catalog of the
-tool packages decides what an agent may call.
+The built-in worker tool packages (`memory`, `project`, `skills`, `marketplace`,
+`packages`) declare the same command, so the agents runtime starts one stdio server per
+turn instead of one per package: the Django bootstrap of a server process costs more than
+a second, and a turn used to pay it once per package. Each permission still maps to its own
+MCP tool name; the catalog of the tool packages decides what an agent may call.
 
 Environment (from the `${project.*}` interpolations of the tool packages):
 `DH_PROJECT_ID`, `DH_ORGANIZATION_ID`, `DH_TURN_ID`, `DH_DATA_RESIDENCY` (default `any`).
@@ -25,12 +25,15 @@ def build_server(
     data_residency: str = "any",
 ) -> MCPServer:
     from dexterhouse.apps.memory.mcp_server import register_memory_tools
+    from dexterhouse.apps.packages.mcp_tools import register_package_tools
     from dexterhouse.apps.projects.mcp_server import register_project_tools
 
     server: MCPServer = MCPServer("dexterhouse-builtin", version="0.1.0")
     register_memory_tools(server, project_id, organization_id, data_residency)
     register_project_tools(server, project_id, turn_id, "project")
     register_project_tools(server, project_id, turn_id, "skills")
+    register_package_tools(server, project_id, organization_id, "marketplace")
+    register_package_tools(server, project_id, organization_id, "packages")
     return server
 
 

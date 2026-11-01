@@ -426,6 +426,23 @@ const gates = {
       "Il budget è esaurito: nessun agente può chiamare un modello. Alza il budget, poi riprendi.",
     budgetOpenProject: "Apri il progetto per alzarne il budget.",
     budgetFirst: "Prima alza il budget.",
+    team: {
+      title: "Specialisti proposti",
+      none: "Nessuno specialista proposto: lavora il team incluso.",
+      package: "Pacchetto",
+      tasks: "Task",
+      permissions: "Permessi",
+      trust: "Affidabilità",
+      reason: "Perché",
+      installed: "già installato",
+      verified: "verificato",
+      unverified: "non verificato",
+      risk: "rischio {{risk}}",
+      status: {
+        unreachable: "Il marketplace non era raggiungibile: prosegue il team incluso.",
+        degraded: "Il marketplace ha risposto dall'ultima copia salvata.",
+      },
+    },
     reason: {
       default: "Il team ha bisogno di una decisione umana.",
       task_exhausted: "Il task ha esaurito le iterazioni senza passare revisione e test.",

@@ -71,6 +71,7 @@ class GatePayload(BaseModel):
     round: int = 0
     produced_by: dict[str, Any] | None = None  # the turn that produced the artifacts
     details: dict[str, Any] = Field(default_factory=dict)  # escalation data (escalations.py)
+    team: dict[str, Any] | None = None  # the phase's team_proposal (proposals.gate_team)
 
 
 def process_of(run: ProcessRun) -> Process:

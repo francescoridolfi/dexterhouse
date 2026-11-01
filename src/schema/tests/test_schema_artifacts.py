@@ -116,6 +116,16 @@ def test_invalid_team_proposal(changes: dict[str, Any], match: str) -> None:
     invalid("team_proposal", changes, match)
 
 
+def test_team_proposal_metrics_may_be_unknown() -> None:
+    """No marketplace site in 1.0: rating and installs are null (or omitted)."""
+    proposal = {**EXAMPLES["team_proposal"]["proposals"][0], "rating": None, "installs": None}
+    data = {**EXAMPLES["team_proposal"], "proposals": [proposal]}
+    validated = validate_artifact("team_proposal", data)
+    assert (validated.proposals[0].rating, validated.proposals[0].installs) == (None, None)
+    del proposal["rating"], proposal["installs"]
+    assert validate_artifact("team_proposal", data).proposals[0].rating is None
+
+
 def test_team_proposal_tasks_with_context() -> None:
     validate_artifact(
         "team_proposal", EXAMPLES["team_proposal"], TurnContext(task_ids=frozenset({"T-07"}))

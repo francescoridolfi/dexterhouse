@@ -45,6 +45,18 @@ CORE_ENV = (
     "PRICES_FILE",
     "FX_EUR_PER_USD",
     "BUILTIN_DIR",
+    # registry and package store (marketplace.*, packages.*)
+    "PACKAGES_DIR",
+    "REGISTRY_INDEX_URL",
+    "PACKAGES_ALLOW_LOCAL",
+    "PACKAGES_GIT_MIRRORS",
+    "MARKETPLACE_URL",
+    "MARKETPLACE_RAW_URL",
+    # the same, for the processes started by end-to-end tests (settings/test.py)
+    "DH_TEST_PACKAGES_DIR",
+    "DH_TEST_REGISTRY_INDEX_URL",
+    "DH_TEST_PACKAGES_GIT_MIRRORS",
+    "DH_TEST_MARKETPLACE_RAW_URL",
 )
 _INTERPOLATION = re.compile(r"\$\{([a-z_.]+)\}")
 

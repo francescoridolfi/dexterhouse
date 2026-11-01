@@ -1,0 +1,12 @@
+schema: 1
+kind: tool
+name: marketplace
+version: 0.1.0
+description: "Marketplace: search the registry and read package details (MCP server)"
+author:
+  name: "DexterHouse"
+  github: francescoridolfi
+license: AGPL-3.0-or-later
+compat:
+  core: ">=0.1,<2.0"
+tags: [marketplace, builtin]

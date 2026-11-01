@@ -76,6 +76,30 @@ export interface GatePayload {
   attempts?: Attempt[];
   reason?: string | null;
   round?: number;
+  /** The Recruiter's team_proposal at the planning gate (E-08). */
+  team?: GateTeam | null;
+}
+
+export interface GateTeamProposal {
+  name: string;
+  version: string;
+  role: string;
+  reason: string;
+  for_tasks: string[];
+  permissions?: { id: string; risk: string }[];
+  risk: string;
+  verified: boolean;
+  rating?: number | null;
+  installs?: number | null;
+  author_github: string;
+}
+
+export interface GateTeam {
+  artifact_id: string;
+  marketplace_status: "reachable" | "unreachable" | "degraded" | null;
+  summary: string;
+  proposals: GateTeamProposal[];
+  installed: string[];
 }
 
 export interface Question {

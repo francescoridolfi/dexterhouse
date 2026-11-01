@@ -13,7 +13,7 @@ from dexterhouse.common.api import ApiView
 #: API areas not implemented yet; the SPA shows "coming soon" for them.
 FEATURES = {
     "packages": True,  # E-07: installed packages API
-    "marketplace": False,  # E-11
+    "marketplace": True,  # E-08: registry index proxy (search, details, status)
     "office_3d": False,  # E-09
     "organization_ws": False,
     "model_profile_test": False,

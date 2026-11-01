@@ -26,6 +26,8 @@ Every install is checked before anything is enabled:
   for an admin to accept the listed permissions.
 
 Installed files live in `PACKAGES_DIR` (default `/data/packages`, the `packages` volume).
+During planning the [Recruiter](recruiter.md) searches the same registry and proposes
+specialist agents at the `approve_plan` gate.
 
 ## Command line
 
