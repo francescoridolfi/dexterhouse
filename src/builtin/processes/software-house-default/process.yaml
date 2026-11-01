@@ -1,0 +1,48 @@
+schema: 1
+name: software-house-default
+version: 1.0.0
+rooms:
+  analysis: meeting_room
+  release: release_dock
+phases:
+  - id: analysis
+    agent: analyst
+    may_ask: true                       # may open `question` gates (supervised only)
+    produces: [requirements, user_stories]
+    exit: artifacts_present
+    gate: { id: approve_requirements, default: required }
+  - id: architecture
+    agent: architect
+    needs: [analysis]
+    produces: [architecture, adr, stack]   # `stack` is machine-readable (workspace, tests)
+    exit: artifacts_present
+    gate: { id: approve_architecture, default: required }
+  - id: planning
+    needs: [architecture]
+    steps:                              # sequential
+      - { agent: project_manager, produces: [task_board] }
+      - { agent: recruiter, produces: [team_proposal] }
+    exit: artifacts_present
+    gate: { id: approve_plan, default: required, on_approve: [install_proposed_packages, hire] }
+    after_gate:
+      - { agent: project_manager, step: replan, produces: [task_board], when: hired }
+  - id: implementation
+    needs: [planning]
+    workspace: true                     # the core asks the runner for a workspace from `stack`
+    type: loop                          # one task at a time, in topological order (CD-038)
+    over: task_board
+    steps: [developer, reviewer, tester]
+    max_iterations: 3
+    on_exhausted: escalate
+  - id: release
+    needs: [implementation]
+    steps:
+      - { agent: tester, step: integration_test, exit: tests_pass }
+      - { agent: tester, step: smoke, exit: command_ok, command: "${stack.run_command}" }
+      - { agent: project_manager, produces: [release_notes] }
+    gate: { id: approve_release, default: required, on_approve: [deliver], on_reject: reopen_implementation }
+  - id: retrospective
+    needs: [release]
+    agent: project_manager
+    produces: [retrospective]
+    exit: artifacts_present
