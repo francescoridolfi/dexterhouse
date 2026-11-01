@@ -1,0 +1,12 @@
+schema: 1
+kind: tool
+name: git
+version: 0.1.0
+description: "Git tools of the agents: status, diff, log, show, add, commit with detect-secrets (runs in the runner)"
+author:
+  name: "DexterHouse"
+  github: francescoridolfi
+license: AGPL-3.0-or-later
+compat:
+  core: ">=0.1,<2.0"
+tags: [git, builtin]

@@ -1,0 +1,12 @@
+schema: 1
+kind: tool
+name: workspace
+version: 0.1.0
+description: "Workspace tools: files, shell, tests and services inside the project's sandbox (runs in the runner)"
+author:
+  name: "DexterHouse"
+  github: francescoridolfi
+license: AGPL-3.0-or-later
+compat:
+  core: ">=0.1,<2.0"
+tags: [workspace, builtin]

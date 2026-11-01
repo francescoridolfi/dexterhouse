@@ -1,0 +1,49 @@
+# Built-in git tools of the agents (contracts/tools/git.md), served by the workspace's
+# `dexterhouse-workspace-mcp` like the `workspace` package. No push, merge, branch or remote:
+# those are system actions of the runner after a gate. `git.commit` refuses main, messages
+# that are not Conventional Commits and anything detect-secrets flags.
+schema: 1
+name: git
+transport: stdio
+runs_in: runner
+command: ["python", "-m", "dexterhouse_runner.workspace_mcp"]
+permissions:
+  - id: git.status
+    mcp_tool: git_status
+    description: "Changed and untracked files and the current branch."
+    risk: low
+  - id: git.diff
+    mcp_tool: git_diff
+    description: "Unified diff base...head (base='main', head='HEAD', path?, stat_only=false); over 64 KB it is saved as an artifact."
+    risk: low
+  - id: git.log
+    mcp_tool: git_log
+    description: "Commits with hash, author and message (max=20, path?)."
+    risk: low
+  - id: git.show
+    mcp_tool: git_show
+    description: "A file at a ref (ref, path) or a whole commit (ref)."
+    risk: low
+  - id: git.add
+    mcp_tool: git_add
+    description: "Stage paths (paths[])."
+    risk: medium
+  - id: git.commit
+    mcp_tool: git_commit
+    description: "Commit on the task branch (message in Conventional Commits, all=false); detect-secrets runs first and blocks secrets."
+    risk: medium
+  - id: git.checkout_file
+    mcp_tool: git_checkout_file
+    description: "Restore a file from a ref (path, ref='HEAD')."
+    risk: medium
+  - id: git.stash
+    mcp_tool: git_stash
+    description: "Stash the working tree changes (untracked included)."
+    risk: medium
+  - id: git.stash_pop
+    mcp_tool: git_stash_pop
+    description: "Restore the last stash."
+    risk: medium
+network: none
+hosts: []
+healthcheck: { timeout_s: 30 }

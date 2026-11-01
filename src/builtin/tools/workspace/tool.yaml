@@ -1,0 +1,57 @@
+# Built-in workspace tools (contracts/tools/workspace.md). `runs_in: runner`: the worker never
+# runs them; the runner starts `dexterhouse-workspace-mcp` inside the project's workspace
+# container (`docker exec -i`, uid 1000) and forwards each call (infra/runner_protocol.md).
+# The same server also serves the `git` package. Paths are relative to the workspace root.
+schema: 1
+name: workspace
+transport: stdio
+runs_in: runner
+command: ["python", "-m", "dexterhouse_runner.workspace_mcp"]
+permissions:
+  - id: workspace.list
+    mcp_tool: workspace_list
+    description: "Tree of the workspace with sizes (path='.', depth=2, include_hidden=false); skips .git, node_modules, .venv."
+    risk: low
+  - id: workspace.read
+    mcp_tool: workspace_read
+    description: "Read a file (64 KB at most; start_line/end_line for larger ones); returns content, total_lines, encoding."
+    risk: low
+  - id: workspace.search
+    mcp_tool: workspace_search
+    description: "Regex search (pattern, path='.', glob?, max_results=100): file, line and context of each match."
+    risk: low
+  - id: workspace.write
+    mcp_tool: workspace_write
+    description: "Create or overwrite a file (path, content, create_dirs=true); .git/ and paths outside the workspace are refused."
+    risk: medium
+  - id: workspace.edit
+    mcp_tool: workspace_edit
+    description: "Replace `old` with `new` in a file; `old` must occur exactly `occurrences` times (default 1)."
+    risk: medium
+  - id: workspace.delete
+    mcp_tool: workspace_delete
+    description: "Delete a file or directory."
+    risk: medium
+  - id: workspace.move
+    mcp_tool: workspace_move
+    description: "Move or rename a file (from, to); not idempotent."
+    risk: medium
+  - id: workspace.exec
+    mcp_tool: workspace_exec
+    description: "Run a shell command as uid 1000 (command, cwd='.', timeout_s=120, env? allowlisted keys); no TTY, output over 64 KB is saved as an artifact."
+    risk: medium
+  - id: workspace.run_tests
+    mcp_tool: workspace_run_tests
+    description: "Run the stack's test_command (scope all|path, path?, timeout_s=900) with a passed/failed/skipped summary and a report artifact."
+    risk: medium
+  - id: workspace.services
+    mcp_tool: workspace_services
+    description: "The stack's services (postgres, redis, mailpit) and whether they answer."
+    risk: low
+  - id: workspace.open_port
+    mcp_tool: workspace_open_port
+    description: "Internal URL of a port for smoke tests from workspace.exec; never exposed outside the sandbox."
+    risk: low
+network: none
+hosts: []
+healthcheck: { timeout_s: 30 }
