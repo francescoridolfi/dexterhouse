@@ -450,6 +450,19 @@ wheels = [
 ]
 
 [[package]]
+name = "detect-secrets"
+version = "1.5.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pyyaml" },
+    { name = "requests" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/69/67/382a863fff94eae5a0cf05542179169a1c49a4c8784a9480621e2066ca7d/detect_secrets-1.5.0.tar.gz", hash = "sha256:6bb46dcc553c10df51475641bb30fd69d25645cc12339e46c824c1e0c388898a", size = 97351, upload-time = "2024-05-06T17:46:19.721Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/4e/5e/4f5fe4b89fde1dc3ed0eb51bd4ce4c0bca406246673d370ea2ad0c58d747/detect_secrets-1.5.0-py3-none-any.whl", hash = "sha256:e24e7b9b5a35048c313e983f76c4bd09dad89f045ff059e354f9943bf45aa060", size = 120341, upload-time = "2024-05-06T17:46:16.628Z" },
+]
+
+[[package]]
 name = "dexterhouse"
 version = "0.1.0"
 source = { editable = "src/core" }
@@ -519,11 +532,31 @@ name = "dexterhouse-runner"
 version = "0.1.0"
 source = { editable = "src/runner" }
 dependencies = [
+    { name = "celery", extra = ["redis"] },
+    { name = "detect-secrets" },
     { name = "dexterhouse-schema" },
+    { name = "docker" },
+    { name = "mcp" },
+    { name = "prometheus-client" },
+    { name = "pydantic" },
+    { name = "pydantic-settings" },
+    { name = "redis" },
+    { name = "structlog" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "dexterhouse-schema", editable = "src/schema" }]
+requires-dist = [
+    { name = "celery", extras = ["redis"], specifier = ">=5.5,<6" },
+    { name = "detect-secrets", specifier = ">=1.5" },
+    { name = "dexterhouse-schema", editable = "src/schema" },
+    { name = "docker", specifier = ">=7.1" },
+    { name = "mcp", specifier = ">=2.3,<3" },
+    { name = "prometheus-client", specifier = ">=0.21" },
+    { name = "pydantic", specifier = ">=2.9" },
+    { name = "pydantic-settings", specifier = ">=2.6" },
+    { name = "redis", specifier = ">=5.2" },
+    { name = "structlog", specifier = ">=24.4" },
+]
 
 [[package]]
 name = "dexterhouse-schema"
@@ -644,6 +677,20 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/8d/b2/1cee76b188301f7d03169ca77fab2b3d3ec5d01b3469189f944af2d7f11a/djangorestframework-3.18.3.tar.gz", hash = "sha256:446a9b352e7eff630421ab3f2328bd2401b109a9470afa4a31189994911ed030", size = 923563, upload-time = "2026-10-06T21:33:51.521Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/c4/dd/de5f4543765bec94e036a5e9593a42f8fa7efec8de78eb56b9ca834385f3/djangorestframework-3.18.3-py3-none-any.whl", hash = "sha256:8544bb674846731b1e3c9b309236ee1dc412905a0aa725be2ec193ca950a7d12", size = 903986, upload-time = "2026-10-06T21:33:49.917Z" },
+]
+
+[[package]]
+name = "docker"
+version = "7.2.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pywin32", marker = "sys_platform == 'win32'" },
+    { name = "requests" },
+    { name = "urllib3" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/88/7f/731ff914b0255d3d065f45fd4e626d4b8c95dbcbaada049f337a6ac16410/docker-7.2.0.tar.gz", hash = "sha256:cebb93773d334f778e023a7ee352a8d6e13ab1bd3b863a4d4a59dec897df43ac", size = 118731, upload-time = "2026-07-09T14:53:46.39Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/75/23/529140fe1aab80fc6992f93a706deec709140a6397439139a054e1515c45/docker-7.2.0-py3-none-any.whl", hash = "sha256:a3f45fdeb9165e2d25d9a1d02ddf3bc70fb572cf5ebbf9b58558c22caf29b71f", size = 148775, upload-time = "2026-07-09T14:53:45.224Z" },
 ]
 
 [[package]]

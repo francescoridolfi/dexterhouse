@@ -1,0 +1,23 @@
+# syntax=docker/dockerfile:1
+# Workspace image `node` (stack.language: node|typescript): npm, pnpm (corepack), git,
+# detect-secrets and the workspace MCP server (Python only in its own venv).
+ARG BASE=node:22-bookworm-slim@sha256:4b150b48b4116e2a22f2c39cc27025fbf4f153e2078fd3b14d159fdb5c7279da
+FROM ${BASE}
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git make curl ca-certificates procps python3 python3-venv \
+    && corepack enable \
+    && userdel --remove node
+COPY docker/workspace/setup.sh docker/workspace/requirements.txt /tmp/dh-setup/
+COPY src/runner/dexterhouse_runner/__init__.py /tmp/dh-setup/dexterhouse_runner/__init__.py
+COPY src/runner/dexterhouse_runner/workspace_mcp /tmp/dh-setup/dexterhouse_runner/workspace_mcp
+RUN sh /tmp/dh-setup/setup.sh python3
+ENV HOME=/home/dh \
+    HTTP_PROXY=http://proxy:3128 HTTPS_PROXY=http://proxy:3128 \
+    http_proxy=http://proxy:3128 https_proxy=http://proxy:3128 \
+    NO_PROXY=localhost,127.0.0.1 no_proxy=localhost,127.0.0.1 \
+    PIP_INDEX_URL=https://pypi.org/simple npm_config_registry=https://registry.npmjs.org/ \
+    PYTHONDONTWRITEBYTECODE=1
+WORKDIR /workspace
+USER 1000:1000
+# The container lives; the runner works in it with `docker exec`.
+ENTRYPOINT ["sleep", "infinity"]

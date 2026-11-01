@@ -39,6 +39,7 @@ REASONS: dict[str, str] = {
     "tool_high_risk": "An agent asked for a high-risk tool",
     "turn_failed": "A turn failed three times",
     "security": "An agent turn was blocked for security violations",
+    "workspace_error": "The workspace could not be created",
 }
 #: Reasons whose waiting state is not `gate` (state_machines/project.md).
 WAITING_REASONS = {"budget_exceeded": "budget"}
@@ -138,6 +139,10 @@ def resolve(phase, row: PhaseRun, gate: Gate, decision: str, comment: str | None
     if decision == GateDecision.RETRY and reason == "tool_high_risk" and step_index is not None:
         row.current_step = step_index  # run the step again, now with the tool allowed
         common.save(row, "current_step")
+    if decision == GateDecision.RETRY and reason == "workspace_error":
+        from dexterhouse.apps.workspaces.services import retry as retry_workspace
+
+        retry_workspace(row.process_run.project)  # the engine waits for the new `ready`
     common.resume_phase(row)
     return "phase_resumed"
 

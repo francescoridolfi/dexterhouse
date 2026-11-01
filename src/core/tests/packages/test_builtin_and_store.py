@@ -55,7 +55,7 @@ def test_a_builtin_in_use_is_only_disabled(settings, tmp_path, project):
 @pytest.mark.django_db
 def test_management_command(settings, tmp_path, capsys):
     call_command("packages", "sync-builtin")
-    assert "12 unchanged" in capsys.readouterr().out
+    assert f"{len(builtin_folders())} unchanged" in capsys.readouterr().out
     call_command("packages", "check-compat")
     broken = tmp_path / "b" / "agents" / "broken"
     write_package(broken, name="broken")

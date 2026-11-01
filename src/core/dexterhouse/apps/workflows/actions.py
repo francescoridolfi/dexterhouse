@@ -1,26 +1,31 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """System actions (actor `system`): workspace, branches, merge, delivery, hiring, exit checks.
 
-Everything that needs the runner is a no-op here that only emits the catalogue events:
-E-05 (runner) replaces `workspace_create`, `branch_create`, `merge`, `deliver` and
-`check_exit`. `install_proposed_packages` (E-07) and `hire` (integration) are real.
+The runner actions (E-05) go through `dexterhouse.apps.workspaces`: the workspace is
+requested asynchronously (the engine waits while it is `pending`), branches, merges and
+exit checks are synchronous runner calls, `deliver` is a Celery task after the gate.
+`install_proposed_packages` (E-07) and `hire` (integration) are real.
 """
 
-import hashlib
-import uuid
+import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
 import structlog
+from django.db import transaction
 
 from dexterhouse.apps.agents.services.roster import hire_proposed
 from dexterhouse.apps.projects.models import Artifact, ArtifactKind, Project
 from dexterhouse.apps.projects.services.actors import emit
 from dexterhouse.apps.workflows.models import PhaseRun, Task
+from dexterhouse.apps.workspaces import events as workspace_events
+from dexterhouse.apps.workspaces import services as workspaces
+from dexterhouse.apps.workspaces.client import get_client
+from dexterhouse_schema.runner import BranchCreate, ExitCheck, Merge
 
 logger = structlog.get_logger(__name__)
-NOOP_DIGEST = "sha256:" + "0" * 64
+_STACK_VAR = re.compile(r"\$\{stack\.([a-z_]+)\}")
 
 
 @dataclass
@@ -30,77 +35,85 @@ class ActionResult:
     data: dict[str, Any] = field(default_factory=dict)
 
 
-def _fake_commit(*parts: object) -> str:
-    return hashlib.sha1(":".join(map(str, parts)).encode(), usedforsecurity=False).hexdigest()
-
-
 def workspace_create(project: Project, phase_run: PhaseRun) -> ActionResult:
-    """No-op (E-05): emits `workspace.requested` and `workspace.created` from `stack`."""
-    stack = project.stack
-    if not stack:
+    """Request the workspace from `stack`; the phase waits while it is pending."""
+    if not project.stack:
         return ActionResult(ok=False, detail="the project has no stack")
-    emit(
-        project,
-        "workspace.requested",
-        {
-            "project_id": project.id,
-            "stack": {k: stack[k] for k in ("language", "framework", "workspace_image")},
-        },
-    )
-    workspace_id = uuid.uuid5(project.id, "workspace")
-    emit(
-        project,
-        "workspace.created",
-        {
-            "workspace_id": workspace_id,
-            "image": stack["workspace_image"],
-            "digest": NOOP_DIGEST,
-            "services": stack.get("services", []),
-        },
-    )
-    return ActionResult(data={"workspace_id": str(workspace_id)})
+    workspace = workspaces.request(project)
+    return ActionResult(data={"workspace_id": str(workspace.id), "status": workspace.status})
+
+
+def workspace_pending(project: Project) -> bool:
+    """True while the project's workspace is requested or being created."""
+    return workspaces.pending(project.id)
 
 
 def branch_create(project: Project, task: Task) -> ActionResult:
-    """No-op (E-05): emits `branch.created`."""
+    """`git checkout -b task/T-xx main` in the workspace, then `branch.created`."""
+    workspace = workspaces.live(project.id)
+    if workspace is None:
+        logger.warning("workflows.branch_without_workspace", task_id=str(task.id))
+        return ActionResult(ok=False, detail="no live workspace")
+    result = get_client().call(
+        "runner.system.branch_create",
+        BranchCreate(workspace_id=workspace.id, task_id=task.id, branch=task.branch or ""),
+    )
+    if not result.ok:
+        logger.warning("workflows.branch_failed", task_id=str(task.id), error=str(result.error))
+        return ActionResult(ok=False, detail=result.error.detail if result.error else None)
     emit(project, "branch.created", {"task_id": task.id, "branch": task.branch})
-    return ActionResult()
+    return ActionResult(data=dict(result.data or {}))
 
 
 def merge(project: Project, task: Task) -> ActionResult:
-    """No-op (E-05): emits `branch.merged` with a placeholder commit."""
-    commit = _fake_commit(task.id, task.iteration)
+    """`--no-ff` merge of the task branch into `main`, then `branch.merged`.
+
+    A failed merge (conflict, a secret in uncommitted leftovers) is logged and leaves
+    `commit` empty: the task is done by the verdicts, the release shows what was merged.
+    """
+    workspace = workspaces.live(project.id)
+    if workspace is None or not task.branch:
+        return ActionResult(ok=False, detail="no live workspace", data={"commit": ""})
+    result = get_client().call(
+        "runner.system.merge",
+        Merge(
+            workspace_id=workspace.id,
+            task_id=task.id,
+            branch=task.branch,
+            message=f"merge({task.branch}): {task.title}"[:200],
+        ),
+    )
+    data = dict(result.data or {})
+    if not result.ok:
+        logger.warning("workflows.merge_failed", task_id=str(task.id), error=str(result.error))
+        return ActionResult(
+            ok=False, detail=result.error.detail if result.error else None, data={"commit": ""}
+        )
     emit(
         project,
         "branch.merged",
         {
             "task_id": task.id,
             "branch": task.branch,
-            "commit": commit,
-            "files_changed": 0,
-            "insertions": 0,
-            "deletions": 0,
+            "commit": str(data.get("commit", "")),
+            "files_changed": int(data.get("files_changed", 0)),
+            "insertions": int(data.get("insertions", 0)),
+            "deletions": int(data.get("deletions", 0)),
         },
     )
-    return ActionResult(data={"commit": commit})
+    return ActionResult(data={**data, "commit": str(data.get("commit", ""))})
 
 
 def deliver(project: Project, phase_run: PhaseRun) -> ActionResult:
-    """No-op (E-05): emits `release.delivered` when the project has a remote repository."""
+    """Queue the delivery (`workspaces.tasks.deliver`): push, pull request, `release.*`."""
     if not project.remote_repo_url:
         logger.info("workflows.deliver_skipped", project_id=str(project.id), reason="no remote")
         return ActionResult(detail="no remote repository")
-    emit(
-        project,
-        "release.delivered",
-        {
-            "mode": project.delivery_mode,
-            "remote_url": project.remote_repo_url,
-            "commit": _fake_commit(project.id, phase_run.round),
-            "pr_url": None,
-        },
-    )
-    return ActionResult()
+    from dexterhouse.apps.workspaces.tasks import deliver as deliver_task
+
+    project_id, phase_run_id = str(project.id), str(phase_run.id)
+    transaction.on_commit(lambda: deliver_task.delay(project_id, phase_run_id), robust=True)
+    return ActionResult(detail="delivery queued")
 
 
 def _proposals(project: Project) -> list[dict[str, Any]]:
@@ -170,13 +183,62 @@ def hire(project: Project, phase_run: PhaseRun) -> ActionResult:
     )
 
 
+def _interpolate(command: str, stack: dict[str, Any]) -> str:
+    return _STACK_VAR.sub(lambda m: str(stack.get(m[1]) or ""), command)
+
+
 def check_exit(project: Project, exit_kind: str, command: str | None) -> ActionResult:
-    """No-op (E-05): `tests_pass` / `command_ok` are reported ok without running anything."""
-    return ActionResult(detail=f"{exit_kind} not executed: the runner arrives with E-05")
+    """`tests_pass` runs `stack.test_command`, `command_ok` the step's command, in the workspace.
+
+    A server command (`${stack.run_command}` with `stack.ports`) is started and probed on
+    `http://127.0.0.1:<port><healthcheck_path>`. The output is a `file` artifact and the run
+    emits `test.run.started/completed` as `system`. A project without a workspace (a process
+    with no `workspace: true` phase) passes, as before E-05.
+    """
+    stack = dict(project.stack or {})
+    if workspaces.for_project(project.id) is None:
+        return ActionResult(detail=f"{exit_kind} not executed: the project has no workspace")
+    workspace = workspaces.live(project.id)
+    if exit_kind == "tests_pass":
+        run = str(stack.get("test_command") or "")
+    else:
+        run = _interpolate(command or "", stack)
+    if workspace is None or not run:
+        return ActionResult(
+            ok=False, detail="no live workspace" if workspace is None else "no command"
+        )
+    probe = None
+    if command and "${stack.run_command}" in command and stack.get("ports"):
+        probe = f"http://127.0.0.1:{stack['ports'][0]}{stack.get('healthcheck_path') or '/'}"
+    client = get_client()
+    if client.inline:  # no runner in this setup: nothing runs, as before E-05
+        return ActionResult(detail=f"{exit_kind} not executed: no runner")
+    scope = "integration" if exit_kind == "tests_pass" else "smoke"
+    emit(project, "test.run.started", {"task_id": None, "scope": scope, "command": run[:300]})
+    result = client.call(
+        "runner.system.exit_check",
+        ExitCheck(
+            workspace_id=workspace.id, kind=exit_kind, command=run, timeout_s=900, probe_url=probe
+        ),
+        timeout_s=900,
+    )
+    workspaces.touch(workspace)
+    report = workspace_events.output_artifact(
+        project,
+        f"test_runs/exit-{exit_kind}.log",
+        result.artifact_payload or str((result.data or {}).get("detail") or ""),
+        role="system",
+    )
+    workspace_events.run_completed(project, result, report, scope=scope)
+    data = result.data or {}
+    detail = data.get("detail") or (result.error.detail if result.error else None)
+    if not result.ok and not detail:
+        detail = f"exit code {result.exit_code}: {str(data.get('tail', ''))[-300:]}"
+    return ActionResult(ok=result.ok, detail=detail, data={"report_artifact": str(report.id)})
 
 
 def merge_all(project: Project, phase_run: PhaseRun) -> ActionResult:
-    """No-op (E-05): tasks are already merged one by one when they pass."""
+    """Nothing to do: each task is merged into `main` when it passes (`merge`)."""
     return ActionResult(detail="nothing to merge")
 
 

@@ -10,6 +10,7 @@ urlpatterns = [
     path("health/ready", health.ready, name="health-ready"),
     path("metrics", metrics.metrics, name="metrics"),
     path("admin/", admin.site.urls),
+    path("", include("dexterhouse.apps.workspaces.urls")),
     path("api/v1/", include("dexterhouse.apps.projects.urls")),
     path("api/v1/", include("dexterhouse.apps.workflows.urls")),
     path("api/v1/", include("dexterhouse.apps.accounts.urls")),

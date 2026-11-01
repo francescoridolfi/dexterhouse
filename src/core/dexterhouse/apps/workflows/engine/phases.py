@@ -67,6 +67,8 @@ def _step_phase(run: ProcessRun, phase: Phase, row: PhaseRun, needs: list[PhaseR
         save(row, "status")
         return True
     if row.status == PhaseStatus.RUNNING and not common.has_active_step(row):
+        if actions.workspace_pending(run.project):
+            return False  # resumed by the runner's `ready` callback (workspaces.services)
         return progress(phase, row)
     return False
 

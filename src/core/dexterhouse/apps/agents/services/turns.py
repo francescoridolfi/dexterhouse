@@ -57,6 +57,7 @@ from dexterhouse.apps.gateway.services.gateway import CallContext, generate
 from dexterhouse.apps.gateway.services.profiles import resolve_profile
 from dexterhouse.apps.memory.services.search import Hit, search
 from dexterhouse.apps.observability import tracing
+from dexterhouse.apps.workspaces.tools import RunnerTools
 from dexterhouse_schema.turn_output import TurnOutput
 
 logger = structlog.get_logger(__name__)
@@ -266,6 +267,7 @@ def run_turn(turn_id: uuid.UUID) -> TurnOutput:
             load_tool_catalog(organization_id=turn.organization_id),
             turn_tools(agent.allowed_tools, inputs.mode),
             policies=package.agent.args_policy,
+            runner=RunnerTools(turn, variables),
         )
         try:
             if turn.status == TurnStatus.QUEUED:

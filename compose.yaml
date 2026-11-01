@@ -80,6 +80,62 @@ services:
       retries: 3
       start_period: 15s
 
+  # The only service with the Docker socket (ADR-0006): it creates the workspaces on their own
+  # internal networks `dh_sandbox_<id>` and never lives on them. It holds only the runner key.
+  # On `egress` because `deliver` pushes from here (never from a workspace, ADR-0016).
+  runner:
+    image: ${DH_IMAGE_PREFIX:-ghcr.io/francescoridolfi}/dexterhouse-runner:${DH_VERSION:-0.1.0}
+    build: { context: ., dockerfile: docker/Dockerfile.runner }
+    command: ["dexterhouse-runner", "worker"]
+    env_file: .env
+    environment:
+      RUNNER_KEY_FILE: /run/dh-secrets/runner_key
+      CORE_URL: http://web:8000
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - dh_secrets:/run/dh-secrets:ro
+    depends_on:
+      redis: { condition: service_healthy }
+      proxy: { condition: service_healthy }
+    networks: [internal, egress]
+    healthcheck:
+      test: ["CMD", "dexterhouse-runner", "health"]
+      interval: 15s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  # Egress of the workspaces: Squid with the WORKSPACE_EGRESS_ALLOWLIST, attached by the runner
+  # to every sandbox network as `proxy` (CD-022).
+  proxy:
+    image: ubuntu/squid:6.10-24.10_beta@sha256:c9f5212b147a766529c7b026e2bebed37b998d33d0066b658596af5eba7cc65c
+    entrypoint: ["/bin/bash", "/etc/dh-proxy/entrypoint.sh"]
+    environment:
+      WORKSPACE_EGRESS_ALLOWLIST: ${WORKSPACE_EGRESS_ALLOWLIST:-}
+    volumes: ["./docker/proxy:/etc/dh-proxy:ro"]
+    networks: [egress]
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/3128"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+  # Workspace images, built only on demand: `docker compose --profile images build`.
+  workspace-python:
+    image: ${DH_IMAGE_PREFIX:-ghcr.io/francescoridolfi}/dexterhouse-workspace:python
+    build: { context: ., dockerfile: docker/Dockerfile.workspace-python }
+    profiles: [images]
+  workspace-node:
+    image: ${DH_IMAGE_PREFIX:-ghcr.io/francescoridolfi}/dexterhouse-workspace:node
+    build: { context: ., dockerfile: docker/Dockerfile.workspace-node }
+    profiles: [images]
+  workspace-full:
+    image: ${DH_IMAGE_PREFIX:-ghcr.io/francescoridolfi}/dexterhouse-workspace:full
+    build: { context: ., dockerfile: docker/Dockerfile.workspace-full }
+    profiles: [images]
+
   frontend:
     image: ${DH_IMAGE_PREFIX:-ghcr.io/francescoridolfi}/dexterhouse-frontend:${DH_VERSION:-0.1.0}
     build: { context: ., dockerfile: docker/Dockerfile.frontend }
@@ -123,6 +179,7 @@ services:
 networks:
   public: {}
   internal: { internal: true }
+  egress: {}
 
 volumes:
   pgdata: {}

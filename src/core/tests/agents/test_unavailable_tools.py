@@ -67,13 +67,13 @@ def test_unreachable_tools_are_left_out_and_reported(
     assert turn.status == "completed"
     assert turn.context_manifest["unavailable_tools"] == {
         "broken.ping": "server_unavailable",
-        "git.diff": "not_installed",
-        "workspace.read": "not_installed",
+        "git.diff": "workspace_not_ready",  # a runner tool: the project has no workspace
+        "workspace.read": "workspace_not_ready",
     }
     assert "broken.ping" not in turn.context_manifest["tools"]
     results = turn.messages[3]["parts"]
     assert "tool_unavailable: broken.ping (server_unavailable)" in results[0]["content"]
-    assert "tool_unavailable: git.diff (not_installed)" in results[1]["content"]
+    assert "tool_unavailable: git.diff (workspace_not_ready)" in results[1]["content"]
     assert not Event.objects.filter(type="security.violation").exists()
 
 
@@ -119,7 +119,7 @@ def test_tester_writes_only_test_files(organization, project, fake_profiles, too
     calls = {c.call_id: c for c in ToolCall.objects.filter(agent_turn=turn)}
     assert (calls["a"].status, calls["a"].denied_reason) == ("denied", "args_policy")
     assert (calls["d"].status, calls["d"].denied_reason) == ("denied", "args_policy")
-    assert calls["b"].status == calls["c"].status == "error"  # allowed, but no runner yet
+    assert calls["b"].status == calls["c"].status == "error"  # allowed, but no workspace
     assert "tool_unavailable" in calls["b"].result["content"]
     kinds = Event.objects.filter(type="security.violation").values_list("payload__kind", flat=True)
     assert list(kinds) == ["args_policy", "args_policy"]

@@ -9,7 +9,9 @@ web replica reports the same numbers. Series:
   `dh_llm_cost_eur_total`, `dh_llm_latency_seconds` (histogram, successful calls);
 - `dh_agent_turns_total{status}` (`rate(...[1m])*60` = turns per minute);
 - `dh_projects{status}`, `dh_gates_open{type}`, `dh_queue_length{queue}`;
-- `dh_workspaces_active` (0 until the runner epic E-05 adds workspaces).
+- `dh_workspaces_active` (workspaces `ready|busy|idle`), and from the runners' heartbeats
+  `dh_runner_up`, `dh_runner_heartbeat_age_seconds`, `dh_runner_exec_total`,
+  `dh_runner_exec_seconds_{sum,count}`, `dh_runner_errors_total`, `dh_runner_egress_denied_total`.
 """
 
 from collections.abc import Iterator
@@ -40,9 +42,56 @@ class DexterHouseCollector(Collector):
         yield from self._turns()
         yield from self._projects()
         yield self._queues()
+        yield from self._runner()
+
+    def _runner(self) -> Iterator[object]:
+        import time
+
+        from dexterhouse.apps.workspaces.client import runner_heartbeats
+        from dexterhouse.apps.workspaces.models import LIVE_STATUSES, Workspace
+
         workspaces = GaugeMetricFamily("dh_workspaces_active", "Active runner workspaces")
-        workspaces.add_metric([], 0)
+        workspaces.add_metric([], Workspace.objects.filter(status__in=LIVE_STATUSES).count())
         yield workspaces
+        beats = runner_heartbeats()
+        up = GaugeMetricFamily("dh_runner_up", "Runners with a heartbeat in the last 45 s")
+        up.add_metric([], len(beats))
+        yield up
+        age = GaugeMetricFamily(
+            "dh_runner_heartbeat_age_seconds", "Age of the heartbeat", labels=["runner"]
+        )
+        counters = {
+            "exec_total": CounterMetricFamily(
+                "dh_runner_exec", "Tool calls run in workspaces", labels=["runner"]
+            ),
+            "errors_total": CounterMetricFamily(
+                "dh_runner_errors", "Runner errors", labels=["runner"]
+            ),
+            "egress_denied_total": CounterMetricFamily(
+                "dh_runner_egress_denied",
+                "Workspace requests denied by the proxy",
+                labels=["runner"],
+            ),
+        }
+        sums = GaugeMetricFamily(
+            "dh_runner_exec_seconds_sum", "Seconds spent in tool calls", labels=["runner"]
+        )
+        counts = GaugeMetricFamily(
+            "dh_runner_exec_seconds_count", "Timed tool calls", labels=["runner"]
+        )
+        for runner_id, beat in beats.items():
+            age.add_metric(
+                [runner_id], max(time.time() - float(beat.get("sent_at", time.time())), 0.0)
+            )
+            values = beat.get("metrics") or {}
+            for key, family in counters.items():
+                family.add_metric([runner_id], float(values.get(key, 0)))
+            sums.add_metric([runner_id], float(values.get("exec_seconds_sum", 0)))
+            counts.add_metric([runner_id], float(values.get("exec_seconds_count", 0)))
+        yield age
+        yield from counters.values()
+        yield sums
+        yield counts
 
     def _llm(self) -> Iterator[object]:
         from dexterhouse.apps.gateway.models import LLMCall

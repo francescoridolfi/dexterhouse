@@ -5,7 +5,9 @@ The turn is found from the request metadata; its `TurnInputs` (what the workflow
 gave the agent) decide the output. The first LLM call of a turn uses the agent's tools the
 way its prompt asks (the analyst calls `project.ask` when the step allows questions, every
 role loads its main skill and reads memory or the board), so the built-in MCP servers run
-for real; the next call returns the TurnOutput JSON, valid for the step.
+for real; the next call returns the TurnOutput JSON, valid for the step. With a live
+workspace (E-05) the developer writes a small stdlib-only Python project for its task and
+commits it, and the tester runs the suite: the runner, git and the exit checks run for real.
 
 `settings.AGENTS_DEMO_SCRIPT` (all keys optional):
 
@@ -140,7 +142,27 @@ def first_calls(turn: Turn) -> list[FakeToolCall]:
         calls.append(FakeToolCall(id="memory", name="memory.search", args={"query": query}))
     elif "project.tasks" in turn.tools:
         calls.append(FakeToolCall(id="tasks", name="project.tasks", args={}))
-    return calls
+    return calls + workspace_calls(turn)
+
+
+def workspace_calls(turn: Turn) -> list[FakeToolCall]:
+    """The developer's files and commit, the tester's run, when the workspace tools exist."""
+    task = turn.inputs.task
+    if turn.kind == "developer" and task and {"workspace.write", "git.commit"} <= turn.tools:
+        calls = [
+            FakeToolCall(
+                id=f"write{n}", name="workspace.write", args={"path": path, "content": body}
+            )
+            for n, (path, body) in enumerate(content.code_files(task.external_id, task.title))
+        ]
+        message = f"feat({task.external_id}): {task.title.lower()}"[:72]
+        calls.append(
+            FakeToolCall(id="commit", name="git.commit", args={"message": message, "all": True})
+        )
+        return calls
+    if turn.kind == "tester" and "workspace.run_tests" in turn.tools:
+        return [FakeToolCall(id="tests", name="workspace.run_tests", args={"scope": "all"})]
+    return []
 
 
 # Final call: the TurnOutput ---------------------------------------------------------------

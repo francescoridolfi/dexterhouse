@@ -7,8 +7,10 @@ third refusal fails the turn (`permission`). Every call is logged under `<turn>:
 resumed turn gets the recorded outcome instead of running the tool twice (ADR-0013).
 
 A tool the agent may use but the core cannot reach (no tool package installed, a runner
-tool before E-05, a server that does not start) is left out of the turn's tool list with a
-warning and recorded in `unavailable`; a call to it gets `tool_unavailable`, not a refusal.
+tool without a live workspace, a server that does not start) is left out of the turn's tool
+list with a warning and recorded in `unavailable`; a call to it gets `tool_unavailable`, not
+a refusal. `runs_in: runner` tools go through `runner` (`workspaces.tools.RunnerTools`): the
+runner reaches the MCP server inside the project's workspace (E-05).
 Arguments are checked against the tool package's `args_policy` and the agent's own (CD-032).
 """
 
@@ -62,9 +64,11 @@ class ToolGateway:
         catalog: ToolCatalog,
         allowed: frozenset[str],
         policies: Mapping[str, dict[str, dict[str, Any]]] | None = None,
+        runner: Any = None,
     ) -> None:
         self.turn = turn
         self.pool = pool
+        self.runner = runner
         self.catalog = catalog
         self.allowed = allowed
         self.policies = dict(policies or {})
@@ -75,8 +79,9 @@ class ToolGateway:
     def specs(self) -> list[ToolSpec]:
         """Schemas of the allowed tools the core can reach (worker MCP servers).
 
-        The others are recorded in :attr:`unavailable` (`not_installed`, `runs_in_runner`,
-        `server_unavailable`, `missing_on_server`) and logged once: the turn goes on without.
+        The others are recorded in :attr:`unavailable` (`not_installed`, `runs_in_runner`
+        without a runner client, `workspace_not_ready`, `server_unavailable`,
+        `missing_on_server`) and logged once: the turn goes on without.
         """
         specs: list[ToolSpec] = []
         remote: dict[str, dict[str, RemoteTool] | None] = {}
@@ -86,12 +91,18 @@ class ToolGateway:
                 self.unavailable[permission_id] = "not_installed"
                 continue
             if binding.tool.runs_in != "worker":
-                self.unavailable[permission_id] = "runs_in_runner"  # the runner is E-05
-                continue
-            key = spec_key(server_spec(binding, self.pool.variables))
-            if key not in remote:
-                remote[key] = self._list_tools(binding)
-            listed = remote[key]
+                if self.runner is None:
+                    self.unavailable[permission_id] = "runs_in_runner"
+                    continue
+                listed = self.runner.list_tools(binding)
+                if listed is None:
+                    self.unavailable[permission_id] = "workspace_not_ready"
+                    continue
+            else:
+                key = spec_key(server_spec(binding, self.pool.variables))
+                if key not in remote:
+                    remote[key] = self._list_tools(binding)
+                listed = remote[key]
             tool = listed.get(binding.permission.mcp_tool) if listed is not None else None
             if tool is None:
                 self.unavailable[permission_id] = (
@@ -138,7 +149,8 @@ class ToolGateway:
         if violation:
             return self._deny(seq, key, call, Denial("args_policy", violation))
         binding = self.catalog.get(call.name)
-        if binding is None or binding.tool.runs_in != "worker" or call.name in self.unavailable:
+        on_runner = binding is not None and binding.tool.runs_in != "worker"
+        if binding is None or (on_runner and self.runner is None) or call.name in self.unavailable:
             reason = self.unavailable.get(call.name) or (
                 "not_installed" if binding is None else "runs_in_runner"
             )
@@ -171,7 +183,10 @@ class ToolGateway:
         )
         started = time.monotonic()
         try:
-            outcome = self.pool.call(binding, call.args)
+            if on_runner:
+                outcome = self.runner.call(binding, call.args, seq)
+            else:
+                outcome = self.pool.call(binding, call.args)
             content, is_error = outcome.content, outcome.is_error
         except (McpError, TimeoutError) as exc:
             content, is_error = f"tool_unavailable: {exc}", True

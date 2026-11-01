@@ -5,6 +5,12 @@ from pathlib import Path
 import pytest
 
 from dexterhouse.apps.accounts.models import Membership, Organization, Role, User
+from tests.live_runner import (  # noqa: F401 - session fixtures of the real runner (Docker)
+    docker_client,
+    egress_proxy,
+    live_runner,
+    runner_settings,
+)
 
 #: One minimal agent package per built-in role (the real ones are in `src/builtin/agents`).
 TEAM_PACKAGES = Path(__file__).parent / "fixtures" / "agent_packages"
@@ -180,3 +186,37 @@ def builtin_runtime(settings, organization, monkeypatch):
     settings.GATEWAY_FAKE_RESPONDER = "dexterhouse.apps.agents.demo.respond"
     settings.AGENTS_DEMO_SCRIPT = {}
     use_fake_profiles(organization)
+
+
+class FakeRunnerClient:
+    """Records the runner messages; answers from `results` (task -> ToolResult or callable)."""
+
+    inline = False
+
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, object]] = []
+        self.sent: list[tuple[str, object]] = []
+        self.results: dict[str, object] = {}
+
+    def call(self, task, message, timeout_s=None):
+        from dexterhouse_schema.runner import ToolResult
+
+        self.calls.append((task, message))
+        answer = self.results.get(task, ToolResult(ok=True, data={}))
+        return answer(message) if callable(answer) else answer
+
+    def send(self, task, message) -> None:
+        self.sent.append((task, message))
+
+    def tasks(self) -> list[str]:
+        return [t for t, _ in self.calls]
+
+
+@pytest.fixture
+def runner_client(monkeypatch) -> FakeRunnerClient:
+    """Replace the runner client (`settings.RUNNER_CLIENT`) by a recorder."""
+    from dexterhouse.apps.workspaces import client as client_module
+
+    fake = FakeRunnerClient()
+    monkeypatch.setattr(client_module, "import_string", lambda path: lambda: fake)
+    return fake

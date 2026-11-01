@@ -51,6 +51,13 @@ class Env(BaseSettings):
     NOTIFICATIONS_EMAIL: bool = False
     PUBLIC_URL: str = "http://localhost"
     GATEWAY_FAKE_RESPONDER: str = ""
+    RUNNER_KEY: str = ""
+    RUNNER_KEY_FILE: str = ""
+    DH_IMAGE_PREFIX: str = "ghcr.io/francescoridolfi"
+    WORKSPACE_CPUS: float = 2.0
+    WORKSPACE_MEM: str = "2g"
+    WORKSPACE_DISK: str = "5G"
+    WORKSPACE_IDLE_DESTROY_H: int = 24
     PACKAGES_DIR: str = "/data/packages"
     REGISTRY_INDEX_URL: str = ""
     PACKAGES_ALLOW_LOCAL: bool = False
@@ -62,6 +69,10 @@ class Env(BaseSettings):
     def fernet_key(self) -> str:
         """FERNET_KEY from env, else from FERNET_KEY_FILE."""
         return self.FERNET_KEY or read_secret_file(self.FERNET_KEY_FILE)
+
+    def runner_key(self) -> str:
+        """RUNNER_KEY from env, else from RUNNER_KEY_FILE (shared with the runner only)."""
+        return self.RUNNER_KEY or read_secret_file(self.RUNNER_KEY_FILE)
 
     def database_url(self) -> str:
         """DATABASE_URL with the password from DATABASE_PASSWORD_FILE when the URL has none."""
