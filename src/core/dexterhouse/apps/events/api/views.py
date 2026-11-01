@@ -24,6 +24,12 @@ class EventPage(CursorPage):
     max_page_size = 1_000
 
 
+class RecentEventPage(EventPage):
+    """`?order=desc`: newest first (the live log loads the latest page)."""
+
+    ordering = ("-created_at", "-id")
+
+
 def event_json(row: Event) -> dict[str, object]:
     return to_envelope(row).model_dump(mode="json")
 
@@ -38,7 +44,7 @@ def _when(name: str, value: str):
 
 
 class ProjectEventsView(ApiView):
-    """`?types=a,b&actor=<uuid|agent|user|system>&agent=<uuid>&phase=<id>&from=&to=`."""
+    """`?types=a,b&actor=<uuid|agent|user|system>&agent=<uuid>&phase=<id>&from=&to=&order=desc`."""
 
     def get(self, request: Request, project_id: uuid.UUID) -> Response:
         project = get_project(self.require(*READ), project_id)
@@ -59,7 +65,8 @@ class ProjectEventsView(ApiView):
             rows = rows.filter(created_at__gte=_when("from", value))
         if value := params.get("to"):
             rows = rows.filter(created_at__lte=_when("to", value))
-        return self.paginate(rows, event_json, page=EventPage)
+        page = RecentEventPage if params.get("order") == "desc" else EventPage
+        return self.paginate(rows, event_json, page=page)
 
 
 class ProjectEventsSummaryView(ApiView):

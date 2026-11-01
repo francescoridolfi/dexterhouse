@@ -70,6 +70,8 @@ def test_events_list_filters_and_summary(client, started):
     later = client.get(url, {"from": first.created_at.isoformat(), "limit": 1000}).json()
     assert len(later["results"]) == Event.objects.filter(project_id=project.id).count()
     assert client.get(url, {"to": "yesterday"}).status_code == 400
+    newest = client.get(url, {"order": "desc", "limit": 1}).json()["results"][0]
+    assert newest["id"] == str(Event.objects.filter(project_id=project.id).latest("created_at").id)
     summary = client.get(f"{url}/summary").json()
     assert summary["by_type"]["project.created"] == 1
     single = client.get(f"/api/v1/events/{first.id}").json()
