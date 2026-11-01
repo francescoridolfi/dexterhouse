@@ -1,0 +1,31 @@
+# Alerts of docs/operations.md; each one has a runbook section there.
+groups:
+  - name: dexterhouse
+    rules:
+      - alert: RunnerDown
+        expr: absent(dh_runner_up) or dh_runner_up == 0 or max(dh_runner_heartbeat_age_seconds) > 60
+        for: 1m
+        labels: { severity: critical }
+        annotations:
+          summary: No runner heartbeat for 60 s; workspaces cannot run tools.
+          runbook: https://github.com/francescoridolfi/dexterhouse/blob/main/docs/operations.md#runnerdown
+      - alert: QueueBacklog
+        expr: max by (queue) (dh_queue_length{queue=~"agents|runner"}) > 50
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: "Queue {{ $labels.queue }} above 50 tasks for 10 minutes."
+          runbook: https://github.com/francescoridolfi/dexterhouse/blob/main/docs/operations.md#queuebacklog
+      - alert: ProviderBreakerOpen
+        expr: dh_gateway_breaker_open == 1
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "LLM provider {{ $labels.provider }} failing for 5 minutes (breaker open)."
+          runbook: https://github.com/francescoridolfi/dexterhouse/blob/main/docs/operations.md#providerbreakeropen
+      - alert: SecurityViolations
+        expr: dh_security_violations_recent > 10
+        labels: { severity: critical }
+        annotations:
+          summary: More than 10 security.violation events in 10 minutes.
+          runbook: https://github.com/francescoridolfi/dexterhouse/blob/main/docs/operations.md#securityviolations

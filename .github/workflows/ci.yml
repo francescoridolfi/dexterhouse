@@ -207,6 +207,12 @@ jobs:
           # The e2e smoke runs the built-in agents on the `fake` provider (no LLM).
           sed -i 's#^GATEWAY_FAKE_RESPONDER=.*#GATEWAY_FAKE_RESPONDER=dexterhouse.apps.agents.demo.respond#' .env
           docker compose -f compose.yaml build
+      - name: Production overlay and alert rules are valid
+        run: |
+          CADDY_DOMAIN=dexterhouse.example docker compose -f compose.yaml -f compose.prod.yaml \
+            --profile monitoring config -q
+          docker run --rm --entrypoint promtool -v "$PWD/docker/prometheus:/etc/prometheus:ro" \
+            prom/prometheus:v3.15.1 check config /etc/prometheus/prometheus.yml
       - name: Trivy (CRITICAL with a fix fails, allowlist .trivyignore)
         run: |
           docker buildx build --load -f docker/Dockerfile.workspace-python \
