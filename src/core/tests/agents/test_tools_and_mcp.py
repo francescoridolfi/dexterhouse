@@ -12,6 +12,7 @@ from dexterhouse.apps.agents.services.mcp_client import (
     McpPool,
     interpolate,
     server_spec,
+    spec_key,
     to_outcome,
 )
 from dexterhouse.apps.agents.services.packages import (
@@ -61,8 +62,12 @@ def test_server_spec_for_builtin_and_installed_packages(tool_dirs, monkeypatch):
     }
     builtin = server_spec(catalog.get("memory.search"), variables)
     assert builtin.command == sys.executable
-    assert builtin.args == ["-m", "dexterhouse.apps.memory.mcp_server"]
+    assert builtin.args == ["-m", "dexterhouse.apps.agents.builtin_mcp"]
+    assert builtin.cwd is None
     assert builtin.env["DH_PROJECT_ID"] == "p1"
+    # the three built-in packages share one server process per turn
+    assert spec_key(builtin) == spec_key(server_spec(catalog.get("project.ask"), variables))
+    assert spec_key(builtin) == spec_key(server_spec(catalog.get("skills.read"), variables))
     assert builtin.env["DATABASE_URL"] == "postgres://db/x"
     installed = server_spec(catalog.get("echo.say"), variables)
     assert installed.env == {"ECHO_PROJECT": "p1"}  # no core secrets for third-party servers

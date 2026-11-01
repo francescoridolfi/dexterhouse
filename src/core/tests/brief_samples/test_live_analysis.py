@@ -32,6 +32,7 @@ from tests.brief_samples import structure
 from tests.workflows.conftest import drain, open_gate
 
 pytestmark = [
+    pytest.mark.slow,
     pytest.mark.skipif(not os.environ.get("DH_LIVE_AGENTS"), reason="DH_LIVE_AGENTS not set"),
     pytest.mark.django_db(transaction=True),
 ]

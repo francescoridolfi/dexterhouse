@@ -15,7 +15,11 @@ from tests.workflows.conftest import drain, event_types, events, open_gate
 from tests.workflows.test_e2e import STACK, create, decide
 from tests.workflows.test_e2e_agents import assert_turns_are_real
 
-pytestmark = [pytest.mark.django_db(transaction=True), pytest.mark.usefixtures("builtin_runtime")]
+pytestmark = [
+    pytest.mark.slow,  # whole process runs with the built-in agents, one MCP process per turn
+    pytest.mark.django_db(transaction=True),
+    pytest.mark.usefixtures("builtin_runtime"),
+]
 
 
 def test_agents_turn_runner_is_the_default():

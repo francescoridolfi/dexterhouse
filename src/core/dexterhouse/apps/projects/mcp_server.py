@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """`dexterhouse-project`: the built-in MCP server behind `project.*` and `skills.read`.
 
-Started by the agents runtime over stdio, one process per turn, with the project and the
-turn in `DH_PROJECT_ID` / `DH_TURN_ID` (interpolations of `src/builtin/tools/project` and
-`src/builtin/tools/skills`). The argument `project` or `skills` selects the tools to expose,
-since each tool package owns one permission prefix. Services: `projects.services.tools`.
+In production these tools run in the combined per-turn process
+(`dexterhouse.apps.agents.builtin_mcp`); this module keeps a standalone entry point with the
+project and the turn in `DH_PROJECT_ID` / `DH_TURN_ID`. The argument `project` or `skills`
+selects the group to expose. Services: `projects.services.tools`.
 """
 
 import os
@@ -18,11 +18,13 @@ from mcp.server.mcpserver import MCPServer
 GROUPS = ("project", "skills")
 
 
-def build_server(project_id: uuid.UUID, turn_id: uuid.UUID, group: str = "project") -> MCPServer:
+def register_project_tools(
+    server: MCPServer, project_id: uuid.UUID, turn_id: uuid.UUID, group: str = "project"
+) -> None:
+    """Add the `project_*` tools (group `project`) or `skills_read` (group `skills`)."""
     from dexterhouse.apps.projects.services import tools
 
     ctx = tools.ToolContext(project_id=project_id, turn_id=turn_id)
-    server: MCPServer = MCPServer(f"dexterhouse-{group}", version="0.1.0")
 
     def call(function: Any, *args: Any, **kwargs: Any) -> Any:
         return sync_to_async(function)(ctx, *args, **kwargs)
@@ -33,7 +35,7 @@ def build_server(project_id: uuid.UUID, turn_id: uuid.UUID, group: str = "projec
         async def skills_read(name: str, path: str = "SKILL.md") -> dict[str, Any]:
             return await call(tools.read_skill, name, path)
 
-        return server
+        return
 
     @server.tool(name="project_artifact", description="Read one artifact of the project.")
     async def project_artifact(
@@ -57,6 +59,10 @@ def build_server(project_id: uuid.UUID, turn_id: uuid.UUID, group: str = "projec
     async def project_ask(questions: list[dict[str, Any]]) -> dict[str, Any]:
         return await call(tools.ask, questions)
 
+
+def build_server(project_id: uuid.UUID, turn_id: uuid.UUID, group: str = "project") -> MCPServer:
+    server: MCPServer = MCPServer(f"dexterhouse-{group}", version="0.1.0")
+    register_project_tools(server, project_id, turn_id, group)
     return server
 
 

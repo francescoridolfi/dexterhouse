@@ -12,7 +12,11 @@ from tests.brief_samples import structure
 from tests.conftest import TEAM_PACKAGES
 from tests.workflows.conftest import drain, event_types, open_gate
 
-pytestmark = [pytest.mark.django_db(transaction=True), pytest.mark.usefixtures("builtin_runtime")]
+pytestmark = [
+    pytest.mark.slow,  # whole software-house-default run per brief, real runtime and MCP processes
+    pytest.mark.django_db(transaction=True),
+    pytest.mark.usefixtures("builtin_runtime"),
+]
 BRIEFS = sorted((Path(__file__).parent / "briefs").glob("*.yaml"))
 
 

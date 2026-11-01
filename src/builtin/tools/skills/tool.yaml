@@ -1,13 +1,15 @@
-# Built-in MCP server running in the worker (contracts/tools/memory.md): the same module as
-# the `project` tools, started with the `skills` group.
+# Built-in tools served by the combined per-turn process `dexterhouse.apps.agents.builtin_mcp`
+# (one stdio process per turn shared by memory, project and skills). `skills.read` reads the SKILL.md files of the agent's package.
 schema: 1
 name: skills
 transport: stdio
 runs_in: worker
-command: ["python", "-m", "dexterhouse.apps.projects.mcp_server", "skills"]
+command: ["python", "-m", "dexterhouse.apps.agents.builtin_mcp"]
 env:
   DH_PROJECT_ID: "${project.id}"
+  DH_ORGANIZATION_ID: "${project.organization_id}"
   DH_TURN_ID: "${project.turn_id}"
+  DH_DATA_RESIDENCY: "${project.data_residency}"
 permissions:
   - id: skills.read
     mcp_tool: skills_read

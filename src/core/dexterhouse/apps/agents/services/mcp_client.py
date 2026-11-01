@@ -1,8 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """MCP client for the tools of a turn (ADR-0003): stdio and Streamable HTTP servers.
 
-A `McpPool` lives for one turn: each tool package gets one connection, opened on first use
-and kept until the turn ends, so a stdio server process starts once per turn, not per call.
+A `McpPool` lives for one turn: each distinct server (command, arguments, environment and
+working directory) gets one connection, opened on first use and kept until the turn ends, so a
+stdio server process starts once per turn, not per call, and tool packages that declare the
+same server (the built-in `memory`, `project` and `skills`) share one process.
 The SDK is asyncio-based; the pool runs its own event loop in a thread and every
 connection is owned by a single task (anyio cancel scopes must exit where they entered).
 """
@@ -83,7 +85,20 @@ def server_spec(binding: ToolBinding, variables: Mapping[str, str]) -> StdioServ
     env = {name: interpolate(value, variables) for name, value in tool.env.items()}
     if binding.builtin:
         env |= {name: os.environ[name] for name in CORE_ENV if name in os.environ}
-    return StdioServerParameters(command=command[0], args=command[1:], env=env, cwd=binding.root)
+        cwd = None  # an installed module of the worker: no package directory needed
+    else:
+        cwd = binding.root
+    return StdioServerParameters(command=command[0], args=command[1:], env=env, cwd=cwd)
+
+
+def spec_key(spec: StdioServerParameters | str) -> str:
+    """Identity of a server: two bindings with the same key share one connection."""
+    if isinstance(spec, str):
+        return spec
+    return json.dumps(
+        {"command": spec.command, "args": spec.args, "env": spec.env, "cwd": str(spec.cwd or "")},
+        sort_keys=True,
+    )
 
 
 class _Connection:
@@ -161,11 +176,17 @@ class McpPool:
             raise TimeoutError(f"MCP call timed out after {timeout}s") from exc
 
     async def _connection(self, binding: ToolBinding) -> _Connection:
-        key = str(binding.root)
+        spec = server_spec(binding, self.variables)
+        key = spec_key(spec)
         connection = self._connections.get(key)
         if connection is None or connection.task.done():
-            connection = _Connection(server_spec(binding, self.variables), self.timeout_s)
+            connection = _Connection(spec, self.timeout_s)
             self._connections[key] = connection
+            logger.info(
+                "agents.mcp_server_started",
+                server=spec if isinstance(spec, str) else [spec.command, *spec.args],
+                tool=binding.tool.name,
+            )
         return connection
 
     def list_tools(self, binding: ToolBinding) -> list[RemoteTool]:
