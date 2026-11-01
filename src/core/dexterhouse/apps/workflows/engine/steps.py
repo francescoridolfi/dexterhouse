@@ -16,7 +16,7 @@ from django.db import transaction
 from django.utils import timezone
 from pydantic import ValidationError
 
-from dexterhouse.apps.projects.models import Note, ProjectStatus
+from dexterhouse.apps.projects.models import Artifact, Note, ProjectStatus
 from dexterhouse.apps.projects.services.actors import emit
 from dexterhouse.apps.projects.services.artifacts import ref, save_artifact
 from dexterhouse.apps.workflows.engine import common, loop, phases
@@ -198,20 +198,7 @@ def complete(step_run_id: uuid.UUID, attempt: int, output: TurnOutput) -> None:
 def _apply(run, row: PhaseRun, step_run: StepRun, output: TurnOutput) -> None:
     project = run.project
     phase = common.phase_of(run, row)
-    saved = [
-        save_artifact(
-            project,
-            kind=a.kind,
-            name=a.name,
-            content=getattr(a, "content", ""),
-            data=a.data.model_dump(mode="json") if hasattr(a, "data") else None,
-            phase_run_id=row.id,
-            turn_id=step_run.agent_turn_id,
-            role=step_run.role,
-        )
-        for a in output.artifacts
-    ]
-    refs = [ref(a) for a in saved]
+    refs = [ref(a) for a in _artifacts(project, row, step_run, output)]
     if step_run.task_id:
         loop.apply_step(phase, row, step_run, output, refs)
         return
@@ -226,6 +213,25 @@ def _apply(run, row: PhaseRun, step_run: StepRun, output: TurnOutput) -> None:
         },
     )
     phases.apply_step(phase, row, step_run.step_index, output)
+
+
+def _artifacts(project, row: PhaseRun, step_run: StepRun, output: TurnOutput) -> list[Artifact]:
+    """The output's artifacts: stored by the agent turn already, or saved now (fake runner)."""
+    if step_run.agent_turn_id is not None:
+        stored = Artifact.objects.filter(produced_by_turn_id=step_run.agent_turn_id)
+        return list(stored.order_by("created_at", "id"))
+    return [
+        save_artifact(
+            project,
+            kind=a.kind,
+            name=a.name,
+            content=getattr(a, "content", ""),
+            data=a.data.model_dump(mode="json") if hasattr(a, "data") else None,
+            phase_run_id=row.id,
+            role=step_run.role,
+        )
+        for a in output.artifacts
+    ]
 
 
 def record_failure(step_run_id: uuid.UUID, attempt: int | None, code: str, detail: str = ""):

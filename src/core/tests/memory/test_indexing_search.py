@@ -212,3 +212,25 @@ def test_main_requires_project(monkeypatch, capsys):
     monkeypatch.delenv("DH_PROJECT_ID", raising=False)
     assert main() == 1
     assert "DH_PROJECT_ID" in capsys.readouterr().err
+
+
+def test_index_task_skips_without_embedder_and_retries_transient_errors(
+    organization, project_id, monkeypatch
+):
+    from dexterhouse.apps.gateway.providers import ProviderError
+    from dexterhouse.apps.memory import tasks
+
+    args = (str(organization.id), str(project_id), str(uuid.uuid4()), 1, "brief")
+
+    def unavailable(*a, **k):
+        raise ProviderError("no embedder", code="configuration")
+
+    monkeypatch.setattr(tasks, "resolve_embedder", unavailable)
+    assert tasks.index_artifact_task(*args, content="x") == 0
+
+    def down(*a, **k):
+        raise ProviderError("down", code="provider", retryable=True)
+
+    monkeypatch.setattr(tasks, "resolve_embedder", down)
+    with pytest.raises(ProviderError):
+        tasks.index_artifact_task(*args, content="x")
