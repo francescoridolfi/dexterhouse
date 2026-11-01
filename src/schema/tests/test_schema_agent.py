@@ -66,3 +66,21 @@ def test_assumptions_is_an_accepted_output_schema() -> None:
 )
 def test_invalid(changes: dict[str, object], match: str) -> None:
     assert_invalid(Agent, patched(AGENT, changes), match)
+
+
+def test_args_policy_restricts_declared_tools() -> None:
+    policy = {"workspace.write": {"path": {"pattern": r"^tests/"}}}
+    data = patched(AGENT, {"tools": ["workspace.write"], "args_policy": policy})
+    assert Agent.model_validate(data).args_policy == policy
+
+
+@pytest.mark.parametrize(
+    ("policy", "match"),
+    [
+        ({"git.commit": {"message": {"maxLength": 72}}}, "not in tools"),
+        ({"workspace.read": {"path": {"format": "uri"}}}, "unsupported keyword"),
+        ({"workspace.read": {"path": {"pattern": "("}}}, "invalid pattern"),
+    ],
+)
+def test_invalid_args_policy(policy: dict, match: str) -> None:
+    assert_invalid(Agent, patched(AGENT, {"args_policy": policy}), match)
