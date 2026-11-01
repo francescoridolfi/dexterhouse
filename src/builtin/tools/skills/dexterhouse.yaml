@@ -1,0 +1,12 @@
+schema: 1
+kind: tool
+name: skills
+version: 0.1.0
+description: "Skills: read a skill of the agent package or a built-in one (MCP server)"
+author:
+  name: "DexterHouse"
+  github: francescoridolfi
+license: AGPL-3.0-or-later
+compat:
+  core: ">=0.1,<2.0"
+tags: [skills, builtin]
