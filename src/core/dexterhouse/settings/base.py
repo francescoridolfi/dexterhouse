@@ -32,6 +32,8 @@ INSTALLED_APPS = [
     "dexterhouse.apps.gateway",
     "dexterhouse.apps.projects",
     "dexterhouse.apps.workflows",
+    "dexterhouse.apps.memory",
+    "dexterhouse.apps.agents",
 ]
 
 MIDDLEWARE = [
@@ -136,3 +138,8 @@ LOGGING = {
     "handlers": {"console": {"class": "logging.StreamHandler"}},
     "root": {"handlers": ["console"], "level": ENV.LOG_LEVEL},
 }
+
+# Agents runtime and LLM gateway (E-03)
+CELERY_TASK_ROUTES = {"dexterhouse.apps.agents.tasks.*": {"queue": "agents"}}
+GATEWAY_RETRY_DELAYS = (2.0, 4.0, 8.0)
+AGENTS_TOOL_PACKAGE_DIRS = ["/data/packages/tools"]

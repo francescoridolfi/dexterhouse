@@ -40,3 +40,14 @@ def make_member(organization, django_user_model):
         return api
 
     return make
+
+
+@pytest.fixture(autouse=True)
+def _reset_gateway_state():
+    """Circuit breakers and CLI slots live in Redis: start every test closed and empty."""
+    from dexterhouse.apps.events.services.streams import get_client
+
+    client = get_client()
+    keys = list(client.scan_iter("dh:gateway:*"))
+    if keys:
+        client.delete(*keys)

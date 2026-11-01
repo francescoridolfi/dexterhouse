@@ -188,10 +188,3 @@ def collect(events: Iterable[StreamEvent], *, provider: str, model: str) -> Comp
 def system_text(request: CompletionRequest) -> str:
     """All system messages joined, for providers with a single system string."""
     return "\n\n".join(m.text() for m in request.messages if m.role == "system")
-
-
-def iter_lines(chunks: Iterable[str]) -> Iterator[str]:
-    """Non-empty stripped lines (NDJSON helpers)."""
-    for line in chunks:
-        if line.strip():
-            yield line.strip()

@@ -7,7 +7,6 @@ import pytest
 from django.core.exceptions import ValidationError
 
 from dexterhouse.apps.events.models import Event
-from dexterhouse.apps.events.services.streams import get_client
 from dexterhouse.apps.gateway.messages import Message, TextPart, ToolSpec
 from dexterhouse.apps.gateway.models import CallStatus, LLMCall, ModelProfile
 from dexterhouse.apps.gateway.providers import FakeProvider
@@ -34,9 +33,6 @@ TOOL = ToolSpec(name="memory.search", description="d", input_schema={"type": "ob
 @pytest.fixture(autouse=True)
 def _fast_retries(settings):
     settings.GATEWAY_RETRY_DELAYS = (0, 0, 0)
-    client = get_client()
-    for key in client.scan_iter("dh:gateway:breaker:*"):
-        client.delete(key)
 
 
 @pytest.fixture
