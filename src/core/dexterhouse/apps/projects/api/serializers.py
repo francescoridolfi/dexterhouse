@@ -54,7 +54,9 @@ class ProjectInput(serializers.Serializer):
 class ArtifactInput(serializers.Serializer):
     kind = serializers.ChoiceField(choices=sorted(USER_KINDS))
     name = serializers.CharField(max_length=200)
-    content = serializers.CharField(required=False, allow_blank=True, default="")
+    content = serializers.CharField(
+        required=False, allow_blank=True, default="", trim_whitespace=False
+    )
     data = serializers.JSONField(required=False, allow_null=True, default=None)
 
 
