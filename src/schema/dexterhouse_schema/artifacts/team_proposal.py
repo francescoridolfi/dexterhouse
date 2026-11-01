@@ -37,8 +37,9 @@ class Proposal(StrictModel):
     permissions: list[ProposedPermission] = Field(default_factory=list)
     risk: Literal["low", "medium"]
     verified: bool
-    rating: Annotated[float, Field(ge=0, le=5)]
-    installs: Annotated[int, Field(ge=0)]
+    # None until the marketplace site publishes them (1.0 reads only the registry index).
+    rating: Annotated[float, Field(ge=0, le=5)] | None = None
+    installs: Annotated[int, Field(ge=0)] | None = None
     author_github: GithubUser
 
 
