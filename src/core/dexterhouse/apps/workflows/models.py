@@ -187,8 +187,16 @@ class Task(BaseModel):
             models.Index(fields=["phase_run", "order"], name="dh_task_phase_order"),
         ]
         constraints = [
+            # One top-level task per external id; fix children are unique per iteration.
             models.UniqueConstraint(
-                fields=["project", "external_id", "iteration"], name="dh_task_external_unique"
+                fields=["project", "external_id"],
+                condition=models.Q(parent__isnull=True),
+                name="dh_task_external_unique",
+            ),
+            models.UniqueConstraint(
+                fields=["parent", "iteration"],
+                condition=models.Q(parent__isnull=False),
+                name="dh_task_fix_iteration_unique",
             ),
             _status_check("dh_task_status_valid", TaskStatus.values),
         ]

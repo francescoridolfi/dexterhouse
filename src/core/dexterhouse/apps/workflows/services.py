@@ -48,7 +48,7 @@ def skip_phase(phase_run_id: uuid.UUID, user: User) -> PhaseRun:
         row.status = PhaseStatus.SKIPPED
         row.finished_at = timezone.now()
         common.save(row, "status", "finished_at")
-        emit(project, "phase.skipped", {"phase_id": row.phase_id}, actor=user_actor(user))
+        emit(project, "phase.skipped", {"phase_id": row.phase_id})
         phases.advance(run)
     return row
 
