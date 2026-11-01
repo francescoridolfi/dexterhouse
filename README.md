@@ -2,26 +2,29 @@
 
 **An open-source software house run by AI agents.** Give it a brief; an analyst, an architect, a project manager, developers, a reviewer and a tester take it from requirements to a tested repository, and you watch them do it in a 3D office.
 
-> **Status: pre-alpha.** The design is complete and the foundations are in place: `docker compose up` starts the core, workers and the web UI shell, but there are no agents yet. The quickstart below describes the 1.0 target. Follow the [roadmap](docs/roadmap.md).
+> **Pre-release.** Everything below works from source today; the first tagged release, `v1.0.0`, will publish the Docker images and the `dexterhouse-schema` package. Until then `docker compose up` builds the images locally. See the [roadmap](docs/roadmap.md).
 
 ## Why DexterHouse
 
-- **A platform, not a pipeline.** Agents, tools and processes are declarative packages. Install new roles from the public marketplace or publish your own with a pull request.
+- **A platform, not a pipeline.** Agents, tools and processes are declarative packages. Install new roles from the public [registry](https://github.com/francescoridolfi/dexterhouse-registry) or publish your own with a pull request.
 - **You stay in control.** Per-project `supervised` or `autonomous` mode. Approve requirements, architecture, plan and release, or let it run and get called only when something needs a human.
 - **Safe by construction.** Generated code runs only in isolated, network-restricted sandboxes. Agents get exactly the tools their package declares. Pushing to your repo is a system action after your approval, never an agent's decision.
 - **Any model.** Anthropic (API or Claude Code CLI), OpenAI, OpenAI-compatible endpoints, Ollama for fully local runs. Agents ask for a *profile* (`strong`, `balanced`, `fast`); you decide what backs it.
 - **Costs you can see.** Budget per project, estimate before start, cost per agent, phase and task.
 
-## Quickstart (1.0 target)
+## Quickstart
 
 ```bash
 git clone https://github.com/francescoridolfi/dexterhouse.git && cd dexterhouse
-cp .env.example .env            # add at least one provider key, or point OLLAMA_BASE_URL to a local Ollama
-docker compose up -d
+cp .env.example .env            # add a provider key, or point OLLAMA_BASE_URL to a local Ollama
+docker compose up -d --wait
+printf 'Owner password: ' && read -rs DH_OWNER_PASSWORD && export DH_OWNER_PASSWORD
+docker compose exec -e DH_OWNER_PASSWORD web dexterhouse-manage bootstrap_owner --username admin
 ```
-Secrets (Django key, encryption keys, database password) are generated on first start. Open http://localhost, create the admin user when prompted, paste a brief, pick a mode and a budget, press **Start**.
 
-Requirements: Docker Engine 25+ with Compose v2, 4 vCPU / 8 GB RAM recommended, a browser with WebGL 2 for the 3D office (the 2D dashboard works everywhere).
+Secrets are generated on first start. Open http://localhost, sign in as `admin`, paste a brief, pick a mode and a budget, press **Start**. No key at hand? The [demo mode](docs/install.md#connect-a-model) runs a whole project on a fake model. Full guide, TLS and upgrades: [docs/install.md](docs/install.md).
+
+Requirements: Docker Engine 25+ with Compose v2.24+, 4 vCPU / 8 GB RAM recommended, a browser with WebGL 2 for the 3D office (the 2D dashboard works everywhere).
 
 ## How it works, in ten lines
 
@@ -36,6 +39,16 @@ Requirements: Docker Engine 25+ with Compose v2, 4 vCPU / 8 GB RAM recommended, 
 9. On release, the system opens a pull request (or pushes) to your repository.
 10. The retrospective feeds the project memory for the next one.
 
+Architecture decisions are recorded in [docs/adr](docs/adr/README.md); the security model is in [docs/security.md](docs/security.md).
+
+## Documentation
+
+[Install](docs/install.md) · [Use](docs/usage.md) · [API](docs/api.md) · [CLI](docs/cli.md) · [Operate](docs/operations.md) · [Packages](docs/packages.md) · [Write packages](docs/authors.md) · [All docs](docs/README.md)
+
+## Extend it
+
+Write an agent: `dexterhouse pkg init my-reviewer --kind agent`, edit `agent.yaml` and `prompts/system.md`, `dexterhouse-schema validate .`, tag it, then open a pull request to [dexterhouse-registry](https://github.com/francescoridolfi/dexterhouse-registry). Guide: [docs/authors.md](docs/authors.md).
+
 ## Repositories
 
 - **dexterhouse** (this repo): everything you install and run. Core (Django, Celery), runner, frontend, built-in agents, processes and tools, package schema, Docker images.
@@ -44,7 +57,7 @@ Requirements: Docker Engine 25+ with Compose v2, 4 vCPU / 8 GB RAM recommended, 
 
 ## Community
 
-[Contributing](CONTRIBUTING.md) · [Code of Conduct](CODE_OF_CONDUCT.md) · [Security policy](SECURITY.md) · [Roadmap](docs/roadmap.md)
+[Contributing](CONTRIBUTING.md) · [Code of Conduct](CODE_OF_CONDUCT.md) · [Security policy](SECURITY.md) · [Roadmap](docs/roadmap.md) · Discussions on GitHub.
 
 ## License
 
