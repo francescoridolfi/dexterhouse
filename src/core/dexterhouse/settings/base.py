@@ -141,6 +141,7 @@ CELERY_BEAT_SCHEDULE["workflows-reconcile"] = {
 
 # JSON logs with trace/project/turn context (F-012); LOG_FORMAT=console for local dev.
 LOGGING = logging_config(ENV.LOG_LEVEL, ENV.LOG_FORMAT)
+CELERY_WORKER_HIJACK_ROOT_LOGGER = False  # workers log through LOGGING too
 
 # Agents runtime and LLM gateway (E-03)
 # `run_step` runs the agent turn synchronously (AgentsTurnRunner): it belongs on `agents`.

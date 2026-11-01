@@ -8,6 +8,7 @@ class ObservabilityConfig(AppConfig):
     verbose_name = "Observability"
 
     def ready(self) -> None:
-        from dexterhouse.apps.observability import tracing
+        from dexterhouse.apps.observability import log, tracing
 
         tracing.configure()
+        log.connect_celery()

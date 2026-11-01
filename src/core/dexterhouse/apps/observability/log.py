@@ -92,3 +92,20 @@ def logging_config(level: str, fmt: str) -> dict[str, Any]:
         "root": {"handlers": ["console"], "level": level},
         "loggers": {"celery": {"level": level, "propagate": True}},
     }
+
+
+def _bind_task(task_id: str | None = None, task: Any = None, **_: Any) -> None:
+    structlog.contextvars.bind_contextvars(task_id=task_id, task_name=getattr(task, "name", None))
+
+
+def _unbind_task(**_: Any) -> None:
+    # Only the task keys: an eager task inside a request keeps the request's context.
+    structlog.contextvars.unbind_contextvars("task_id", "task_name")
+
+
+def connect_celery() -> None:
+    """Every Celery task logs with its `task_id` and `task_name`."""
+    from celery.signals import task_postrun, task_prerun
+
+    task_prerun.connect(_bind_task, weak=False, dispatch_uid="dh-log-task-prerun")
+    task_postrun.connect(_unbind_task, weak=False, dispatch_uid="dh-log-task-postrun")

@@ -123,3 +123,27 @@ def test_configure_installs_otlp_exporter(monkeypatch):
     assert installed["p"].resource.attributes["service.name"] == "dexterhouse-core"
     installed["p"].shutdown()
     monkeypatch.setattr(tracing, "_configured", False)
+
+
+def test_celery_tasks_log_with_their_id():
+    from dexterhouse.apps.observability.tasks import rollup_llm_calls
+
+    seen = {}
+    original = log._unbind_task
+
+    def capture(**kwargs):
+        seen.update(structlog.contextvars.get_contextvars())
+        original(**kwargs)
+
+    from celery.signals import task_postrun
+
+    task_postrun.disconnect(dispatch_uid="dh-log-task-postrun")
+    task_postrun.connect(capture, weak=False, dispatch_uid="dh-log-task-postrun")
+    try:
+        rollup_llm_calls.delay()
+    finally:
+        task_postrun.disconnect(dispatch_uid="dh-log-task-postrun")
+        log.connect_celery()
+    assert seen["task_name"] == "dexterhouse.apps.observability.tasks.rollup_llm_calls"
+    assert seen["task_id"]
+    assert "task_id" not in structlog.contextvars.get_contextvars()
