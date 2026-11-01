@@ -98,7 +98,7 @@ def test_inputs_of_loop_steps(started, settings):
     assert items == []  # the latest review approved
     developer = StepRun.objects.filter(project=project, step="developer").last()
     turn_request = TurnRequest.model_validate(developer.request)
-    assert input_kinds(turn_request) == ("task_board", "stack", "architecture")
+    assert input_kinds(turn_request) == ("stack", "architecture", "dev_notes", "task_board")
     inputs = build_inputs(turn_request, developer)
     assert inputs.task.external_id == "T-01"
     assert inputs.known_finding_ids is None
@@ -106,7 +106,10 @@ def test_inputs_of_loop_steps(started, settings):
     reviewer = StepRun.objects.filter(project=project, step="reviewer").last()
     review_inputs = build_inputs(TurnRequest.model_validate(reviewer.request), reviewer)
     assert review_inputs.known_finding_ids == ["R-1"]
-    assert [a.kind for a in review_inputs.artifacts][-1] == "dev_notes"
+    kinds = [a.kind for a in review_inputs.artifacts]
+    assert kinds[0] == "dev_notes"
+    assert "review" in kinds  # its previous reviews of the task
+    assert "Last finding id used for this task: R-1" in review_inputs.step_description
     assert all("T-01" in a.name for a in review_inputs.artifacts if a.kind == "dev_notes")
 
 
