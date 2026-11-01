@@ -60,6 +60,10 @@ services:
       celery -A dexterhouse worker -Q agents,default,core-callbacks
       -c ${WORKER_CONCURRENCY:-4} -l info
     volumes: [dh_secrets:/run/dh-secrets:ro, packages:/data/packages]
+    # Agents call the LLM providers, the registry index and package repositories from here.
+    networks: [internal, egress]
+    # Ollama on the Docker host (OLLAMA_BASE_URL); Docker Desktop resolves it on its own.
+    extra_hosts: ["host.docker.internal:host-gateway"]
     healthcheck:
       test: ["CMD-SHELL", "celery -A dexterhouse inspect ping -d celery@$$HOSTNAME -t 5"]
       interval: 30s

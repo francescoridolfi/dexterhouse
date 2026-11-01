@@ -1,0 +1,30 @@
+# Dependency updates (T9). Weekly, grouped so a week is one pull request per ecosystem.
+version: 2
+updates:
+  - package-ecosystem: uv
+    directory: /
+    schedule: { interval: weekly, day: monday }
+    groups:
+      python: { patterns: ["*"] }
+    open-pull-requests-limit: 5
+  - package-ecosystem: npm
+    directory: /src/frontend
+    schedule: { interval: weekly, day: monday }
+    groups:
+      frontend: { patterns: ["*"] }
+    open-pull-requests-limit: 5
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly, day: monday }
+    groups:
+      actions: { patterns: ["*"] }
+  # Base images of docker/Dockerfile.* (pinned by digest: Dependabot refreshes the digest).
+  - package-ecosystem: docker
+    directory: /docker
+    schedule: { interval: weekly, day: monday }
+    groups:
+      images: { patterns: ["*"] }
+  # Postgres, Redis and Squid pinned in compose.yaml.
+  - package-ecosystem: docker-compose
+    directory: /
+    schedule: { interval: weekly, day: monday }

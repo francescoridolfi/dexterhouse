@@ -45,3 +45,6 @@ GATEWAY_FAKE_RESPONDER = ""
 # No runner in the unit tests: system actions succeed without executing anything.
 RUNNER_CLIENT = "dexterhouse.apps.workspaces.client.LocalRunnerClient"
 RUNNER_KEY = "test-runner-key"  # pragma: allowlist secret
+# Rate limits off by default; the throttling tests switch them on with the `settings` fixture.
+CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
+API_THROTTLE_RATES = {"client": None, "anon": None, "login": None}

@@ -14,6 +14,7 @@ from typing import Any
 
 from asgiref.sync import sync_to_async
 from mcp.server.mcpserver import MCPServer
+from mcp.server.mcpserver.exceptions import ToolError as McpToolError
 
 GROUPS = ("project", "skills")
 
@@ -26,8 +27,12 @@ def register_project_tools(
 
     ctx = tools.ToolContext(project_id=project_id, turn_id=turn_id)
 
-    def call(function: Any, *args: Any, **kwargs: Any) -> Any:
-        return sync_to_async(function)(ctx, *args, **kwargs)
+    async def call(function: Any, *args: Any, **kwargs: Any) -> Any:
+        # Only the SDK's own ToolError reaches the agent with its message (as in mcp_tools._run).
+        try:
+            return await sync_to_async(function)(ctx, *args, **kwargs)
+        except tools.ToolError as exc:
+            raise McpToolError(str(exc)) from exc
 
     if group == "skills":
 

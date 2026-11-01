@@ -30,6 +30,16 @@ gates or the system prompt. A **tool** starts its MCP server with `uvx`, `npx`, 
 or `node` and a pinned package (`mcp-server-git@0.6.2`); its permissions declare a risk
 (`low`, `medium`, `high`).
 
+**Where a tool runs.** `runs_in: worker` servers start next to the agents, in the core
+worker, with the package folder available. `runs_in: runner` servers start **inside the
+project's workspace container** (`docker exec`), where the package files are not mounted:
+their `command[0]` must be `uvx`, `npx`, `python` or `node`, and what they launch must be a
+pinned package fetched through the workspace proxy (`uvx mcp-server-git@0.6.2`,
+`npx -y @scope/server@1.2.3`) or a module already in the workspace image
+(`python -m …`). A relative path to a script inside the package works only with
+`runs_in: worker`; the runner refuses it with `tool_unknown`. At most 3 third-party servers
+run per workspace; idle ones stop after 10 minutes.
+
 ## 2. Check it locally
 
 `dexterhouse-schema` runs the same checks as the core installer and the registry CI.

@@ -293,6 +293,7 @@ class ToolGateway:
                     },
                     system=True,
                 )
+                _block_for_security(self.turn, call)
         if self.turn.denied_count >= MAX_DENIALS:
             raise PermissionLimitError(f"{self.turn.denied_count} refused tool calls")
         return _result_part(call.id, record)
@@ -368,6 +369,24 @@ def _request_human(turn: AgentTurn, call: ToolCallPart) -> None:
         escalate(turn.project_id, "tool_high_risk", details)
     except InvalidTransitionError as exc:  # a turn outside a running process: refusal only
         logger.warning("agents.high_risk_not_escalated", tool=call.name, reason=str(exc))
+
+
+def _block_for_security(turn: AgentTurn, call: ToolCallPart) -> None:
+    """Open the `security` escalation (T4, ST-08): the phase waits for a human decision."""
+    from dexterhouse.apps.workflows.escalations import escalate
+    from dexterhouse.common.errors import InvalidTransitionError
+
+    details = {
+        "tool": call.name,
+        "turn_id": str(turn.id),
+        "agent_id": str(turn.agent_instance_id),
+        "violations": turn.denied_count,
+        "summary": f"An agent was blocked after {turn.denied_count} refused tool calls.",
+    }
+    try:
+        escalate(turn.project_id, "security", details)
+    except InvalidTransitionError as exc:  # a turn outside a running process: block only
+        logger.warning("agents.security_not_escalated", tool=call.name, reason=str(exc))
 
 
 def check_args_policy(policy: dict[str, dict[str, Any]], args: dict[str, Any]) -> str | None:

@@ -40,6 +40,10 @@ class RunnerSettings(BaseSettings):
     WORKSPACE_DISK: str = "5G"
     WORKSPACE_PIDS: int = 256
     WORKSPACE_PREFIX: str = "dh-ws"
+    # Installation the workspaces belong to (label `dexterhouse.installation`): two stacks on one
+    # Docker daemon must not reconcile each other's workspaces. Empty: the runner's compose
+    # project, else "default".
+    RUNNER_INSTALLATION: str = ""
     # Egress: the proxy container is attached to every sandbox network as `proxy`.
     PROXY_CONTAINER: str = ""
     PROXY_PORT: int = 3128

@@ -7,11 +7,11 @@ from channels.db import database_sync_to_async
 from channels.testing import WebsocketCommunicator
 
 from dexterhouse.apps.accounts.models import Membership, Organization
-from dexterhouse.apps.accounts.services.tokens import create_token
+from dexterhouse.apps.accounts.services.tokens import create_token, resolve_token
 from dexterhouse.apps.events.auth import OriginValidatorAllowingNonBrowsers
 from dexterhouse.apps.events.consumers import ProjectEventsConsumer
 from dexterhouse.apps.events.schemas import Actor
-from dexterhouse.apps.events.services import publisher, replay, streams
+from dexterhouse.apps.events.services import limits, publisher, replay, streams
 from dexterhouse.apps.projects.services.projects import create_project
 from dexterhouse.asgi import websocket_application
 
@@ -174,3 +174,69 @@ async def test_origin_validation(project_id, token, headers, accepted, settings)
     connected, _ = await communicator.connect()
     assert connected is accepted
     await communicator.disconnect()
+
+
+async def test_second_connection_of_a_client_closes_with_4429(project_id, token):
+    first = await connect(project_id, token)
+    assert (await first.receive_json_from())["type"] == "snapshot"
+    second = await connect(project_id, token)
+    assert await second.receive_json_from() == {
+        "type": "error",
+        "code": "rate_limited",
+        "detail": "too many connections to this project from this client",
+    }
+    assert (await second.receive_output())["code"] == 4429
+    await first.disconnect()
+    third = await connect(project_id, token)  # the slot is free again
+    assert (await third.receive_json_from())["type"] == "snapshot"
+    await third.disconnect()
+
+
+async def test_connection_limit_is_configurable(project_id, token, settings):
+    settings.WS_CONNECTIONS_PER_PROJECT = 2
+    first, second = await connect(project_id, token), await connect(project_id, token)
+    assert (await first.receive_json_from())["type"] == "snapshot"
+    assert (await second.receive_json_from())["type"] == "snapshot"
+    await first.disconnect()
+    await second.disconnect()
+
+
+async def test_message_flood_closes_with_4429(project_id, token, monkeypatch):
+    monkeypatch.setattr(limits, "MESSAGES", 3)
+    communicator = await connect(project_id, token)
+    await communicator.receive_json_from()
+    for _ in range(4):
+        await communicator.send_json_to({"type": "subscribe_speaking", "enabled": True})
+    assert (await communicator.receive_json_from())["code"] == "rate_limited"
+    assert (await communicator.receive_output())["code"] == 4429
+
+
+async def test_stale_slots_expire(project_id, token):
+    redis = streams.get_async_client()
+    token_row = await database_sync_to_async(resolve_token)(token)
+    key = f"dh:ws:conn:{project_id}:token:{token_row.pk}"
+    await redis.zadd(key, {"crashed-worker": 1.0})  # heartbeat in 1970
+    communicator = await connect(project_id, token)
+    assert (await communicator.receive_json_from())["type"] == "snapshot"
+    await communicator.disconnect()
+    await redis.delete(key)
+    await redis.aclose()
+
+
+def test_client_id_prefers_token_then_session_then_user():
+    class Row:
+        pk = 7
+
+    class Session:
+        session_key = "abc"
+
+    assert limits.client_id({"api_token": Row(), "session": Session()}) == "token:7"
+    assert limits.client_id({"session": Session(), "user": Row()}) == "session:abc"
+    assert limits.client_id({"user": Row()}) == "user:7"
+
+
+def test_message_rate_window_slides(monkeypatch):
+    clock = iter([0.0, 0.1, 0.2, 11.0])
+    monkeypatch.setattr(limits.time, "monotonic", lambda: next(clock))
+    rate = limits.MessageRate(limit=2, window_s=10)
+    assert [rate.allow(), rate.allow(), rate.allow(), rate.allow()] == [True, True, False, True]

@@ -1,0 +1,178 @@
+# Release on a version tag (docs/release.md): images to GHCR after a Trivy scan, the
+# dexterhouse-schema package to PyPI (only once trusted publishing is set up), and a GitHub
+# Release with the CHANGELOG section and the image digests.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io/${{ github.repository_owner }}
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: version
+        name: The tag matches every package version
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          for file in pyproject.toml src/core/pyproject.toml src/schema/pyproject.toml src/runner/pyproject.toml; do
+            found="$(python3 -c "import sys, tomllib; print(tomllib.load(open(sys.argv[1], 'rb'))['project']['version'])" "$file")"
+            if [ "$found" != "$version" ]; then
+              echo "::error file=$file::version $found, tag $GITHUB_REF_NAME (run cz bump)"
+              exit 1
+            fi
+          done
+          grep -q "^DH_VERSION=$version$" .env.example || { echo "::error::.env.example DH_VERSION"; exit 1; }
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          case "$version" in *-*) echo "prerelease=true" ;; *) echo "prerelease=false" ;; esac >> "$GITHUB_OUTPUT"
+
+  images:
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - { name: core, dockerfile: docker/Dockerfile.core, tag: version }
+          - { name: runner, dockerfile: docker/Dockerfile.runner, tag: version }
+          - { name: frontend, dockerfile: docker/Dockerfile.frontend, tag: version }
+          - { name: workspace, flavour: python, dockerfile: docker/Dockerfile.workspace-python }
+          - { name: workspace, flavour: node, dockerfile: docker/Dockerfile.workspace-node }
+          - { name: workspace, flavour: full, dockerfile: docker/Dockerfile.workspace-full }
+    name: image (${{ matrix.name }}${{ matrix.flavour && format(':{0}', matrix.flavour) || '' }})
+    env:
+      VERSION: ${{ needs.verify.outputs.version }}
+      PRERELEASE: ${{ needs.verify.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-qemu-action@v4
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: tags
+        name: Tags
+        run: |
+          image="$REGISTRY/dexterhouse-${{ matrix.name }}"
+          if [ -n "${{ matrix.flavour }}" ]; then
+            tags="$image:${{ matrix.flavour }}-$VERSION"
+            [ "$PRERELEASE" = "true" ] || tags="$tags,$image:${{ matrix.flavour }}"
+          else
+            tags="$image:$VERSION"
+            [ "$PRERELEASE" = "true" ] || tags="$tags,$image:${VERSION%.*},$image:latest"
+          fi
+          {
+            echo "image=$image"
+            echo "first=${tags%%,*}"
+            echo "tags=$tags"
+          } >> "$GITHUB_OUTPUT"
+      - name: Build for the scan (linux/amd64)
+        run: docker buildx build --load -f "${{ matrix.dockerfile }}" -t scan:local .
+      - name: Trivy (CRITICAL with a fix fails, allowlist .trivyignore)
+        run: docker/scan-images.sh scan:local
+      - name: Build and push (amd64, arm64)
+        run: |
+          args=()
+          IFS=',' read -ra tags <<< "${{ steps.tags.outputs.tags }}"
+          for tag in "${tags[@]}"; do args+=(-t "$tag"); done
+          docker buildx build --push --platform linux/amd64,linux/arm64 \
+            -f "${{ matrix.dockerfile }}" "${args[@]}" \
+            --label "org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}" \
+            --label "org.opencontainers.image.version=$VERSION" \
+            --label "org.opencontainers.image.revision=${{ github.sha }}" \
+            --label "org.opencontainers.image.licenses=AGPL-3.0-or-later" \
+            --metadata-file metadata.json .
+          digest="$(python3 -c "import json; print(json.load(open('metadata.json'))['containerimage.digest'])")"
+          mkdir -p digests
+          echo "${{ steps.tags.outputs.first }}@$digest" > "digests/${{ matrix.name }}-${{ matrix.flavour || 'app' }}.txt"
+          echo "${{ steps.tags.outputs.first }}@$digest" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: digest-${{ matrix.name }}-${{ matrix.flavour || 'app' }}
+          path: digests/
+
+  pypi:
+    # Skipped until the owner configures trusted publishing and sets the repository variable
+    # PYPI_PUBLISH=true (docs/release.md); a skipped job does not block the release.
+    needs: verify
+    if: vars.PYPI_PUBLISH == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/dexterhouse-schema
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.3
+      - run: uv build --package dexterhouse-schema --out-dir dist
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist
+
+  github-release:
+    needs: [verify, images, pypi]
+    if: >-
+      always() && needs.images.result == 'success' &&
+      (needs.pypi.result == 'success' || needs.pypi.result == 'skipped')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ needs.verify.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: digest-*
+          path: digests
+          merge-multiple: true
+      - name: Release notes (CHANGELOG section and image digests)
+        run: |
+          awk -v v="$VERSION" '
+            /^## / { if (found) exit; if ($2 == v || $2 == "v" v) { found = 1; next } }
+            found { print }
+          ' CHANGELOG.md > notes.md
+          [ -s notes.md ] || echo "See CHANGELOG.md." > notes.md
+          {
+            echo
+            echo "## Images"
+            echo
+            echo "Pin these digests in production (\`DH_VERSION=$VERSION\` pulls the same images by tag)."
+            echo
+            echo '```'
+            sort digests/*.txt
+            echo '```'
+            if [ "${{ needs.pypi.result }}" = "success" ]; then
+              echo
+              echo "Package schema: \`pip install dexterhouse-schema==$VERSION\`."
+            fi
+          } >> notes.md
+      - name: Create the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          flags=()
+          [ "${{ needs.verify.outputs.prerelease }}" = "true" ] && flags+=(--prerelease)
+          gh release create "$GITHUB_REF_NAME" --title "DexterHouse $VERSION" \
+            --notes-file notes.md --verify-tag "${flags[@]}"

@@ -24,6 +24,7 @@ from dexterhouse.apps.accounts.models import Role, Scope
 from dexterhouse.apps.packages.models import Package, PackageInstall, PackageVersion, VersionStatus
 from dexterhouse.apps.packages.services import catalog, installer, lifecycle, store
 from dexterhouse.common.api import ApiView, OrgContext
+from dexterhouse.common.api.idempotency import idempotent
 from dexterhouse.common.errors import ValidationFailedError
 from dexterhouse_schema import validate_package
 
@@ -157,6 +158,7 @@ class PackageListView(ApiView):
                 rows = rows.filter(**{field: value})
         return self.paginate(rows, package_json)
 
+    @idempotent
     def post(self, request: Request) -> Response:
         ctx = self.require(*MANAGE)
         body = InstallInput(data=request.data)

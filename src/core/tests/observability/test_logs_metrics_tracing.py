@@ -147,3 +147,35 @@ def test_celery_tasks_log_with_their_id():
     assert seen["task_name"] == "dexterhouse.apps.observability.tasks.rollup_llm_calls"
     assert seen["task_id"]
     assert "task_id" not in structlog.contextvars.get_contextvars()
+
+
+def test_alert_series_breaker_and_security_violations(project):
+    import uuid
+
+    from dexterhouse.apps.events.schemas import Actor
+    from dexterhouse.apps.events.services import publisher
+    from dexterhouse.apps.gateway.services.resilience import FAILURES, CircuitBreaker
+
+    breaker = CircuitBreaker("openai")
+    for _ in range(FAILURES):
+        breaker.record_failure()
+    publisher.emit(
+        "security.violation",
+        organization_id=project.organization_id,
+        project_id=project.id,
+        actor=Actor(type="system"),
+        payload={
+            "agent_id": str(uuid.uuid4()),
+            "turn_id": str(uuid.uuid4()),
+            "tool": "git.push",
+            "kind": "tool_not_allowed",
+            "count_in_turn": 1,
+        },
+    )
+    names = {m.name: m for m in registry().collect()}
+    open_by_provider = {
+        s.labels["provider"]: s.value for s in names["dh_gateway_breaker_open"].samples
+    }
+    assert open_by_provider["openai"] == 1.0
+    assert open_by_provider["anthropic"] == 0.0
+    assert names["dh_security_violations_recent"].samples[0].value == 1.0

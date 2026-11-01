@@ -8,12 +8,14 @@ DexterHouse is being designed in the open. Dates are indicative; the order is th
 - `supervised` and `autonomous` execution modes with approval, question and escalation gates.
 - Multi-provider LLM gateway: Anthropic (API and Claude Code CLI), OpenAI, OpenAI-compatible endpoints, Ollama. Model profiles instead of hard-coded models.
 - Isolated runner and per-project workspace sandboxes with egress allow-list.
-- Declarative packages (agents, tools over MCP, processes, skills) and the public registry + marketplace with the Recruiter agent proposing packages during planning.
+- Declarative packages (agents, tools over MCP, processes, skills) and the public registry, with the Recruiter agent proposing packages during planning. The marketplace site (search, ratings) is a separate project.
 - 3D office view driven by the event stream, with replay; full 2D dashboard, live logs, costs and budgets.
 - Delivery to your repository as a pull request or push.
 - REST API, WebSocket, CLI; Prometheus metrics; one-command Docker Compose install.
 
 ## 1.x — "More desks"
+- A remote `dexterhouse` CLI on the public API (`project create|status|approve`, `events tail`); API tokens and team invitations in the UI.
+- An organization-wide WebSocket for the inbox and the project list (they poll today).
 - Parallel implementation of independent tasks (git worktrees) with conflict resolution step.
 - Organization-wide memory ("lessons learned" across projects).
 - Package signing (sigstore) and signature verification at install.

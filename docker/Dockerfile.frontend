@@ -22,6 +22,9 @@ LABEL org.opencontainers.image.title="dexterhouse-frontend" \
       org.opencontainers.image.source="https://github.com/francescoridolfi/dexterhouse" \
       org.opencontainers.image.licenses="AGPL-3.0-or-later"
 
+# Alpine fixes land before the nginx image is rebuilt (Trivy, docker/scan-images.sh).
+RUN apk upgrade --no-cache
+
 COPY docker/nginx/default.conf /etc/nginx/conf.d/default.conf
 COPY docker/nginx/security-headers.conf /etc/nginx/snippets/security-headers.conf
 COPY --from=build /app/src/frontend/dist/ /usr/share/nginx/html/

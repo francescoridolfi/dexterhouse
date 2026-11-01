@@ -11,22 +11,28 @@ import redis
 import structlog
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
+from django.conf import settings
 from django.utils import timezone
 
 from dexterhouse.apps.events.schemas import EventEnvelope
-from dexterhouse.apps.events.services import replay, streams
+from dexterhouse.apps.events.services import limits, replay, streams
 
 logger = structlog.get_logger(__name__)
 
 HEARTBEAT_S = 25.0
 READ_BLOCK_MS = 5_000
 SEEN_IDS = 5_000
-CLOSE_CODES = {"unauthorized": 4401, "forbidden": 4403, "not_found": 4404}
+CLOSE_CODES = {
+    "unauthorized": 4401,
+    "forbidden": 4403,
+    "not_found": 4404,
+    "rate_limited": 4429,
+}
 SPEAKING = "agent.speaking"
 
 
 class ProjectEventsConsumer(AsyncJsonWebsocketConsumer):
-    """One connection per project per client; unknown client messages are ignored."""
+    """One connection per project per client (4429 beyond); unknown messages are ignored."""
 
     heartbeat_s = HEARTBEAT_S
 
@@ -35,6 +41,8 @@ class ProjectEventsConsumer(AsyncJsonWebsocketConsumer):
         self.speaking_enabled = True
         self.seen: deque[str] = deque(maxlen=SEEN_IDS)
         self.tasks: list[asyncio.Task[None]] = []
+        self.slot: limits.ConnectionSlot | None = None
+        self.rate = limits.MessageRate()
         await self.accept()
         verdict = await database_sync_to_async(replay.access)(
             self.scope.get("user"), self.scope.get("api_token"), self.project_id
@@ -45,6 +53,15 @@ class ProjectEventsConsumer(AsyncJsonWebsocketConsumer):
             await self.close(code=CLOSE_CODES[verdict])
             return
         self.redis = streams.get_async_client()
+        self.slot = limits.ConnectionSlot(
+            self.redis,
+            str(self.project_id),
+            limits.client_id(self.scope),
+            settings.WS_CONNECTIONS_PER_PROJECT,
+        )
+        if not await self.slot.claim():
+            await self._refuse("too many connections to this project from this client")
+            return
         start_id = await self._latest_stream_id()
         await self.send_json(await database_sync_to_async(replay.snapshot)(self.project_id))
         self.tasks = [
@@ -58,10 +75,20 @@ class ProjectEventsConsumer(AsyncJsonWebsocketConsumer):
         for task in self.tasks:
             with contextlib.suppress(asyncio.CancelledError):
                 await task
+        if getattr(self, "slot", None) is not None:
+            with contextlib.suppress(redis.RedisError):
+                await self.slot.release()
         if hasattr(self, "redis"):
             await self.redis.aclose()
 
+    async def _refuse(self, detail: str) -> None:
+        await self.send_json({"type": "error", "code": "rate_limited", "detail": detail})
+        await self.close(code=CLOSE_CODES["rate_limited"])
+
     async def receive_json(self, content: Any, **kwargs: Any) -> None:
+        if not self.rate.allow():
+            await self._refuse("too many messages")
+            return
         kind = content.get("type") if isinstance(content, dict) else None
         if kind == "ping":
             await self._send_heartbeat()
@@ -122,6 +149,9 @@ class ProjectEventsConsumer(AsyncJsonWebsocketConsumer):
         while True:
             await asyncio.sleep(self.heartbeat_s)
             await self._send_heartbeat()
+            if self.slot is not None:
+                with contextlib.suppress(redis.RedisError):
+                    await self.slot.refresh()
 
     async def _send_heartbeat(self) -> None:
         await self.send_json({"type": "heartbeat", "server_time": timezone.now().isoformat()})

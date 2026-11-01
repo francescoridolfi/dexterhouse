@@ -30,6 +30,8 @@ jobs:
         env:
           SKIP: no-commit-to-branch
         run: uvx pre-commit run --all-files --show-diff-on-failure
+      - name: actionlint (release and weekly workflows only run on a tag or a schedule)
+        run: docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.12 -color
 
   test:
     runs-on: ubuntu-latest
@@ -61,6 +63,12 @@ jobs:
           enable-cache: true
       - run: uv sync --all-groups --frozen
       - run: uv run manage.py makemigrations --check --dry-run
+      - name: OpenAPI schema builds and validates (served at /api/v1/openapi.json)
+        run: uv run manage.py spectacular --format openapi-json --file openapi.json --validate
+      - uses: actions/upload-artifact@v7
+        with:
+          name: openapi
+          path: openapi.json
       - name: Fast suite (unit and integration, no process-spawning tests)
         # Budget: under 3 minutes here, under 60 s locally (06_engineering/testing.md).
         run: uv run pytest -m "not slow and not security" --cov --cov-report=term-missing --cov-report=xml
@@ -199,6 +207,18 @@ jobs:
           # The e2e smoke runs the built-in agents on the `fake` provider (no LLM).
           sed -i 's#^GATEWAY_FAKE_RESPONDER=.*#GATEWAY_FAKE_RESPONDER=dexterhouse.apps.agents.demo.respond#' .env
           docker compose -f compose.yaml build
+      - name: Production overlay and alert rules are valid
+        run: |
+          CADDY_DOMAIN=dexterhouse.example docker compose -f compose.yaml -f compose.prod.yaml \
+            --profile monitoring config -q
+          docker run --rm --entrypoint promtool -v "$PWD/docker/prometheus:/etc/prometheus:ro" \
+            prom/prometheus:v3.15.1 check config /etc/prometheus/prometheus.yml
+      - name: Trivy (CRITICAL with a fix fails, allowlist .trivyignore)
+        run: |
+          docker buildx build --load -f docker/Dockerfile.workspace-python \
+            -t ghcr.io/francescoridolfi/dexterhouse-workspace:python .
+          mapfile -t images < <(docker compose -f compose.yaml config --images | grep dexterhouse- | sort -u)
+          docker/scan-images.sh "${images[@]}" ghcr.io/francescoridolfi/dexterhouse-workspace:python
       - name: Smoke test the stack
         run: |
           docker compose -f compose.yaml up -d --wait --wait-timeout 180

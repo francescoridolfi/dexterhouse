@@ -26,6 +26,7 @@ from dexterhouse.apps.projects.services import artifacts, lifecycle, notes, proj
 from dexterhouse.apps.projects.services.snapshot import build_snapshot
 from dexterhouse.apps.workflows.models import PhaseRun
 from dexterhouse.common.api import ApiView, OrgContext
+from dexterhouse.common.api.idempotency import idempotent
 from dexterhouse.common.errors import ConflictError, ValidationFailedError
 
 READ = (Role.VIEWER, Scope.PROJECTS_READ)
@@ -58,6 +59,7 @@ class ProjectListView(ApiView):
             rows = rows.filter(Q(name__icontains=value) | Q(brief__icontains=value))
         return self.paginate(rows, project_json)
 
+    @idempotent
     def post(self, request: Request) -> Response:
         ctx = self.require(*WRITE)
         body = ProjectInput(data=request.data)
@@ -140,6 +142,7 @@ class ArtifactListView(ApiView):
             rows = rows.filter(latest)
         return self.paginate(rows, artifact_json)
 
+    @idempotent
     def post(self, request: Request, project_id: uuid.UUID) -> Response:
         ctx = self.require(*WRITE)
         body = ArtifactInput(data=request.data)
@@ -193,6 +196,7 @@ class NoteListView(ApiView):
             Note.objects.filter(project=project).select_related("author"), note_json
         )
 
+    @idempotent
     def post(self, request: Request, project_id: uuid.UUID) -> Response:
         ctx = self.require(*WRITE)
         project = get_project(ctx, project_id)

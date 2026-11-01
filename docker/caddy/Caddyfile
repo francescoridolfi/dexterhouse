@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# TLS in front of the frontend (compose.prod.yaml). Caddy obtains and renews the certificate
+# for CADDY_DOMAIN (Let's Encrypt; `localhost` gets a local CA certificate).
+{$CADDY_DOMAIN} {
+	encode zstd gzip
+	# The client address replaces any X-Forwarded-For sent by the client; nginx appends ours
+	# (API_TRUSTED_PROXIES=2 in compose.prod.yaml).
+	reverse_proxy frontend:80
+	header Strict-Transport-Security "max-age=31536000; includeSubDomains"
+	log {
+		output stdout
+		format json
+	}
+}

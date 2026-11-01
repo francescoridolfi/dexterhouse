@@ -11,7 +11,9 @@ web replica reports the same numbers. Series:
 - `dh_projects{status}`, `dh_gates_open{type}`, `dh_queue_length{queue}`;
 - `dh_workspaces_active` (workspaces `ready|busy|idle`), and from the runners' heartbeats
   `dh_runner_up`, `dh_runner_heartbeat_age_seconds`, `dh_runner_exec_total`,
-  `dh_runner_exec_seconds_{sum,count}`, `dh_runner_errors_total`, `dh_runner_egress_denied_total`.
+  `dh_runner_exec_seconds_{sum,count}`, `dh_runner_errors_total`, `dh_runner_egress_denied_total`;
+- for the alerts (docs/operations.md): `dh_gateway_breaker_open{provider}` (1 while open or
+  half-open) and `dh_security_violations_recent` (`security.violation` events, last 10 min).
 """
 
 from collections.abc import Iterator
@@ -34,6 +36,7 @@ logger = structlog.get_logger(__name__)
 
 LATENCY_BUCKETS_S = (0.25, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0, 60.0, 120.0)
 QUEUES = ("agents", "default", "core-callbacks", "runner")
+VIOLATIONS_WINDOW_MIN = 10
 
 
 class DexterHouseCollector(Collector):
@@ -43,6 +46,32 @@ class DexterHouseCollector(Collector):
         yield from self._projects()
         yield self._queues()
         yield from self._runner()
+        yield from self._alerts()
+
+    def _alerts(self) -> Iterator[object]:
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        from dexterhouse.apps.events.models import Event
+        from dexterhouse.apps.gateway.providers import PROVIDERS
+        from dexterhouse.apps.gateway.services.resilience import CircuitBreaker
+
+        breaker = GaugeMetricFamily(
+            "dh_gateway_breaker_open", "Provider circuit breaker not closed", labels=["provider"]
+        )
+        for provider in sorted(PROVIDERS):
+            breaker.add_metric([provider], float(CircuitBreaker(provider).state() != "closed"))
+        yield breaker
+        since = timezone.now() - timedelta(minutes=VIOLATIONS_WINDOW_MIN)
+        violations = GaugeMetricFamily(
+            "dh_security_violations_recent",
+            f"security.violation events in the last {VIOLATIONS_WINDOW_MIN} minutes",
+        )
+        violations.add_metric(
+            [], Event.objects.filter(type="security.violation", created_at__gte=since).count()
+        )
+        yield violations
 
     def _runner(self) -> Iterator[object]:
         import time
