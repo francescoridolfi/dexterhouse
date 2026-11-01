@@ -42,6 +42,14 @@ class Env(BaseSettings):
     FERNET_KEY: str = ""
     FERNET_KEY_FILE: str = ""
     BUILTIN_DIR: str = ""
+    EMAIL_HOST: str = "localhost"
+    EMAIL_PORT: int = 25
+    EMAIL_HOST_USER: str = ""
+    EMAIL_HOST_PASSWORD_FILE: str = ""
+    EMAIL_USE_TLS: bool = False
+    DEFAULT_FROM_EMAIL: str = "DexterHouse <noreply@localhost>"
+    NOTIFICATIONS_EMAIL: bool = False
+    PUBLIC_URL: str = "http://localhost"
 
     def secret_key(self) -> str:
         """SECRET_KEY from env, else from SECRET_KEY_FILE."""

@@ -17,6 +17,7 @@ EXPECTED_PER_FAMILY = {
     "tasks_gates": 14,
     "workspace_release": 15,
     "packages_budget_security": 17,
+    "notifications": 1,  # E-06, contracts/events/notifications.md
 }
 TYPE_NAME = re.compile(r"^[a-z_]+(\.[a-z_]+)+$")
 
@@ -30,7 +31,7 @@ def _family(model: type) -> str:
 
 
 def test_catalogue_size() -> None:
-    assert len(EVENT_TYPES) == sum(EXPECTED_PER_FAMILY.values()) == 84
+    assert len(EVENT_TYPES) == sum(EXPECTED_PER_FAMILY.values()) == 85
 
 
 def test_catalogue_size_per_family() -> None:
@@ -110,6 +111,14 @@ VALID = {
         "kind": "agent",
     },
     "budget.org_exceeded": {"spent_month": "100.5", "budget_monthly": "100"},
+    "notification.created": {
+        "notification_id": _id(),
+        "user_id": _id(),
+        "kind": "gate_opened",
+        "title": "Approve analysis",
+        "gate_id": _id(),
+        "gate_type": "approval",
+    },
 }
 
 
