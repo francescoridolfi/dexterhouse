@@ -11,7 +11,6 @@ anything, the E-02 no-op behaviour. `settings.RUNNER_CLIENT` picks one.
 
 import hashlib
 import json
-import uuid
 from typing import Any, Protocol
 
 import redis
@@ -157,7 +156,3 @@ class LocalRunnerClient:
 
 def get_client() -> RunnerClient:
     return import_string(settings.RUNNER_CLIENT)()
-
-
-def new_turn_id() -> uuid.UUID:
-    return uuid.uuid4()
