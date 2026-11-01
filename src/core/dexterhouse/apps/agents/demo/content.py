@@ -20,18 +20,17 @@ _STORY = re.compile(r"^## (US-\d+) (.+?) \(covers ([^)]+)\)", re.MULTILINE)
 _FILLER = re.compile(r"^(a|an|the|we need|we want|i want|build|create|make)\s+", re.IGNORECASE)
 STACK = {
     "language": "python",
-    "framework": "django",
+    "framework": "stdlib",
     "workspace_image": "dexterhouse/workspace:python",
-    "package_manager": "uv",
-    "test_command": "uv run pytest -q",
-    "run_command": "uv run manage.py runserver 0.0.0.0:8000",
-    "lint_command": "uv run ruff check .",
-    "install_command": "uv sync",
+    "package_manager": "pip",
+    # Standard library only: the demo runs in a workspace without reaching any index.
+    "test_command": "python3 -m unittest discover -s tests -t . -v",
+    "run_command": "python3 -m http.server 8000",
     "services": [],
-    "env": {"DJANGO_SETTINGS_MODULE": "app.settings"},
+    "env": {},
     "ports": [8000],
-    "healthcheck_path": "/health",
-    "notes": "SQLite in development; " + DEMO,
+    "healthcheck_path": "/",
+    "notes": "Standard library only; " + DEMO,
 }
 QUESTIONS = [
     {
@@ -538,3 +537,27 @@ def retrospective_md(summary: str) -> str:
 
 def _bullets(lines: list[str], prefixed: bool = False) -> str:
     return "\n".join(line if prefixed or line.startswith("- ") else f"- {line}" for line in lines)
+
+
+def code_files(task_ref: str, title: str) -> list[tuple[str, str]]:
+    """A stdlib module and its unittest for one task (the scaffold adds the packages)."""
+    name = slug(title).replace("-", "_")[:30].strip("_") or "feature"
+    number = task_ref.split("-")[-1]
+    module = (
+        f'"""{title} ({task_ref}). {DEMO}"""\n\n\ndef {name}() -> str:\n    return "{task_ref}"\n'
+    )
+    test = (
+        f"import unittest\n\nfrom app.{name} import {name}\n\n\n"
+        f"class FeatureTest(unittest.TestCase):\n"
+        f"    def test_{name}(self) -> None:\n"
+        f'        self.assertEqual({name}(), "{task_ref}")\n'
+    )
+    files = [(f"app/{name}.py", module), (f"tests/test_{number}_{name}.py", test)]
+    if task_ref.endswith("01"):
+        scaffold = [
+            ("app/__init__.py", ""),
+            ("tests/__init__.py", ""),
+            ("README.md", f"# Demo\n\n{DEMO}\n"),
+        ]
+        files = scaffold + files
+    return files
