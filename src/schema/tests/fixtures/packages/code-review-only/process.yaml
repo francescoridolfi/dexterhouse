@@ -1,0 +1,6 @@
+schema: 1
+name: code-review-only
+version: 1.0.0
+phases:
+  - { id: review, agent: reviewer, workspace: true, produces: [review], exit: artifacts_present,
+      gate: { id: approve_review, default: optional } }

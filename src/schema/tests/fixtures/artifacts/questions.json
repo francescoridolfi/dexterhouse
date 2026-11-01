@@ -1,0 +1,3 @@
+{ "questions": [ { "id": "q1", "text": "Will the app handle payments?", "kind": "choice",
+    "options": ["No", "Yes, Stripe", "Yes, other"], "why": "Changes data model and compliance scope",
+    "default_assumption": "No payments in 1.0" } ] }

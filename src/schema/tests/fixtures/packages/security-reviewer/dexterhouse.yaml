@@ -1,0 +1,16 @@
+schema: 1
+kind: agent                       # agent | tool | process
+name: security-reviewer           # univoco nel registry
+version: 1.2.0
+description: "OWASP review of produced code"   # ≤ 200 char
+author:
+  name: "Jane Doe"
+  github: janedoe                 # obbligatorio per la pubblicazione nel registry
+  url: https://example.com/janedoe
+license: MIT                      # SPDX id
+compat:
+  core: ">=1.0,<2.0"
+tags: [security, review]          # ≤ 10, `^[a-z0-9-]+$`
+homepage: https://example.com/dh-security-reviewer
+readme: README.md                 # default
+icon: icon.png                    # opzionale, ≤ 256 KB

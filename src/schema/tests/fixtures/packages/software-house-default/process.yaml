@@ -1,0 +1,45 @@
+# process.md example; the `architecture` and `retrospective` phases come from workflow_engine.md.
+schema: 1
+name: software-house-default
+version: 1.0.0
+rooms:                                  # opzionale: override stanza per fase
+  analysis: meeting_room
+phases:
+  - id: analysis
+    agent: analyst                      # oppure `steps:`
+    may_ask: true
+    produces: [requirements, user_stories]
+    exit: artifacts_present             # artifacts_present | tests_pass | command_ok | none
+    gate: { id: approve_requirements, default: required }   # required | optional
+  - id: architecture
+    agent: architect
+    needs: [analysis]
+    produces: [architecture, adr, stack]
+    gate: { id: approve_architecture, default: required }
+  - id: planning
+    needs: [architecture]
+    steps:
+      - { agent: project_manager, produces: [task_board] }
+      - { agent: recruiter, produces: [team_proposal] }
+    gate: { id: approve_plan, default: required, on_approve: [install_proposed_packages, hire] }
+    after_gate:
+      - { agent: project_manager, step: replan, when: hired }
+  - id: implementation
+    needs: [planning]
+    workspace: true
+    type: loop                          # loop ⇒ richiede `max_iterations`, `on_exhausted`
+    over: task_board                    # sorgente degli elementi
+    steps: [developer, reviewer, tester]
+    max_iterations: 3
+    on_exhausted: escalate              # escalate | fail
+  - id: release
+    needs: [implementation]
+    steps:
+      - { agent: tester, step: integration_test, exit: tests_pass }
+      - { agent: tester, step: smoke, exit: command_ok, command: "${stack.run_command}" }
+      - { agent: project_manager, produces: [release_notes] }
+    gate: { id: approve_release, default: required, on_approve: [deliver], on_reject: reopen_implementation }
+  - id: retrospective
+    needs: [release]
+    agent: project_manager
+    produces: [retrospective]

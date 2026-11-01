@@ -1,0 +1,13 @@
+{ "tasks": [
+    { "external_id": "T-01", "title": "Project skeleton", "description": "Django project, settings, health endpoint.",
+      "acceptance": ["GET /api/health returns 200"], "depends_on": [], "estimate": "S", "assigned_role": "developer",
+      "files_hint": ["gymbook/settings/base.py"], "covers": {"requirements": ["N-01"], "stories": []} },
+    { "external_id": "T-03", "title": "Courses", "description": "Course model and API.",
+      "acceptance": ["POST /courses creates a course with a capacity"], "depends_on": ["T-01"], "estimate": "M",
+      "assigned_role": "developer", "covers": {"requirements": ["F-03"], "stories": ["US-03"]} },
+    { "external_id": "T-05", "title": "Bookings with waitlist", "description": "…",
+      "acceptance": ["POST /bookings refuses when course is full and returns 409", "…"],
+      "depends_on": ["T-01", "T-03"], "estimate": "M", "assigned_role": "developer",
+      "files_hint": ["bookings/models.py", "bookings/api.py", "tests/test_bookings.py"],
+      "covers": {"requirements": ["F-07", "F-08"], "stories": ["US-05", "US-06"]} } ],
+  "notes": "T-07 may move to a frontend specialist" }

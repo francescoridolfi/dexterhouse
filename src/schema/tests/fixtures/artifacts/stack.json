@@ -1,0 +1,7 @@
+{ "language": "python", "framework": "django",
+  "workspace_image": "dexterhouse/workspace:python",
+  "package_manager": "uv",
+  "test_command": "uv run pytest -q", "run_command": "uv run manage.py runserver 0.0.0.0:8000",
+  "lint_command": "uv run ruff check .", "install_command": "uv sync",
+  "services": ["postgres", "redis", "mailpit"], "env": {"DJANGO_SETTINGS_MODULE": "gymbook.settings.dev"},
+  "ports": [8000], "healthcheck_path": "/api/health", "notes": "SQLite in dev, Postgres in compose" }

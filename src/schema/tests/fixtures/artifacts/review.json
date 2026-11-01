@@ -1,0 +1,10 @@
+{ "task_id": "T-05", "iteration": 2, "verdict": "request_changes",
+  "summary": "Race fixed; FIFO still missing a test.",
+  "findings": [ { "id": "R-1", "severity": "major",
+      "file": "bookings/services.py", "line": 42, "symbol": "book_seat",
+      "title": "Capacity check not atomic",
+      "request": "Wrap the capacity check and insert in a transaction using select_for_update on Course.",
+      "how_to_verify": "tests/test_bookings.py::test_concurrent_bookings passes with 20 threads.",
+      "resolved": false, "first_seen_iteration": 1 } ],
+  "blocking_count": 1,
+  "out_of_scope_notes": ["Course.capacity could be a PositiveIntegerField (follow-up)"] }

@@ -1,0 +1,12 @@
+schema: 1
+kind: tool
+name: git-tools
+version: 0.6.2
+description: "Git operations inside the project workspace (MCP server)"
+author:
+  name: "Jane Doe"
+  github: janedoe
+license: MIT
+compat:
+  core: ">=1.0,<2.0"
+tags: [git]

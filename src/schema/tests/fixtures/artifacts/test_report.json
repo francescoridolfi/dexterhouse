@@ -1,0 +1,9 @@
+{ "scope": "task", "task_id": "T-05", "iteration": 2,
+  "command": "uv run pytest -q tests/test_bookings.py", "exit_code": 1,
+  "passed": 11, "failed": 2, "skipped": 0, "duration_s": 6.4, "verdict": "fail",
+  "failures": [ { "test": "tests/test_bookings.py::test_waitlist_promotion_sends_email",
+      "message": "AssertionError: expected 1 email, got 0",
+      "probable_cause": "promote() does not call notify()", "related_finding": "R-3" } ],
+  "skipped_reasons": [], "coverage_notes": "All 5 acceptance criteria have a test.",
+  "smoke": { "url": "http://localhost:8000/api/health", "status": 200, "startup_s": 4.1 },
+  "report_artifact_id": "6f1c2a52-8a4e-4f0e-9a51-0c2b1f6f5b7d" }

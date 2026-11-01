@@ -1,0 +1,11 @@
+{
+  "schema": 1,
+  "generated_at": "2027-02-10T10:05:00Z",
+  "core_latest": "1.0.0",
+  "packages": [
+    { "name": "security-reviewer", "kind": "agent", "description": "OWASP review of produced code", "tags": ["security"],
+      "author_github": "janedoe", "verified": false, "latest": "1.2.0",
+      "versions": [{ "version": "1.2.0", "ref": "v1.2.0", "sha256": "abababababababababababababababababababababababababababababababab", "compat_core": ">=1.0,<2.0" }],
+      "repo": "https://github.com/janedoe/dh-security-reviewer", "risk": "low" }
+  ]
+}

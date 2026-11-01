@@ -1,0 +1,21 @@
+schema: 1
+name: git-tools                         # prefisso dei permessi: git.*
+transport: stdio                        # stdio | http
+runs_in: runner                         # runner | worker
+command: ["uvx", "mcp-server-git@0.6.2"]   # pinned; solo per stdio
+url: null                               # solo per http (runs_in: worker)
+env:                                    # variabili consentite, valori da config del core
+  GIT_AUTHOR_NAME: "${project.agent_name}"
+permissions:
+  - id: git.diff
+    mcp_tool: git_diff                  # nome del tool MCP esposto dal server
+    description: "Read diff between refs"
+    risk: low                           # low | medium | high
+    args_policy:                        # vincoli sugli argomenti (opzionale)
+      repo_path: { const: "${workspace.path}" }
+  - id: git.commit
+    mcp_tool: git_commit
+    risk: medium
+network: none                           # none | allowlist (solo runs_in: worker, con lista host)
+hosts: []
+healthcheck: { timeout_s: 10 }

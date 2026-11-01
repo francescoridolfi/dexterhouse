@@ -1,0 +1,2 @@
+{ "assumptions": [ { "id": "a1", "question": "Payments?", "assumed": "No payments in 1.0",
+    "rationale": "Brief does not mention prices", "risk": "low" } ] }
