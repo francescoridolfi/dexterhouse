@@ -120,7 +120,11 @@ export function useReplay(
   );
 
   const startClip = useCallback(
-    (clip: Clip) => open(clip.events, Date.parse(clip.start_at)),
+    (clip: Clip) => {
+      // A clip replaces whatever was loading from the project.
+      abort.current?.abort();
+      open(clip.events, Date.parse(clip.start_at), clip.project.id);
+    },
     [open],
   );
 

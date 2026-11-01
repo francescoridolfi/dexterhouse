@@ -124,6 +124,8 @@ for (const agents of [12, 25]) {
     // Worst case: the overview, with the whole plan and every avatar on screen.
     await page.keyboard.press("-");
     await page.keyboard.press("-");
+    await expect(page.getByRole("img", { name: new RegExp(`^${agents} agents`) })).toBeVisible();
+
     await page.waitForTimeout(4_000);
     await page.evaluate(() => {
       const stats = (globalThis as unknown as Stats).__dhOffice;

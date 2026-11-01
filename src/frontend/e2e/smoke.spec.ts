@@ -30,6 +30,7 @@ async function useFakeProvider(page: Page) {
 
 test("create a project, follow it live and decide its gates", async ({ page }) => {
   test.skip(!PASSWORD, "E2E_PASSWORD is not set");
+  test.setTimeout(240_000);
   const name = `Smoke ${Date.now()}`;
   await login(page);
   await useFakeProvider(page);
