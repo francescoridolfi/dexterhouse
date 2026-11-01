@@ -342,12 +342,15 @@ def test_deliver_redeems_the_grant_and_pushes(
 
 def test_heartbeat_reports_workspaces_and_egress(runner: SimpleNamespace, workspace: uuid.UUID):
     runner.docker.proxy_logs = (
-        b"1 TCP_DENIED/403 example.com\n2 TCP_DENIED/403 x\n3 TCP_TUNNEL/200\n"
+        b"2026-11-01T10:00:01Z 1 TCP_DENIED/403 example.com\n"
+        b"2026-11-01T10:00:02Z 2 TCP_DENIED/403 x\n2026-11-01T10:00:03Z 3 TCP_TUNNEL/200\n"
     )
     beat = runner.service.heartbeat()
     assert beat.active_workspaces == 1
     assert beat.workspaces == [workspace]
     assert beat.metrics["egress_denied_total"] >= 2
+    again = runner.service.heartbeat()  # the same lines are not counted twice
+    assert again.metrics["egress_denied_total"] == beat.metrics["egress_denied_total"]
     assert runner.callbacks.sent[-1][0] == "heartbeat"
 
 

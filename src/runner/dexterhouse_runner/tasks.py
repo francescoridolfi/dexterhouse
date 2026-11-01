@@ -23,7 +23,7 @@ from pydantic import ValidationError
 from dexterhouse_runner import metrics
 from dexterhouse_runner.callbacks import Callbacks
 from dexterhouse_runner.config import get_settings
-from dexterhouse_runner.service import RunnerService
+from dexterhouse_runner.service import TASK_METHODS, RunnerService
 from dexterhouse_schema.runner import RUNNER_QUEUE, RUNNER_TASKS, Message, ToolResult
 
 logger = structlog.get_logger(__name__)
@@ -76,19 +76,7 @@ def _handle(name: str, method: str) -> Callable[[dict[str, Any]], dict[str, Any]
     return run
 
 
-for _name, _method in {
-    "runner.workspace.create": "create",
-    "runner.workspace.destroy": "destroy",
-    "runner.workspace.status": "status",
-    "runner.tool.invoke": "invoke",
-    "runner.tool.list": "list_tools",
-    "runner.system.branch_create": "branch_create",
-    "runner.system.merge": "merge",
-    "runner.system.deliver": "deliver",
-    "runner.system.exit_check": "exit_check",
-    "runner.system.commit_log": "commit_log",
-    "runner.system.tree": "tree",
-}.items():
+for _name, _method in TASK_METHODS.items():
     app.task(name=_name, queue=RUNNER_QUEUE)(_handle(_name, _method))
 
 

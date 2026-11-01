@@ -96,6 +96,21 @@ print(open("/tmp/dh-smoke.log", errors="replace").read()[-8000:])
 sys.exit(0 if ok else 1)
 """
 
+#: Task name -> `RunnerService` method (also used by in-process test clients).
+TASK_METHODS = {
+    "runner.workspace.create": "create",
+    "runner.workspace.destroy": "destroy",
+    "runner.workspace.status": "status",
+    "runner.tool.invoke": "invoke",
+    "runner.tool.list": "list_tools",
+    "runner.system.branch_create": "branch_create",
+    "runner.system.merge": "merge",
+    "runner.system.deliver": "deliver",
+    "runner.system.exit_check": "exit_check",
+    "runner.system.commit_log": "commit_log",
+    "runner.system.tree": "tree",
+}
+
 
 class RunnerService:
     def __init__(
@@ -112,6 +127,7 @@ class RunnerService:
         self.callbacks = callbacks
         self.redis = redis
         self._egress_since = int(time.time())
+        self._egress_last = ""  # RFC 3339 timestamp of the last proxy log line counted
 
     # Workspace lifecycle ------------------------------------------------------------------
 
@@ -568,17 +584,22 @@ class RunnerService:
         return message
 
     def _count_egress_denied(self) -> None:
+        """Count the proxy's `TCP_DENIED` lines logged since the previous heartbeat."""
         proxy = self.docker.proxy()
         if proxy is None:
             return
-        now = int(time.time())
         try:
-            logs = proxy.logs(since=self._egress_since, until=now, stdout=True, stderr=True)
+            logs = proxy.logs(since=self._egress_since, stdout=True, stderr=True, timestamps=True)
         except DockerException as exc:
             logger.warning("runner.proxy_logs_failed", error=str(exc))
             return
-        self._egress_since = now
-        denied = logs.decode("utf-8", errors="replace").count("TCP_DENIED")
+        denied = 0
+        for line in logs.decode("utf-8", errors="replace").splitlines():
+            stamp, _, text = line.partition(" ")
+            if stamp > self._egress_last:
+                self._egress_last = stamp
+                denied += "TCP_DENIED" in text
+        self._egress_since = max(int(time.time()) - 1, self._egress_since)
         if denied:
             metrics.EGRESS_DENIED.inc(denied)
 

@@ -9,6 +9,7 @@ the runner can reconcile after a restart and the tests can clean up by label.
 """
 
 import secrets
+import socket
 import uuid
 from dataclasses import dataclass, field
 from typing import Any
@@ -182,8 +183,21 @@ class DockerManager:
                 return self.client.containers.get(self.settings.PROXY_CONTAINER)
             except NotFound:
                 return None
-        found = self.client.containers.list(filters={"label": "com.docker.compose.service=proxy"})
+        labels = ["com.docker.compose.service=proxy"]
+        project = self._compose_project()
+        if project:  # the proxy of this runner's own compose project, not another stack's
+            labels.append(f"com.docker.compose.project={project}")
+        found = self.client.containers.list(filters={"label": labels})
         return found[0] if found else None
+
+    def _compose_project(self) -> str | None:
+        if not hasattr(self, "_project"):
+            try:
+                own = self.client.containers.get(socket.gethostname())
+                self._project = (own.labels or {}).get("com.docker.compose.project")
+            except (NotFound, APIError):
+                self._project = None
+        return self._project
 
     def _attach_proxy(self, network: Any) -> None:
         proxy = self.proxy()

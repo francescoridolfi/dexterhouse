@@ -146,8 +146,13 @@ def test_destroy_find_managed_exec_archive():
 def test_proxy_by_compose_label():
     client = mock.MagicMock()
     client.containers.list.return_value = ["proxy-container"]
+    client.containers.get.return_value.labels = {"com.docker.compose.project": "dexterhouse"}
     docker = DockerManager(RunnerSettings(), client=client)
     assert docker.proxy() == "proxy-container"
+    assert client.containers.list.call_args[1]["filters"]["label"] == [
+        "com.docker.compose.service=proxy",
+        "com.docker.compose.project=dexterhouse",
+    ]
     network = mock.MagicMock(name="net")
     network.connect.side_effect = APIError("endpoint already exists")
     docker._attach_proxy(network)
