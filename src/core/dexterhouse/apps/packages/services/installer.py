@@ -143,6 +143,8 @@ def run_install(install_id: uuid.UUID) -> PackageInstall:
         return _register(install, fetched, manifest, report)
     except RejectedError as exc:
         return _reject(install, exc.reason, exc.errors)
+    except registry.IndexUnavailableError as exc:  # fail closed: no index, no hash check
+        return _reject(install, RejectReason.FETCH, [str(exc)])
     finally:
         store.discard(staging)
 

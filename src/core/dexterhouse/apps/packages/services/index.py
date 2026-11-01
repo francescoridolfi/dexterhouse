@@ -79,7 +79,7 @@ def get_index(*, refresh: bool = False) -> IndexSnapshot | None:
     try:
         raw = _download(url)
         index = RegistryIndex.model_validate(json.loads(raw))
-    except (OSError, httpx2.HTTPError, ValueError, ValidationError) as exc:
+    except (OSError, httpx2.HTTPError, ValueError, ValidationError, IndexUnavailableError) as exc:
         logger.warning("packages.index_unavailable", url=url, error=str(exc))
         return _saved_copy(url, exc)
     snapshot = IndexSnapshot(index, "index")
