@@ -1,0 +1,9 @@
+# Development overrides, loaded automatically by `docker compose up`.
+# Exposes Postgres and Redis on localhost so `uv run manage.py ...` and `uv run pytest` work.
+services:
+  postgres:
+    ports: ["127.0.0.1:${POSTGRES_PORT:-5432}:5432"]
+    networks: [internal, public]
+  redis:
+    ports: ["127.0.0.1:${REDIS_PORT:-6379}:6379"]
+    networks: [internal, public]

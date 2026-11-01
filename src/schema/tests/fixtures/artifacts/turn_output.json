@@ -1,0 +1,15 @@
+{
+  "status": "done",
+  "summary": "Produced requirements v2 and 12 user stories.",
+  "artifacts": [
+    { "kind": "requirements", "name": "requirements.md", "content": "# Requirements…" },
+    { "kind": "stack", "name": "stack.yaml", "data": { "language": "python", "framework": "django",
+      "workspace_image": "dexterhouse/workspace:python", "package_manager": "uv",
+      "test_command": "uv run pytest -q", "run_command": "uv run manage.py runserver 0.0.0.0:8000",
+      "services": ["postgres"], "ports": [8000] } }
+  ],
+  "verdict": null,
+  "handoff": { "to_step": "reviewer", "notes": "Focus on the waitlist concurrency." },
+  "blocked_reason": null,
+  "assumptions_made": ["No payments in 1.0"]
+}

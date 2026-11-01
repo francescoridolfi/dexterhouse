@@ -1,0 +1,6 @@
+{ "marketplace_status": "reachable",
+  "proposals": [ { "name": "htmx-frontend-developer", "version": "1.3.0", "role": "htmx_frontend_developer",
+    "reason": "Server-rendered UI with htmx fits the stack.", "for_tasks": ["T-07"],
+    "permissions": [{"id": "workspace.write", "risk": "medium"}],
+    "risk": "low", "verified": true, "rating": 4.6, "installs": 812, "author_github": "janedoe" } ],
+  "installed": ["htmx-frontend-developer@1.3.0"], "summary": "One specialist for the frontend tasks." }

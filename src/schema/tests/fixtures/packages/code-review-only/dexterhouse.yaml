@@ -1,0 +1,10 @@
+schema: 1
+kind: process
+name: code-review-only
+version: 1.0.0
+description: "Review an existing repository"
+author:
+  name: "DexterHouse"
+license: AGPL-3.0-or-later
+compat:
+  core: ">=1.0,<2.0"

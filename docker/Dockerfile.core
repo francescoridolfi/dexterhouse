@@ -1,0 +1,40 @@
+# syntax=docker/dockerfile:1
+# DexterHouse core image: web (uvicorn/Channels), worker and beat (Celery).
+ARG PYTHON_IMAGE=python:3.12-slim-trixie@sha256:aa943ce411423c7582288f18707ff66eddcbaeb510502d747a72aeb34f30d159
+ARG UV_IMAGE=ghcr.io/astral-sh/uv:0.11.29@sha256:eb2843a1e56fd9e30c7276ce1a52cba86e64c7b385f5e3279a0e08e02dd058fc
+
+FROM ${UV_IMAGE} AS uv
+
+FROM ${PYTHON_IMAGE} AS builder
+COPY --from=uv /uv /usr/local/bin/uv
+ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PYTHON_DOWNLOADS=never UV_PROJECT_ENVIRONMENT=/opt/venv
+WORKDIR /src
+COPY pyproject.toml uv.lock ./
+COPY src/core/pyproject.toml src/core/
+COPY src/schema/pyproject.toml src/schema/
+COPY src/runner/pyproject.toml src/runner/
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-dev --no-install-workspace --package dexterhouse
+COPY src/core src/core
+COPY src/schema src/schema
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-dev --no-editable --package dexterhouse
+
+FROM ${PYTHON_IMAGE} AS runtime
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd --create-home --uid 1000 dexterhouse \
+    && mkdir -p /app/staticfiles /run/dh-secrets /data/packages \
+    && chown dexterhouse:dexterhouse /run/dh-secrets /data/packages
+COPY --from=builder /opt/venv /opt/venv
+ENV PATH=/opt/venv/bin:$PATH \
+    PYTHONUNBUFFERED=1 \
+    DJANGO_SETTINGS_MODULE=dexterhouse.settings.prod \
+    STATIC_ROOT=/app/staticfiles
+WORKDIR /app
+# The key below only satisfies prod settings during collectstatic; it is not used at runtime.
+RUN SECRET_KEY=collectstatic-only dexterhouse-manage collectstatic --noinput  # pragma: allowlist secret
+USER dexterhouse
+EXPOSE 8000
+CMD ["uvicorn", "dexterhouse.asgi:application", "--host", "0.0.0.0", "--port", "8000"]

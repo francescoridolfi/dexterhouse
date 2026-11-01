@@ -2,7 +2,7 @@
 
 **An open-source software house run by AI agents.** Give it a brief; an analyst, an architect, a project manager, developers, a reviewer and a tester take it from requirements to a tested repository, and you watch them do it in a 3D office.
 
-> **Status: pre-alpha.** The design is complete and the implementation is starting. Nothing is runnable yet; the quickstart below describes the 1.0 target. Follow the [roadmap](docs/roadmap.md).
+> **Status: pre-alpha.** The design is complete and the foundations are in place: `docker compose up` starts the core, workers and the web UI shell, but there are no agents yet. The quickstart below describes the 1.0 target. Follow the [roadmap](docs/roadmap.md).
 
 ## Why DexterHouse
 
@@ -17,10 +17,9 @@
 ```bash
 git clone https://github.com/francescoridolfi/dexterhouse.git && cd dexterhouse
 cp .env.example .env            # add at least one provider key, or point OLLAMA_BASE_URL to a local Ollama
-make init-secrets
 docker compose up -d
 ```
-Open http://localhost, create the admin user when prompted, paste a brief, pick a mode and a budget, press **Start**.
+Secrets (Django key, encryption keys, database password) are generated on first start. Open http://localhost, create the admin user when prompted, paste a brief, pick a mode and a budget, press **Start**.
 
 Requirements: Docker Engine 25+ with Compose v2, 4 vCPU / 8 GB RAM recommended, a browser with WebGL 2 for the 3D office (the 2D dashboard works everywhere).
 

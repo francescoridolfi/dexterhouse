@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "name": "security-reviewer",
+  "kind": "agent",
+  "repo": "https://github.com/janedoe/dh-security-reviewer",
+  "author_github": "janedoe",
+  "versions": [
+    { "version": "1.2.0", "ref": "v1.2.0", "sha256": "abababababababababababababababababababababababababababababababab", "compat_core": ">=1.0,<2.0",
+      "published_at": "2027-02-10T10:00:00Z", "signature": null }
+  ],
+  "verified": false,
+  "deprecated": false,
+  "replaced_by": null
+}

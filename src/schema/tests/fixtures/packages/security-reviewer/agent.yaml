@@ -1,0 +1,28 @@
+schema: 1
+role: security_reviewer                 # identificatore usato dai processi
+display_name: "Security Reviewer"
+model_profile: strong                   # strong | balanced | fast
+tools:                                  # permessi richiesti (id dal catalogo tool)
+  - workspace.read
+  - workspace.list
+  - git.diff
+skills: [owasp-top10, secrets-scan]     # cartelle in skills/
+prompts:
+  system: prompts/system.md             # obbligatorio
+  examples: prompts/examples.md         # opzionale
+output_contract:                        # cosa deve produrre un turno
+  artifacts: [review]                   # kind ammessi
+  schema: review                        # kind strutturato il cui schema valida `output`
+limits:
+  max_tool_calls: 40                    # ≤ 50
+  max_output_tokens: 8000
+  turn_timeout_s: 600                   # ≤ 900
+office:
+  room: review_corner                   # stanza preferita
+  avatar: avatars/hoodie.glb            # opzionale, ≤ 2 MB
+  color: "#8e44ad"
+capabilities:
+  may_ask: true                         # può aprire gate question se la fase lo consente
+  reads_untrusted: false                # legge contenuti esterni (web): attiva incapsulamento
+i18n:
+  display_name: { it: "Revisore sicurezza" }
