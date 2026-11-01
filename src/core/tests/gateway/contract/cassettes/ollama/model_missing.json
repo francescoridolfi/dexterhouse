@@ -1,0 +1,18 @@
+{
+  "model": "qwen3:14b",
+  "status": 404,
+  "headers": {
+    "content-type": "application/json"
+  },
+  "body": [
+    "{\"error\": \"model \\\"qwen3:14b\\\" not found, try pulling it first\"}"
+  ],
+  "expect": {
+    "error": {
+      "status": "error",
+      "code": "configuration",
+      "retryable": false,
+      "retry_after": null
+    }
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "model": "qwen3:14b",
+  "status": 429,
+  "headers": {
+    "content-type": "application/json"
+  },
+  "body": [
+    "{\"error\": \"too many requests\"}"
+  ],
+  "expect": {
+    "error": {
+      "status": "rate_limited",
+      "code": "provider",
+      "retryable": true,
+      "retry_after": null
+    }
+  }
+}

@@ -1,0 +1,24 @@
+schema: 1
+name: echo-tools
+transport: stdio
+runs_in: worker
+command: ["python", "server.py"]
+env:
+  ECHO_PROJECT: "${project.id}"
+permissions:
+  - id: echo.say
+    mcp_tool: say
+    description: "Repeat a short text."
+    risk: low
+    args_policy:
+      text: { maxLength: 40 }
+  - id: echo.write
+    mcp_tool: write
+    description: "Pretend to write a file (not idempotent)."
+    risk: medium
+  - id: echo.fail
+    mcp_tool: fail
+    description: "Always fails."
+    risk: low
+network: allowlist
+hosts: [localhost]

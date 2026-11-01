@@ -1,0 +1,23 @@
+# Built-in MCP server running in the worker (contracts/tools/memory.md). The core starts it
+# with its own interpreter and database settings; the project comes from the interpolations.
+schema: 1
+name: memory
+transport: stdio
+runs_in: worker
+command: ["python", "-m", "dexterhouse.apps.memory.mcp_server"]
+env:
+  DH_PROJECT_ID: "${project.id}"
+  DH_ORGANIZATION_ID: "${project.organization_id}"
+  DH_DATA_RESIDENCY: "${project.data_residency}"
+permissions:
+  - id: memory.search
+    mcp_tool: memory_search
+    description: "Search the project memory (artifacts, gate comments, retrospective lessons) by relevance; returns the best chunks with their artifact and score."
+    risk: low
+  - id: memory.recent
+    mcp_tool: memory_recent
+    description: "List the most recently indexed artifacts, gate comments and notes of the project."
+    risk: low
+network: allowlist
+hosts: [postgres, ollama]
+healthcheck: { timeout_s: 20 }

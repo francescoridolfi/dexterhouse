@@ -1,0 +1,18 @@
+{
+  "model": "qwen3:14b",
+  "status": 400,
+  "headers": {
+    "content-type": "application/json"
+  },
+  "body": [
+    "{\"error\": \"the input length exceeds the context length\"}"
+  ],
+  "expect": {
+    "error": {
+      "status": "error",
+      "code": "context_length",
+      "retryable": false,
+      "retry_after": null
+    }
+  }
+}

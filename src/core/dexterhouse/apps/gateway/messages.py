@@ -42,7 +42,20 @@ class ImagePart(_Model):
     data: str  # base64
 
 
-Part = Annotated[TextPart | ToolCallPart | ToolResultPart | ImagePart, Field(discriminator="kind")]
+class OpaquePart(_Model):
+    """A provider block that must be sent back unchanged (Anthropic thinking, fallback).
+
+    Other providers ignore it; it never reaches the agents runtime as content.
+    """
+
+    kind: Literal["opaque"] = "opaque"
+    provider: str
+    data: dict[str, Any]
+
+
+Part = Annotated[
+    TextPart | ToolCallPart | ToolResultPart | ImagePart | OpaquePart, Field(discriminator="kind")
+]
 
 
 class Message(_Model):
@@ -95,12 +108,19 @@ class ToolCallEnd(_Model):
     id: str
 
 
+class OpaqueBlock(_Model):
+    kind: Literal["opaque_block"] = "opaque_block"
+    provider: str
+    data: dict[str, Any]
+
+
 class Usage(_Model):
     kind: Literal["usage"] = "usage"
     input: int = 0  # includes cached_read
     output: int = 0
     cached_read: int = 0
     cached_write: int = 0
+    cost_usd: float | None = None  # reported by the provider itself (`anthropic-cli`)
 
 
 class Stop(_Model):
@@ -108,7 +128,7 @@ class Stop(_Model):
     reason: StopReason
 
 
-StreamEvent = TextDelta | ToolCallStart | ToolCallDelta | ToolCallEnd | Usage | Stop
+StreamEvent = TextDelta | ToolCallStart | ToolCallDelta | ToolCallEnd | OpaqueBlock | Usage | Stop
 
 
 class CompletionResult(_Model):

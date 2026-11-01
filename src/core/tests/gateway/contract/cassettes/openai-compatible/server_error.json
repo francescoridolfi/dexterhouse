@@ -1,0 +1,18 @@
+{
+  "model": "llama-3.3-70b-instruct",
+  "status": 503,
+  "headers": {
+    "content-type": "application/json"
+  },
+  "body": [
+    "{\"error\": {\"message\": \"The server is overloaded\", \"type\": \"server_error\", \"param\": null, \"code\": null}}"
+  ],
+  "expect": {
+    "error": {
+      "status": "error",
+      "code": "provider",
+      "retryable": true,
+      "retry_after": null
+    }
+  }
+}

@@ -22,3 +22,5 @@ MIDDLEWARE = [m for m in MIDDLEWARE if not m.startswith("whitenoise")]
 DATABASES["default"]["CONN_MAX_AGE"] = 0
 # Throwaway Fernet key for encrypted columns in tests.
 FERNET_KEY = "dGVzdC1mZXJuZXQta2V5LW5vdC1hLXNlY3JldC0wMDA="  # pragma: allowlist secret
+GATEWAY_RETRY_DELAYS = (0.0, 0.0, 0.0)
+AGENTS_TOOL_PACKAGE_DIRS: list[str] = []

@@ -1,0 +1,8 @@
+schema: 1
+kind: tool
+name: echo-tools
+version: 1.0.0
+description: "Echo MCP server used by the agents runtime tests"
+author: { name: "DexterHouse", github: francescoridolfi }
+license: AGPL-3.0-or-later
+compat: { core: ">=0.1,<2.0" }

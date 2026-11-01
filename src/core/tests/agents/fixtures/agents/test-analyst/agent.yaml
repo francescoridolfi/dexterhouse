@@ -1,0 +1,11 @@
+schema: 1
+role: analyst
+display_name: "Test Analyst"
+model_profile: balanced
+tools: [echo.say, echo.write, echo.fail, memory.search, workspace.read]
+skills: [brief-reading]
+prompts: { system: prompts/system.md }
+output_contract: { artifacts: [requirements, questions], schema: questions }
+limits: { max_tool_calls: 4, max_output_tokens: 2000, turn_timeout_s: 120 }
+office: { room: analysis_room, color: "#3366cc" }
+capabilities: { may_ask: true }

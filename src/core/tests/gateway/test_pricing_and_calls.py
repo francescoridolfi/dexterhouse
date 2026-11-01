@@ -19,8 +19,8 @@ from dexterhouse.apps.gateway.services.complete import complete
 def test_cost_formula_matches_pricing_doc():
     prices = load_prices(DEFAULT_PRICES)
     usage = Usage(input=1_000_000, output=1_000_000, cached_read=500_000, cached_write=100_000)
-    # (0.5M*3 + 0.5M*0.30 + 0.1M*3.75 + 1M*15) USD per 1M = 17.025 USD * 0.92
-    assert prices.cost_eur("anthropic", "claude-sonnet-5-5", usage) == Decimal("15.663000")
+    # (0.5M*2 + 0.5M*0.20 + 0.1M*2.50 + 1M*10) USD per 1M = 11.35 USD * 0.92
+    assert prices.cost_eur("anthropic", "claude-sonnet-5-5", usage) == Decimal("10.442000")
 
 
 def test_wildcard_fallbacks_and_unpriced():

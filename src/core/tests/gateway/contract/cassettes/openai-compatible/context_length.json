@@ -1,0 +1,18 @@
+{
+  "model": "llama-3.3-70b-instruct",
+  "status": 400,
+  "headers": {
+    "content-type": "application/json"
+  },
+  "body": [
+    "{\"error\": {\"message\": \"This model's maximum context length is 128000 tokens. However, your messages resulted in 215000 tokens.\", \"type\": \"invalid_request_error\", \"param\": \"messages\", \"code\": \"context_length_exceeded\"}}"
+  ],
+  "expect": {
+    "error": {
+      "status": "error",
+      "code": "context_length",
+      "retryable": false,
+      "retry_after": null
+    }
+  }
+}

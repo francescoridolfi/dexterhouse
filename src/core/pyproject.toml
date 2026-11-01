@@ -23,10 +23,17 @@ dependencies = [
   "whitenoise>=6.8",
   "uuid6>=2024.7",
   "cryptography>=43",
+  "anthropic>=2.3,<3",
+  "openai>=3.40,<4",
+  "mcp>=2.3,<3",
+  "pgvector>=0.5",
+  "pyjwt>=2.10",
+  "httpx2>=2.16",
 ]
 
 [project.scripts]
 dexterhouse-manage = "dexterhouse.manage:main"
+dexterhouse-mcp-bridge = "dexterhouse.apps.gateway.bridge:main"
 
 [build-system]
 requires = ["hatchling>=1.26"]

@@ -1,0 +1,19 @@
+{
+  "model": "claude-sonnet-5-5",
+  "status": 401,
+  "headers": {
+    "content-type": "application/json",
+    "request-id": "req_011CU"
+  },
+  "body": [
+    "{\"type\": \"error\", \"error\": {\"type\": \"authentication_error\", \"message\": \"invalid x-api-key\"}}"
+  ],
+  "expect": {
+    "error": {
+      "status": "error",
+      "code": "authentication",
+      "retryable": false,
+      "retry_after": null
+    }
+  }
+}
