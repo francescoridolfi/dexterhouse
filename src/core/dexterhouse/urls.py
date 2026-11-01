@@ -10,4 +10,5 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("api/v1/", include("dexterhouse.apps.projects.urls")),
     path("api/v1/", include("dexterhouse.apps.workflows.urls")),
+    path("api/v1/", include("dexterhouse.apps.notifications.urls")),
 ]

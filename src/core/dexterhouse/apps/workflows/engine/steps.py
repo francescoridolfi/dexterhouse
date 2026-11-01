@@ -16,9 +16,12 @@ from django.db import transaction
 from django.utils import timezone
 from pydantic import ValidationError
 
+from dexterhouse.apps.agents.models import AgentTurn
 from dexterhouse.apps.projects.models import Artifact, Note, ProjectStatus
+from dexterhouse.apps.projects.services import notes as notes_service
 from dexterhouse.apps.projects.services.actors import emit
 from dexterhouse.apps.projects.services.artifacts import ref, save_artifact
+from dexterhouse.apps.workflows import escalations
 from dexterhouse.apps.workflows.engine import common, loop, phases
 from dexterhouse.apps.workflows.models import (
     PhaseRun,
@@ -199,6 +202,7 @@ def _apply(run, row: PhaseRun, step_run: StepRun, output: TurnOutput) -> None:
     project = run.project
     phase = common.phase_of(run, row)
     refs = [ref(a) for a in _artifacts(project, row, step_run, output)]
+    _consume_notes(project, row, step_run)
     if step_run.task_id:
         loop.apply_step(phase, row, step_run, output, refs)
         return
@@ -212,7 +216,28 @@ def _apply(run, row: PhaseRun, step_run: StepRun, output: TurnOutput) -> None:
             "artifacts": refs,
         },
     )
-    phases.apply_step(phase, row, step_run.step_index, output)
+    phases.apply_step(phase, row, step_run.step_index, output, step_run)
+
+
+def _consume_notes(project, row: PhaseRun, step_run: StepRun) -> None:
+    """The user's notes the turn had in context are read (`note.consumed`, F-004)."""
+    if step_run.agent_turn_id is not None:
+        manifest = (
+            AgentTurn.objects.filter(pk=step_run.agent_turn_id)
+            .values_list("context_manifest", flat=True)
+            .first()
+        )
+        sections = (manifest or {}).get("sections") or {}
+        ids = [n["note_id"] for n in sections.get("notes") or []]
+    else:
+        texts = set((step_run.request or {}).get("notes") or [])
+        scope = Note.objects.filter(project=project, phase_run__isnull=True) | Note.objects.filter(
+            project=project, phase_run=row
+        )
+        ids = [n.id for n in scope if n.content in texts]
+    if ids:
+        turn_id = step_run.agent_turn_id or step_run.id
+        notes_service.consume(project, ids, turn_id, step_run.agent_id, step_run.role)
 
 
 def _artifacts(project, row: PhaseRun, step_run: StepRun, output: TurnOutput) -> list[Artifact]:
@@ -254,7 +279,12 @@ def record_failure(step_run_id: uuid.UUID, attempt: int | None, code: str, detai
             update_fields=["error", "lease_expires_at", "status", "finished_at", "updated_at"]
         )
         logger.warning("workflows.step_failed", step_run_id=str(step_run_id), code=code)
-        common.fail_phase(row, "turn_failed", step_run.error)
+        escalations.open_escalation(
+            row,
+            "turn_failed",
+            {"error": step_run.error[:2000], "step": step_run.step, "role": step_run.role},
+            step_run=step_run,
+        )
 
 
 def reconcile(now=None) -> int:

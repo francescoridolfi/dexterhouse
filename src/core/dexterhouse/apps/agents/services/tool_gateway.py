@@ -31,6 +31,7 @@ from dexterhouse.apps.gateway.messages import ToolCallPart, ToolResultPart, Tool
 logger = structlog.get_logger(__name__)
 
 MAX_DENIALS = 3
+NEEDS_HUMAN = "needs_human_approval"
 RESULT_LIMIT = 64 * 1024
 EXCERPT_CHARS = 500
 _SECRET_KEY = re.compile(r"pass(word)?|secret|token|api[_-]?key|credential", re.IGNORECASE)
@@ -139,6 +140,8 @@ class ToolGateway:
         violation = check_args_policy(binding.permission.args_policy or {}, call.args)
         if violation:
             return self._deny(seq, key, call, Denial("args_policy", violation))
+        if binding.permission.risk == "high" and not _human_approved(self.turn, call.name):
+            return self._escalate(seq, key, call)
         if record is not None and binding.permission.risk != "low":
             # Interrupted mid-call and possibly not idempotent: never run it twice.
             record.status = ToolCallStatus.ERROR
@@ -273,9 +276,77 @@ class ToolGateway:
             raise PermissionLimitError(f"{self.turn.denied_count} refused tool calls")
         return _result_part(call.id, record)
 
+    def _escalate(self, seq: int, key: str, call: ToolCallPart) -> ToolResultPart:
+        """A `risk: high` tool needs a human (F-004): refuse the call and escalate.
+
+        Not a security violation (no `denied_count`): the human's `retry` on the escalation
+        allows the tool for the rest of the phase and runs the step again.
+        """
+        message = (
+            f"refused: {call.name} is a high-risk tool and needs a human decision. The "
+            "request was escalated; finish the step without it and say what you needed."
+        )
+        with transaction.atomic():
+            record = ToolCall.objects.create(
+                agent_turn=self.turn,
+                seq=seq,
+                idempotency_key=key,
+                call_id=call.id,
+                tool=call.name,
+                arguments=redact(call.args),
+                allowed=False,
+                status=ToolCallStatus.DENIED,
+                denied_reason=NEEDS_HUMAN,
+                result={"content": message, "is_error": True},
+            )
+            emit_turn(
+                self.turn,
+                "agent.tool.requested",
+                {"turn_id": str(self.turn.id), "tool": call.name, "call_seq": seq},
+            )
+            emit_turn(
+                self.turn,
+                "agent.tool.used",
+                {
+                    "turn_id": str(self.turn.id),
+                    "tool": call.name,
+                    "call_seq": seq,
+                    "allowed": False,
+                    "duration_ms": 0.0,
+                    "result_excerpt": "",
+                    "denied_reason": NEEDS_HUMAN,
+                },
+            )
+        _request_human(self.turn, call)
+        return _result_part(call.id, record)
+
     def _set_status(self, status: str) -> None:
         self.turn.status = status
         self.turn.save(update_fields=["status", "updated_at"])
+
+
+def _human_approved(turn: AgentTurn, tool: str) -> bool:
+    from dexterhouse.apps.workflows.escalations import tool_approved
+
+    return tool_approved(turn.phase_run_id, tool)
+
+
+def _request_human(turn: AgentTurn, call: ToolCallPart) -> None:
+    """Open (or reuse) the `tool_high_risk` escalation of the project."""
+    from dexterhouse.apps.workflows.escalations import escalate
+    from dexterhouse.common.errors import InvalidTransitionError
+
+    details = {
+        "tool": call.name,
+        "args": redact(call.args),
+        "turn_id": str(turn.id),
+        "agent_id": str(turn.agent_instance_id),
+        "summary": f"An agent asked to run {call.name}, a high-risk tool.",
+    }
+    try:
+        escalate(turn.project_id, "tool_high_risk", details)
+    except InvalidTransitionError as exc:  # a turn outside a running process: refusal only
+        logger.warning("agents.high_risk_not_escalated", tool=call.name, reason=str(exc))
 
 
 def check_args_policy(policy: dict[str, dict[str, Any]], args: dict[str, Any]) -> str | None:

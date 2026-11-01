@@ -5,6 +5,7 @@ from typing import Any
 
 from dexterhouse.apps.accounts.models import User
 from dexterhouse.apps.projects.services.actors import emit, user_actor
+from dexterhouse.apps.workflows import escalations
 from dexterhouse.apps.workflows.engine import common, loop, phases
 from dexterhouse.apps.workflows.models import (
     Gate,
@@ -67,8 +68,7 @@ def _answer(row: PhaseRun, gate: Gate, user: User, answers: Any) -> str:
     ctx = common.get_context(row)
     ctx.answers = [common.Answer(**a) for a in clean]
     common.set_context(row, ctx)
-    row.status = PhaseStatus.RUNNING
-    common.save(row, "status")
+    common.resume_phase(row)
     emit(
         gate.project,
         "question.answered",
@@ -89,6 +89,9 @@ def _check(decision: str | None, allowed: set[str], kind: str) -> str:
 
 
 def _approval(phase, row: PhaseRun, gate: Gate, user: User, decision, comment) -> str:
+    """`approve` completes; `reject` and `approve_with_comments` reopen the phase with the
+    comment in context (max 2 rounds, then escalation); `reject` with `on_reject:
+    reopen_implementation` creates `fix` tasks from the comment instead (CD-034)."""
     decision = _check(decision, APPROVAL_DECISIONS, "approval")
     actor = user_actor(user)
     if decision == GateDecision.APPROVE:
@@ -96,35 +99,32 @@ def _approval(phase, row: PhaseRun, gate: Gate, user: User, decision, comment) -
         common.gate_decided_event(gate, "phase_completed", actor=actor)
         phases.approve(phase, row)
         return "phase_completed"
-    if decision == GateDecision.APPROVE_WITH_COMMENTS:
-        if not (comment or "").strip():
-            raise ValidationFailedError(
-                "approve_with_comments needs a comment",
-                [{"field": "comment", "message": "required"}],
-            )
+    if not (comment or "").strip():
+        raise ValidationFailedError(
+            f"{decision} needs a comment", [{"field": "comment", "message": "required"}]
+        )
+    if decision == GateDecision.REJECT:
+        common.decide(gate, GateStatus.REJECTED, decision, user=user, comment=comment)
+        if phase.gate and phase.gate.on_reject == "reopen_implementation":
+            created = _reopen_loop(phase, row, comment or "")
+            if created:
+                common.gate_decided_event(gate, "tasks_created", actor=actor)
+                return "tasks_created"
+    else:
         common.decide(gate, GateStatus.APPROVED_WITH_COMMENTS, decision, user=user, comment=comment)
-        if row.reopen_count >= common.MAX_REOPEN_ROUNDS:
-            common.gate_decided_event(gate, "escalated", actor=actor)
-            payload = common.GatePayload(
-                title=f"{row.phase_id}: comments after {row.reopen_count} rounds",
-                summary=comment[:400],
-                reason="rounds_exhausted",
-                round=row.round,
-            )
-            common.open_gate(row, gate_id="escalation", type=GateType.ESCALATION, payload=payload)
-            return "escalated"
-        common.gate_decided_event(gate, "phase_reopened", actor=actor)
-        phases.reopen(row, comment)
-        return "phase_reopened"
-    common.decide(gate, GateStatus.REJECTED, decision, user=user, comment=comment)
-    if phase.gate and phase.gate.on_reject == "reopen_implementation":
-        created = _reopen_loop(phase, row, comment or "")
-        if created:
-            common.gate_decided_event(gate, "tasks_created", actor=actor)
-            return "tasks_created"
-    common.gate_decided_event(gate, "phase_failed", actor=actor)
-    common.fail_phase(row, "gate_rejected", comment or "")
-    return "phase_failed"
+    if row.reopen_count >= common.MAX_REOPEN_ROUNDS:
+        common.gate_decided_event(gate, "escalated", actor=actor)
+        payload = common.GatePayload(
+            title=f"{row.phase_id}: comments after {row.reopen_count} rounds",
+            summary=comment[:400],
+            reason="rounds_exhausted",
+            round=row.round,
+        )
+        common.open_gate(row, gate_id="escalation", type=GateType.ESCALATION, payload=payload)
+        return "escalated"
+    common.gate_decided_event(gate, "phase_reopened", actor=actor)
+    phases.reopen(row, comment)
+    return "phase_reopened"
 
 
 def _reopen_loop(phase, row: PhaseRun, comment: str) -> list[Task]:
@@ -156,9 +156,12 @@ def _escalation(phase, row: PhaseRun, gate: Gate, user: User, decision, comment)
             decision
         ]
         common.gate_decided_event(gate, next_, actor=actor)
-        row.status = PhaseStatus.RUNNING
-        common.save(row, "status")
+        common.resume_phase(row)
         if decision == GateDecision.RETRY:
+            if comment:  # "retry with a note": the developer's next turn reads it
+                ctx = common.get_context(row)
+                ctx.comment = comment
+                common.set_context(row, ctx)
             loop.retry_task(phase, row, task)
         elif decision == GateDecision.ACCEPT:
             loop.complete_task(task, forced=True)
@@ -169,6 +172,10 @@ def _escalation(phase, row: PhaseRun, gate: Gate, user: User, decision, comment)
         common.gate_decided_event(gate, "phase_failed", actor=actor)
         common.fail_phase(row, "escalation_dropped", comment or "")
         return "phase_failed"
+    if reason in escalations.REASONS:
+        next_ = escalations.resolve(phase, row, gate, decision, comment)
+        common.gate_decided_event(gate, next_, actor=actor)
+        return next_
     if decision == GateDecision.RETRY:
         common.gate_decided_event(gate, "phase_reopened", actor=actor)
         if reason == "exit_failed":

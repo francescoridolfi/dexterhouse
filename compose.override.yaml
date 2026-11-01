@@ -7,3 +7,16 @@ services:
   redis:
     ports: ["127.0.0.1:${REDIS_PORT:-6379}:6379"]
     networks: [internal, public]
+  # Mailpit catches the gate notification emails (E-06): UI on http://localhost:8025.
+  mailpit:
+    image: axllent/mailpit:v1.21
+    ports: ["127.0.0.1:${MAILPIT_UI_PORT:-8025}:8025"]
+    networks: [internal, public]
+    restart: unless-stopped
+  web:
+    environment: &dev-mail
+      EMAIL_HOST: mailpit
+      EMAIL_PORT: "1025"
+      NOTIFICATIONS_EMAIL: "true"
+  worker:
+    environment: *dev-mail

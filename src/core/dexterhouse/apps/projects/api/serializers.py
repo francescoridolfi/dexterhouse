@@ -62,7 +62,10 @@ class ArtifactInput(serializers.Serializer):
 
 class NoteInput(serializers.Serializer):
     content = serializers.CharField(max_length=10_000)
-    phase_run = serializers.UUIDField(required=False, allow_null=True, default=None)
+    # A phase run id, "current" (the phase the team is working on) or null (every phase).
+    phase_run = serializers.RegexField(
+        r"^(current|[0-9a-fA-F-]{36})$", required=False, allow_null=True, default=None
+    )
 
 
 def project_json(project: Project, *, detail: bool = False) -> dict[str, Any]:
@@ -136,5 +139,6 @@ def note_json(note: Note) -> dict[str, Any]:
         "phase_run": str(note.phase_run_id) if note.phase_run_id else None,
         "content": note.content,
         "consumed": bool(note.consumed_by_turn_ids),
+        "consumed_by_turn_ids": [str(t) for t in note.consumed_by_turn_ids],
         "created_at": _ts(note.created_at),
     }

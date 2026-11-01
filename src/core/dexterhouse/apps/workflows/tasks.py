@@ -8,6 +8,7 @@ short tasks of `default` (`reconcile`, events, memory indexing).
 
 from celery import shared_task
 
+from dexterhouse.apps.workflows import reminders
 from dexterhouse.apps.workflows.engine import steps
 
 
@@ -19,3 +20,8 @@ def run_step(step_run_id: str) -> None:
 @shared_task(name="dexterhouse.apps.workflows.tasks.reconcile")
 def reconcile() -> int:
     return steps.reconcile()
+
+
+@shared_task(name="dexterhouse.apps.workflows.tasks.remind_gates")
+def remind_gates() -> int:
+    return reminders.remind_gates()

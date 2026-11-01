@@ -61,6 +61,13 @@ def gate_json(gate: Gate) -> dict[str, Any]:
         "opened_at": _ts(gate.opened_at),
         "decided_at": _ts(gate.decided_at),
         "expires_at": _ts(gate.expires_at),
+        "title": gate.payload.get("title"),
+        "summary": gate.payload.get("summary"),
+        "reason": gate.payload.get("reason"),
+        "phase_id": gate.phase_run.phase_id,
+        "project_name": gate.project.name,
+        "reminders": gate.reminders,
+        "notified_at": _ts(gate.notified_at),
     }
 
 
