@@ -1,0 +1,12 @@
+schema: 1
+kind: agent
+name: recruiter
+version: 1.0.0
+description: "Built-in Recruiter: proposes marketplace specialists for tasks of the board"
+author:
+  name: "DexterHouse"
+  github: francescoridolfi
+license: AGPL-3.0-or-later
+compat:
+  core: ">=0.1,<2.0"
+tags: [planning, marketplace, builtin]

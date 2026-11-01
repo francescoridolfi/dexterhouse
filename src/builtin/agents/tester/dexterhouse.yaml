@@ -1,0 +1,12 @@
+schema: 1
+kind: agent
+name: tester
+version: 1.0.0
+description: "Built-in Tester: writes acceptance tests only, runs them and reports the verdict"
+author:
+  name: "DexterHouse"
+  github: francescoridolfi
+license: AGPL-3.0-or-later
+compat:
+  core: ">=0.1,<2.0"
+tags: [testing, quality, builtin]

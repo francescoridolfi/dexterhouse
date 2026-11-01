@@ -1,0 +1,6 @@
+# The scenario of dev_docs (GymBook), supervised: questions, then four approvals.
+name: GymBook
+execution_mode: supervised
+brief: >-
+  Web app for a small gym: course management, members, seat booking with a waiting list.
+  REST API and a simple UI. Stack of your choice, it must run with Docker.

@@ -48,6 +48,9 @@ class TurnInputs(_Model):
     """Section inputs of the context builder (agents/context_builder.md, sections 6-12)."""
 
     step_description: str = ""
+    produces: list[str] = Field(
+        default_factory=list, description="Artifact kinds the step asks for (the process's)."
+    )
     task: TaskInput | None = None
     gate_answers: list[str] = Field(default_factory=list, description="Most recent first.")
     review_items: list[dict[str, Any]] = Field(

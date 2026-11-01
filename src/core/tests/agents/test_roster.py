@@ -44,7 +44,7 @@ def test_ensure_agent_hires_once_and_replaces_a_released_one(project, team_packa
     assert roster.active_agent(project.id, "reviewer") == second
 
 
-def test_placeholder_without_package(project):
+def test_placeholder_without_package(project, no_packages):
     agent = roster.ensure_agent(project, "project_manager", room="pm_office")
     assert (agent.package_name, agent.package_path, agent.room) == (
         "placeholder-project-manager",

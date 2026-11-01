@@ -1,0 +1,29 @@
+schema: 1
+role: analyst
+display_name: "Analyst"
+model_profile: strong
+tools:
+  - memory.search
+  - memory.recent
+  - project.artifact
+  - project.notes
+  - project.ask
+  - skills.read
+skills: [requirements-elicitation, user-story-writing, nfr-checklist]
+prompts:
+  system: prompts/system.md
+output_contract:
+  artifacts: [requirements, user_stories, questions, assumptions]
+  schema: markdown
+limits:
+  max_tool_calls: 15
+  max_output_tokens: 12000
+  turn_timeout_s: 600
+office:
+  room: meeting_room
+  avatar: avatars/analyst.gltf
+  color: "#7DB7E7"
+capabilities:
+  may_ask: true
+i18n:
+  display_name: { it: "Analista" }

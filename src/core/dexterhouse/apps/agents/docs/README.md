@@ -60,11 +60,40 @@ The workflow engine uses them through `AgentsTurnRunner`
 | `notes` (`NoteInput`: id, text), most recent first | 11 |
 | `workspace_tree` (indented text, two spaces per level) | 12 |
 | `memory_query` (default: task title + acceptance) | 10 |
+| `produces` (artifact kinds the step asks for) | step description, demo responder |
 | `room`, `mode`, `may_ask`, `data_residency` (`any`/`local`), `verdict_rule` (`review`/`test`/`none`) | behaviour and output rules |
 | `known_finding_ids`, `installed_roles`, `task_ids`, `stack_test_command` | TurnOutput validation context |
+
+## Tools a turn cannot reach
+
+An agent's `allowed_tools` may name tools the core cannot reach yet: a permission no
+installed tool package exposes (`workspace.*`, `git.*`, `marketplace.*`, `packages.*` until
+E-05, E-07 and E-08), a `runs_in: runner` tool before the runner exists, or a server that
+does not start or does not list the tool. The turn does not fail: the tool is left out of
+the tool schemas sent to the model, a warning `agents.tools_unavailable` is logged, and
+`AgentTurn.context_manifest.unavailable_tools` maps each one to `not_installed`,
+`runs_in_runner`, `server_unavailable` or `missing_on_server`. A call to it anyway gets a
+`tool_unavailable: <tool> (<reason>)` error result, not a refusal (no `security.violation`).
+Skills whose `tools_required` are unavailable are not listed. `packages.install` is offered
+only in autonomous mode.
+
+## Argument policies
+
+A call is checked against the tool package's `permissions[].args_policy` and the agent's
+own `agent.yaml` `args_policy` (CD-032: the built-in tester writes only test paths, the
+developer cannot touch `tests/acceptance/`). The agent's policy is checked first, even for
+an unreachable tool, so a forbidden write is a `security.violation(args_policy)`.
+
+## Built-in agents and the demo responder
+
+The seven built-in packages live in `src/builtin/agents/`; the skills every agent may load
+in `src/builtin/skills/` (listed when the agent has their `tools_required`).
+`dexterhouse.apps.agents.demo.respond` answers the gateway's `fake` provider as the built-in
+agents would, by role and step, from the turn's `TurnInputs`: set
+`GATEWAY_FAKE_RESPONDER=dexterhouse.apps.agents.demo.respond` and the organization's model
+profiles to provider `fake` to run a whole project without any LLM. `AGENTS_DEMO_SCRIPT`
+scripts it (`ask_questions`, `tasks`, `hire`, `verdicts`; see the module).
 
 ## Still to wire
 
 - Budget checks before the call and `Project.spent` updates (F-012, E-10).
-- The real built-in agent packages and prompts (E-04); tests use
-  `src/core/tests/fixtures/agent_packages/`.

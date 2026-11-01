@@ -18,6 +18,11 @@ def builtin_tools_dir() -> Path:
     return Path(settings.BUILTIN_DIR) / "tools"
 
 
+def builtin_skills_dir() -> Path:
+    """`settings.BUILTIN_DIR / skills`: skills shared by every agent (skill.md)."""
+    return Path(settings.BUILTIN_DIR) / "skills"
+
+
 class PackageError(ValueError):
     """The package is missing or invalid: a configuration error, never retried."""
 
@@ -72,12 +77,7 @@ def _load_agent(root_str: str, _mtime: float) -> AgentPackage:
     manifest = report.models.get("dexterhouse.yaml")
     if not isinstance(agent, Agent) or manifest is None:
         raise PackageError(f"{root} is not an agent package")
-    skills = []
-    for name in agent.skills:
-        doc = split_skill_md((root / "skills" / name / "SKILL.md").read_text(encoding="utf-8"))
-        front = SkillFrontmatter.model_validate(doc.frontmatter)
-        required = tuple(front.dexterhouse.tools_required) if front.dexterhouse else ()
-        skills.append(SkillInfo(front.name, front.description, required))
+    skills = [_skill_info(root / "skills" / name) for name in agent.skills]
     return AgentPackage(
         root=root,
         name=manifest.name,  # type: ignore[attr-defined]
@@ -86,6 +86,36 @@ def _load_agent(root_str: str, _mtime: float) -> AgentPackage:
         system_prompt=(root / agent.prompts.system).read_text(encoding="utf-8"),
         skills=tuple(skills),
     )
+
+
+def _skill_info(folder: Path) -> SkillInfo:
+    doc = split_skill_md((folder / "SKILL.md").read_text(encoding="utf-8"))
+    front = SkillFrontmatter.model_validate(doc.frontmatter)
+    required = tuple(front.dexterhouse.tools_required) if front.dexterhouse else ()
+    return SkillInfo(front.name, front.description, required)
+
+
+def shared_skills() -> tuple[SkillInfo, ...]:
+    """The built-in skills every agent may load (`BUILTIN_DIR/skills/<name>/SKILL.md`).
+
+    The context builder lists those whose `tools_required` the agent has; an invalid
+    skill folder is skipped (the registry CI and the package tests validate them).
+    """
+    base = builtin_skills_dir()
+    folders = sorted(p.parent for p in base.glob("*/SKILL.md")) if base.is_dir() else []
+    stamp = max((p.stat().st_mtime for p in base.glob("*/SKILL.md")), default=0.0)
+    return _shared_skills(tuple(str(f) for f in folders), stamp)
+
+
+@lru_cache(maxsize=8)
+def _shared_skills(folders: tuple[str, ...], _mtime: float) -> tuple[SkillInfo, ...]:
+    skills = []
+    for folder in folders:
+        try:
+            skills.append(_skill_info(Path(folder)))
+        except ValueError:
+            continue
+    return tuple(skills)
 
 
 def tool_package_dirs() -> list[Path]:
