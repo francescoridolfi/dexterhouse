@@ -53,6 +53,11 @@ export function useReplay(
   const position = useRef(0);
   const speed = useRef(1);
   const abort = useRef<AbortController | null>(null);
+  // The live project changes with every spend; the replay only needs its identity.
+  const base = useRef(project);
+  useEffect(() => {
+    base.current = project;
+  }, [project]);
 
   const clock = useCallback(() => position.current, []);
   const timeScale = useCallback(() => speed.current, []);
@@ -83,7 +88,7 @@ export function useReplay(
       const tl: Timeline = buildTimeline(events);
       engine.current = new ReplayEngine(
         tl,
-        emptyReplayState(clipProject, clipProject === projectId ? project : null),
+        emptyReplayState(clipProject, clipProject === projectId ? base.current : null),
       );
       setUi({
         ...OFF,
@@ -94,7 +99,7 @@ export function useReplay(
       });
       seek(startWall === null ? 0 : timeAtWall(tl, startWall));
     },
-    [projectId, project, seek],
+    [projectId, seek],
   );
 
   const start = useCallback(
@@ -203,7 +208,7 @@ export function useReplay(
       const to = countAt(tl, ui.marks.out ?? tl.duration);
       downloadClip(
         makeClip(
-          { id: projectId, name: project?.name ?? projectId },
+          { id: projectId, name: base.current?.name ?? projectId },
           tl.events,
           Math.max(0, Math.min(from, to) - 1),
           Math.max(from, to) - 1,
