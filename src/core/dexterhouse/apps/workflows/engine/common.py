@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Shared engine helpers: definitions, step queueing, gates, waiting and terminal states."""
 
+from datetime import timedelta
 from typing import Any
 
 from django.db import transaction
@@ -68,6 +69,8 @@ class GatePayload(BaseModel):
     reason: str | None = None
     step_index: int | None = None
     round: int = 0
+    produced_by: dict[str, Any] | None = None  # the turn that produced the artifacts
+    details: dict[str, Any] = Field(default_factory=dict)  # escalation data (escalations.py)
 
 
 def process_of(run: ProcessRun) -> Process:
@@ -172,6 +175,7 @@ def open_gate(
 ) -> Gate:
     """Create a gate and emit `gate.opened`; a blocking gate puts the phase in waiting_gate."""
     project = phase_run.process_run.project
+    ttl = gate_ttl(project) if block else None
     gate = Gate.objects.create(
         project=project,
         phase_run=phase_run,
@@ -179,6 +183,8 @@ def open_gate(
         gate_id=gate_id,
         type=type,
         payload=payload.model_dump(mode="json"),
+        expires_at=timezone.now() + ttl if ttl else None,
+        notified_at=timezone.now() if block else None,
     )
     emit(
         project,
@@ -190,17 +196,49 @@ def open_gate(
             "task_id": task.id if task else None,
             "title": payload.title,
             "summary": payload.summary,
-            "artifacts": payload.artifacts,
-            "expires_at": None,
+            "artifacts": [
+                {"id": a["id"], "kind": a["kind"], "version": a["version"]}
+                for a in payload.artifacts
+            ],
+            "expires_at": gate.expires_at,
         },
         actor=actor,
         correlation_id=gate.id,
     )
     if block:
+        notify_gate(gate)
         phase_run.status = PhaseStatus.WAITING_GATE
         save(phase_run, "status")
         sync_waiting(phase_run.process_run)
     return gate
+
+
+def gate_ttl(project: Project) -> timedelta | None:
+    """`OrganizationSettings.gate_ttl_hours` (default: no TTL): when reminders are sent."""
+    hours = (project.organization.settings or {}).get("gate_ttl_hours")
+    return timedelta(hours=float(hours)) if hours else None
+
+
+def notify_gate(gate: Gate, *, reminder: int = 0) -> None:
+    from dexterhouse.apps.notifications.services import notify_gate as notify
+
+    notify(gate, reminder=reminder)
+
+
+def resume_phase(phase_run: PhaseRun) -> None:
+    """Back to `running` once the phase has no open gate left."""
+    if (
+        phase_run.status == PhaseStatus.WAITING_GATE
+        and not phase_run.gates.filter(status=GateStatus.OPEN).exists()
+    ):
+        phase_run.status = PhaseStatus.RUNNING
+        save(phase_run, "status")
+
+
+def _waiting_reason(gate: Gate) -> str:
+    from dexterhouse.apps.workflows.escalations import WAITING_REASONS
+
+    return WAITING_REASONS.get(gate.payload.get("reason") or "", "gate")
 
 
 def sync_waiting(run: ProcessRun) -> None:
@@ -213,15 +251,17 @@ def sync_waiting(run: ProcessRun) -> None:
             run.status = ProcessRunStatus.WAITING_GATE
             save(run, "status")
         if project.status == ProjectStatus.RUNNING:
-            transition(project, ProjectStatus.WAITING, waiting_reason="gate")
-            emit(project, "project.waiting", {"reason": "gate", "gate_id": gate.id})
+            reason = _waiting_reason(gate)
+            transition(project, ProjectStatus.WAITING, waiting_reason=reason)
+            emit(project, "project.waiting", {"reason": reason, "gate_id": gate.id})
         return
     if run.status == ProcessRunStatus.WAITING_GATE:
         run.status = ProcessRunStatus.RUNNING
         save(run, "status")
-    if project.status == ProjectStatus.WAITING and project.waiting_reason == "gate":
+    if project.status == ProjectStatus.WAITING and project.waiting_reason in ("gate", "budget"):
+        reason = project.waiting_reason
         transition(project, ProjectStatus.RUNNING)
-        emit(project, "project.resumed", {"reason": "gate"})
+        emit(project, "project.resumed", {"reason": reason})
         dispatch_pending(project)
 
 
@@ -234,6 +274,19 @@ def decide(gate: Gate, status: str, decision: str | None, *, user: Any = None, *
     for name, value in fields.items():
         setattr(gate, name, value)
     save(gate, "status", "decision", "decided_by", "decided_at", *fields)
+    from dexterhouse.apps.notifications.services import gate_closed
+
+    gate_closed(gate)
+    if (gate.comment or "").strip():
+        index_comment(gate)
+
+
+def index_comment(gate: Gate) -> None:
+    """Gate comments enter the project memory with the higher weight (F-013, CD-034)."""
+    from dexterhouse.apps.memory.tasks import index_comment_task
+
+    args = (str(gate.project.organization_id), str(gate.project_id), str(gate.id), gate.comment)
+    transaction.on_commit(lambda: index_comment_task.delay(*args, kind="gate_comment"))
 
 
 def gate_decided_event(gate: Gate, next_: str, *, actor: Any = SYSTEM) -> None:

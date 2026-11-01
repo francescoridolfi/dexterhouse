@@ -7,6 +7,7 @@ from django.utils import timezone
 
 from dexterhouse.apps.projects.models import Artifact, ExecutionMode
 from dexterhouse.apps.projects.services.actors import agent_actor, emit
+from dexterhouse.apps.projects.services.artifacts import save_artifact
 from dexterhouse.apps.workflows import actions
 from dexterhouse.apps.workflows.engine import common, loop
 from dexterhouse.apps.workflows.engine.common import GatePayload, save
@@ -18,6 +19,8 @@ from dexterhouse.apps.workflows.models import (
     PhaseStatus,
     ProcessRun,
     ProcessRunStatus,
+    StepRun,
+    StepRunStatus,
 )
 from dexterhouse_schema import TurnOutput
 from dexterhouse_schema.process import Phase
@@ -186,7 +189,14 @@ def finish_steps(phase: Phase, row: PhaseRun) -> bool:
         return True
     project = row.process_run.project
     artifacts = [
-        {"id": a.id, "kind": a.kind, "version": a.version}
+        {
+            "id": a.id,
+            "kind": a.kind,
+            "version": a.version,
+            "name": a.name,
+            "produced_by_turn": a.produced_by_turn_id,
+            "produced_by_role": a.produced_by_role,
+        }
         for a in Artifact.objects.filter(phase_run=row).order_by("created_at")
     ]
     payload = GatePayload(
@@ -195,6 +205,7 @@ def finish_steps(phase: Phase, row: PhaseRun) -> bool:
         artifacts=artifacts,
         on_approve=list(gate.on_approve),
         round=row.round,
+        produced_by=_last_turn(row),
     )
     always = project.gate_overrides.get(gate.id) == "always_required"
     supervised = project.execution_mode == ExecutionMode.SUPERVISED
@@ -207,6 +218,24 @@ def finish_steps(phase: Phase, row: PhaseRun) -> bool:
         common.gate_decided_event(opened, "phase_completed")
         approve(phase, row)
     return True
+
+
+def _last_turn(row: PhaseRun) -> dict[str, Any] | None:
+    """The turn that closed the phase's steps: who produced what the gate shows."""
+    last = (
+        StepRun.objects.filter(phase_run=row, status=StepRunStatus.COMPLETED)
+        .order_by("-seq")
+        .first()
+    )
+    if last is None:
+        return None
+    return {
+        "step_run_id": last.id,
+        "turn_id": last.agent_turn_id,
+        "agent_id": last.agent_id,
+        "role": last.role,
+        "step": last.step,
+    }
 
 
 def approve(phase: Phase, row: PhaseRun) -> None:
@@ -249,10 +278,16 @@ def reopen(row: PhaseRun, comment: str | None, *, count_round: bool = True) -> N
     )
 
 
-def apply_step(phase: Phase, row: PhaseRun, step_index: int, output: TurnOutput) -> None:
+def apply_step(
+    phase: Phase,
+    row: PhaseRun,
+    step_index: int,
+    output: TurnOutput,
+    step_run: StepRun | None = None,
+) -> None:
     """A non-loop step finished: questions, step `exit`, or move to the next step."""
     if output.status == "waiting_answers":
-        _questions(phase, row, output)
+        _questions(phase, row, output, step_run)
         return
     steps = _after_gate_steps(phase, row) if row.stage == PhaseStage.AFTER_GATE else None
     step = (steps or phase.step_list())[step_index]
@@ -263,7 +298,9 @@ def apply_step(phase: Phase, row: PhaseRun, step_index: int, output: TurnOutput)
     save(row, "current_step")
 
 
-def _questions(phase: Phase, row: PhaseRun, output: TurnOutput) -> None:
+def _questions(
+    phase: Phase, row: PhaseRun, output: TurnOutput, step_run: StepRun | None = None
+) -> None:
     questions = next(
         (
             a.data.model_dump(mode="json")["questions"]
@@ -281,6 +318,8 @@ def _questions(phase: Phase, row: PhaseRun, output: TurnOutput) -> None:
             common.Answer(question_id=q["id"], answer=q["default_assumption"]) for q in questions
         ]
         common.set_context(row, ctx)
+        if not any(a.kind == "assumptions" for a in output.artifacts):
+            _assumptions(row, questions, step_run)
         return
     payload = GatePayload(
         title=f"{len(questions)} question(s) from the {phase.step_list()[0].agent}",
@@ -289,10 +328,51 @@ def _questions(phase: Phase, row: PhaseRun, output: TurnOutput) -> None:
         round=row.round,
     )
     role = phase.step_list()[row.current_step].agent
-    common.open_gate(
-        row,
-        gate_id="question",
-        type=GateType.QUESTION,
-        payload=payload,
-        actor=agent_actor(common.agent_for(project, role).id, role),
+    agent_id = step_run.agent_id if step_run else common.agent_for(project, role).id
+    actor = agent_actor(agent_id, role)
+    gate = common.open_gate(
+        row, gate_id="question", type=GateType.QUESTION, payload=payload, actor=actor
+    )
+    emit(
+        project,
+        "agent.question.asked",
+        {
+            "turn_id": (step_run.agent_turn_id or step_run.id) if step_run else gate.id,
+            "gate_id": gate.id,
+            "questions": [
+                {k: q[k] for k in ("id", "text", "kind", "options") if q.get(k) is not None}
+                for q in questions
+            ],
+        },
+        actor=actor,
+        correlation_id=gate.id,
+    )
+
+
+def _assumptions(row: PhaseRun, questions: list[dict[str, Any]], step_run) -> None:
+    """Autonomous mode: the unanswered questions become the `assumptions` artifact (F-004)."""
+    if not questions:
+        return
+    data = {
+        "assumptions": [
+            {
+                "id": f"a{i}",
+                "question": q["text"],
+                "assumed": q["default_assumption"],
+                "rationale": q.get("why") or "Default assumption of the agent.",
+                "risk": "medium",
+            }
+            for i, q in enumerate(questions, start=1)
+        ]
+    }
+    lines = [f"- **{a['question']}** {a['assumed']}" for a in data["assumptions"]]
+    save_artifact(
+        row.process_run.project,
+        kind="assumptions",
+        name="assumptions.md",
+        content="# Assumptions\n\n" + "\n".join(lines) + "\n",
+        data=data,
+        phase_run_id=row.id,
+        turn_id=step_run.agent_turn_id if step_run else None,
+        role=step_run.role if step_run else "",
     )

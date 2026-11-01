@@ -39,6 +39,18 @@ def decide(gate_id: uuid.UUID, user: User, **body: Any) -> tuple[Gate, str]:
     return gate, next_
 
 
+def created_by(gate: Gate) -> list[Task]:
+    """The `fix` tasks a release `reject` created (CD-034), oldest first."""
+    return list(
+        Task.objects.filter(
+            project_id=gate.project_id,
+            kind="fix",
+            parent__isnull=True,
+            created_at__gte=gate.decided_at,
+        ).order_by("order")
+    )
+
+
 def skip_phase(phase_run_id: uuid.UUID, user: User) -> PhaseRun:
     """Admin: a pending phase counts as done for its dependents (`phase.skipped`)."""
     with transaction.atomic():

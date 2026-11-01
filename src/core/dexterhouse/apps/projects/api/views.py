@@ -199,6 +199,10 @@ class NoteListView(ApiView):
         body = NoteInput(data=request.data)
         body.is_valid(raise_exception=True)
         phase_run = body.validated_data["phase_run"]
+        if phase_run == notes.CURRENT:
+            phase_run = notes.current_phase_run(project)
+        elif phase_run:
+            phase_run = uuid.UUID(phase_run)
         if (
             phase_run
             and not PhaseRun.objects.filter(process_run__project=project, pk=phase_run).exists()

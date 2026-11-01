@@ -7,7 +7,7 @@ import dj_database_url
 from celery.schedules import crontab
 
 from dexterhouse.apps.observability.log import logging_config
-from dexterhouse.settings.env import get_env
+from dexterhouse.settings.env import get_env, read_secret_file
 
 ENV = get_env()
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -36,6 +36,7 @@ INSTALLED_APPS = [
     "dexterhouse.apps.memory",
     "dexterhouse.apps.agents",
     "dexterhouse.apps.observability",
+    "dexterhouse.apps.notifications",
 ]
 
 MIDDLEWARE = [
@@ -138,6 +139,19 @@ CELERY_BEAT_SCHEDULE["workflows-reconcile"] = {
     "task": "dexterhouse.apps.workflows.tasks.reconcile",
     "schedule": 60.0,
 }
+# Human in the loop (E-06): gate reminders after the organization's TTL, optional email.
+CELERY_BEAT_SCHEDULE["workflows-remind-gates"] = {
+    "task": "dexterhouse.apps.workflows.tasks.remind_gates",
+    "schedule": 300.0,
+}
+EMAIL_HOST = ENV.EMAIL_HOST
+EMAIL_PORT = ENV.EMAIL_PORT
+EMAIL_HOST_USER = ENV.EMAIL_HOST_USER
+EMAIL_HOST_PASSWORD = read_secret_file(ENV.EMAIL_HOST_PASSWORD_FILE)
+EMAIL_USE_TLS = ENV.EMAIL_USE_TLS
+DEFAULT_FROM_EMAIL = ENV.DEFAULT_FROM_EMAIL
+NOTIFICATIONS_EMAIL_ENABLED = ENV.NOTIFICATIONS_EMAIL
+NOTIFICATIONS_PUBLIC_URL = ENV.PUBLIC_URL
 
 # JSON logs with trace/project/turn context (F-012); LOG_FORMAT=console for local dev.
 LOGGING = logging_config(ENV.LOG_LEVEL, ENV.LOG_FORMAT)
