@@ -27,7 +27,7 @@ def claimed(started, settings):
     return make
 
 
-def test_a_placeholder_agent_cannot_run_a_real_turn(claimed):
+def test_a_placeholder_agent_cannot_run_a_real_turn(claimed, no_packages):
     _, request = claimed()
     with pytest.raises(TurnFailedError) as info:
         AgentsTurnRunner().run(request)
@@ -110,7 +110,7 @@ def test_inputs_of_loop_steps(started, settings):
     assert all("T-01" in a.name for a in review_inputs.artifacts if a.kind == "dev_notes")
 
 
-def test_start_is_refused_without_a_package_per_role(make_project, user, settings):
+def test_start_is_refused_without_a_package_per_role(make_project, user, settings, no_packages):
     from dexterhouse.apps.projects.services import lifecycle
     from dexterhouse.common.errors import ValidationFailedError
 

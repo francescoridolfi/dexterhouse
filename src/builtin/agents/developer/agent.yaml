@@ -1,0 +1,51 @@
+schema: 1
+role: developer
+display_name: "Developer"
+model_profile: strong
+tools:
+  - workspace.list
+  - workspace.read
+  - workspace.search
+  - workspace.write
+  - workspace.edit
+  - workspace.delete
+  - workspace.move
+  - workspace.exec
+  - workspace.run_tests
+  - workspace.services
+  - git.status
+  - git.diff
+  - git.log
+  - git.show
+  - git.add
+  - git.commit
+  - git.checkout_file
+  - memory.search
+  - project.artifact
+  - project.notes
+  - skills.read
+skills: [test-first, concurrency-checklist, secure-coding-basics]
+prompts:
+  system: prompts/system.md
+output_contract:
+  artifacts: [dev_notes]
+  schema: markdown
+limits:
+  max_tool_calls: 50
+  max_output_tokens: 8000
+  turn_timeout_s: 900
+office:
+  room: open_space
+  avatar: avatars/developer.gltf
+  color: "#7DE7B8"
+# CD-032: the tester's acceptance tests (tests/acceptance/) are not the developer's to change.
+args_policy:
+  workspace.write: { path: { pattern: '^(?!tests/acceptance/)(?!.*\.\.).+$' } }
+  workspace.edit: { path: { pattern: '^(?!tests/acceptance/)(?!.*\.\.).+$' } }
+  workspace.delete: { path: { pattern: '^(?!tests/acceptance/)(?!.*\.\.).+$' } }
+  workspace.move:
+    from: { pattern: '^(?!tests/acceptance/)(?!.*\.\.).+$' }
+    to: { pattern: '^(?!tests/acceptance/)(?!.*\.\.).+$' }
+  git.checkout_file: { path: { pattern: '^(?!tests/acceptance/)(?!.*\.\.).+$' } }
+i18n:
+  display_name: { it: "Sviluppatore" }

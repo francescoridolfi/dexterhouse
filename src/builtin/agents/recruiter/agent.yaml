@@ -1,0 +1,30 @@
+schema: 1
+role: recruiter
+display_name: "Recruiter"
+model_profile: balanced
+tools:
+  - marketplace.search
+  - marketplace.details
+  - packages.installed
+  - packages.propose
+  - packages.install      # offered to the turn only in autonomous mode
+  - project.artifact
+  - skills.read
+skills: [team-sizing, package-vetting]
+prompts:
+  system: prompts/system.md
+output_contract:
+  artifacts: [team_proposal]
+  schema: team_proposal
+limits:
+  max_tool_calls: 12
+  max_output_tokens: 4000
+  turn_timeout_s: 300
+office:
+  room: hr_office
+  avatar: avatars/recruiter.gltf
+  color: "#E79D7D"
+capabilities:
+  reads_untrusted: true   # marketplace READMEs and reviews
+i18n:
+  display_name: { it: "Selezionatore" }

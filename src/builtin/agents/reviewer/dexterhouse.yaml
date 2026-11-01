@@ -1,0 +1,12 @@
+schema: 1
+kind: agent
+name: reviewer
+version: 1.0.0
+description: "Built-in Reviewer: read-only code review with numbered findings and a verdict"
+author:
+  name: "DexterHouse"
+  github: francescoridolfi
+license: AGPL-3.0-or-later
+compat:
+  core: ">=0.1,<2.0"
+tags: [review, quality, builtin]

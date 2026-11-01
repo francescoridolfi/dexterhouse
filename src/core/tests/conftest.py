@@ -5,7 +5,7 @@ import pytest
 
 from dexterhouse.apps.accounts.models import Membership, Organization, Role, User
 
-#: One minimal agent package per built-in role (E-04 ships the real ones).
+#: One minimal agent package per built-in role (the real ones are in `src/builtin/agents`).
 TEAM_PACKAGES = Path(__file__).parent / "fixtures" / "agent_packages"
 
 
@@ -73,3 +73,9 @@ def _reset_gateway_state():
     keys = list(client.scan_iter("dh:gateway:*"))
     if keys:
         client.delete(*keys)
+
+
+@pytest.fixture
+def no_packages(settings, tmp_path) -> None:
+    """No agent package at all: every role is hired as a placeholder."""
+    settings.AGENTS_PACKAGE_DIRS = [str(tmp_path / "no-packages")]

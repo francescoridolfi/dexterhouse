@@ -1,0 +1,32 @@
+schema: 1
+role: reviewer
+display_name: "Reviewer"
+model_profile: strong
+# Read-only by construction: no workspace.write/edit, no git.add/commit.
+tools:
+  - workspace.list
+  - workspace.read
+  - workspace.search
+  - git.diff
+  - git.log
+  - git.show
+  - git.status
+  - memory.search
+  - project.artifact
+  - skills.read
+skills: [review-checklist, owasp-top10]
+prompts:
+  system: prompts/system.md
+output_contract:
+  artifacts: [review]
+  schema: review
+limits:
+  max_tool_calls: 30
+  max_output_tokens: 6000
+  turn_timeout_s: 600
+office:
+  room: review_corner
+  avatar: avatars/reviewer.gltf
+  color: "#7D9CE7"
+i18n:
+  display_name: { it: "Revisore" }
