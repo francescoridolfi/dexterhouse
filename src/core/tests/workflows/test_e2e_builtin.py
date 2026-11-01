@@ -69,7 +69,10 @@ def test_supervised_software_house_default_with_builtin_agents(client):
     loaded = {e.payload["skill"] for e in events(project, "agent.skill.loaded")}
     assert {"requirements-elicitation", "architecture-decision", "review-checklist"} <= loaded
     developer = AgentTurn.objects.filter(project=project, agent_instance__role="developer").first()
-    assert developer.context_manifest["unavailable_tools"]["workspace.write"] == "not_installed"
+    # installed (E-05) but no runner in this test: the workspace tools are left out of the turn
+    assert (
+        developer.context_manifest["unavailable_tools"]["workspace.write"] == "workspace_not_ready"
+    )
     assert not ToolCall.objects.filter(agent_turn__project=project, status="denied").exists()
     structure.assert_artifacts_are_well_formed(project)
     structure.assert_analysis(project)
