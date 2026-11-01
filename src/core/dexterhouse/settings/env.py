@@ -42,6 +42,7 @@ class Env(BaseSettings):
     FERNET_KEY: str = ""
     FERNET_KEY_FILE: str = ""
     BUILTIN_DIR: str = ""
+    GATEWAY_FAKE_RESPONDER: str = ""
 
     def secret_key(self) -> str:
         """SECRET_KEY from env, else from SECRET_KEY_FILE."""

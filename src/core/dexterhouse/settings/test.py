@@ -25,3 +25,6 @@ FERNET_KEY = "dGVzdC1mZXJuZXQta2V5LW5vdC1hLXNlY3JldC0wMDA="  # pragma: allowlist
 GATEWAY_RETRY_DELAYS = (0.0, 0.0, 0.0)
 AGENTS_TOOL_PACKAGE_DIRS: list[str] = []
 AGENTS_PACKAGE_DIRS = [str(BUILTIN_DIR / "agents")]
+# Engine tests script their turns; end-to-end tests opt in to AgentsTurnRunner (the default).
+WORKFLOWS_TURN_RUNNER = "dexterhouse.apps.workflows.runners.fake.FakeTurnRunner"
+GATEWAY_FAKE_RESPONDER = ""

@@ -1,0 +1,26 @@
+schema: 1
+role: architect
+display_name: "Architect"
+model_profile: strong
+tools:
+  - memory.search
+  - memory.recent
+  - project.artifact
+  - project.notes
+  - skills.read
+skills: [architecture-decision, stack-selection, c4-lite]
+prompts:
+  system: prompts/system.md
+output_contract:
+  artifacts: [architecture, adr, stack]
+  schema: stack
+limits:
+  max_tool_calls: 15
+  max_output_tokens: 12000
+  turn_timeout_s: 600
+office:
+  room: design_studio
+  avatar: avatars/architect.gltf
+  color: "#B48CE7"
+i18n:
+  display_name: { it: "Architetto" }

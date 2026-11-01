@@ -5,7 +5,8 @@ Checks that need the core (tool catalog, role uniqueness in the organization) ar
 done here; file existence and prompt contents are checked by :mod:`dexterhouse_schema.package`.
 """
 
-from typing import Annotated, Literal
+import re
+from typing import Annotated, Any, Literal
 
 from pydantic import Field, StringConstraints, model_validator
 
@@ -19,6 +20,11 @@ from dexterhouse_schema.common import (
     RelPath,
     SchemaVersion,
     StrictModel,
+)
+
+#: Keywords of the JSON Schema subset accepted in `args_policy` (applied by the tool gateway).
+ARGS_POLICY_KEYWORDS: frozenset[str] = frozenset(
+    {"const", "enum", "pattern", "maxLength", "minimum", "maximum"}
 )
 
 #: Values accepted by `output_contract.schema`.
@@ -94,6 +100,11 @@ class Agent(ExtensibleModel):
     office: Office = Office()
     capabilities: Capabilities = Capabilities()
     i18n: I18n = I18n()
+    args_policy: dict[PermissionId, dict[str, dict[str, Any]]] = Field(
+        default_factory=dict,
+        description="Per-tool argument rules added to the tool package's own (CD-032): "
+        "`{permission: {argument: {pattern|const|enum|maxLength|minimum|maximum: ...}}}`.",
+    )
 
     @model_validator(mode="after")
     def _no_duplicates(self) -> "Agent":
@@ -102,4 +113,25 @@ class Agent(ExtensibleModel):
             dupes = sorted({v for v in values if values.count(v) > 1})
             if dupes:
                 raise ValueError(f"duplicate {field}: {', '.join(dupes)}")
+        return self
+
+    @model_validator(mode="after")
+    def _check_args_policy(self) -> "Agent":
+        for permission, rules in self.args_policy.items():
+            if permission not in self.tools:
+                raise ValueError(f"args_policy for {permission!r}, which is not in tools")
+            for argument, rule in rules.items():
+                unknown = sorted(set(rule) - ARGS_POLICY_KEYWORDS)
+                if unknown:
+                    raise ValueError(
+                        f"args_policy.{permission}.{argument}: unsupported keyword(s) "
+                        f"{', '.join(unknown)}"
+                    )
+                if "pattern" in rule:
+                    try:
+                        re.compile(str(rule["pattern"]))
+                    except re.error as exc:
+                        raise ValueError(
+                            f"args_policy.{permission}.{argument}: invalid pattern: {exc}"
+                        ) from exc
         return self

@@ -125,7 +125,7 @@ PRICES_FILE = ENV.PRICES_FILE
 FX_EUR_PER_USD = ENV.FX_EUR_PER_USD
 FERNET_KEY = ENV.fernet_key()
 BUILTIN_DIR = Path(ENV.BUILTIN_DIR) if ENV.BUILTIN_DIR else BASE_DIR.parent.parent / "builtin"
-WORKFLOWS_TURN_RUNNER = "dexterhouse.apps.workflows.runners.fake.FakeTurnRunner"
+WORKFLOWS_TURN_RUNNER = "dexterhouse.apps.workflows.runners.agents.AgentsTurnRunner"
 WORKFLOWS_FAKE_RUNNER: dict[str, object] = {}  # FakeTurnRunner script, see runners/fake.py
 WORKFLOWS_STEP_LEASE_S = 900
 WORKFLOWS_STEP_MAX_ATTEMPTS = 3
@@ -150,7 +150,10 @@ CELERY_TASK_ROUTES = {
     "dexterhouse.apps.workflows.tasks.run_step": {"queue": "agents"},
 }
 GATEWAY_RETRY_DELAYS = (2.0, 4.0, 8.0)
-GATEWAY_FAKE_RESPONDER = ""  # dotted path answering the `fake` provider (tests, demos)
+# Dotted path answering the `fake` provider (tests, demos without LLM):
+# `dexterhouse.apps.agents.demo.respond`, scripted by AGENTS_DEMO_SCRIPT (agents/demo).
+GATEWAY_FAKE_RESPONDER = ENV.GATEWAY_FAKE_RESPONDER
+AGENTS_DEMO_SCRIPT: dict[str, object] = {}
 AGENTS_TOOL_PACKAGE_DIRS = ["/data/packages/tools"]
 # Agent packages by lookup order: built-in team (E-04), then installed packages (E-07).
 AGENTS_PACKAGE_DIRS = [str(BUILTIN_DIR / "agents"), "/data/packages/agents"]

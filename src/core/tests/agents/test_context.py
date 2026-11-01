@@ -201,8 +201,28 @@ def test_tools_and_skills_are_shortened_when_over_budget():
 
 def test_skills_need_their_tools():
     built = build_context(request(TurnInputs(), allowed=frozenset({"echo.say"})))
-    assert built.skills == []
-    assert "Available skills" not in built.messages[0].text()
+    assert built.skills == ["markdown-artifacts"]  # the shared skill that needs no tool
+    assert "brief-reading" not in built.messages[0].text()
+
+
+def test_shared_skills_follow_the_tools_and_never_shadow_the_package(settings, tmp_path):
+    shared = tmp_path / "skills"
+    for name, tools in (("brief-reading", "[]"), ("git-helper", "[git.commit]"), ("notes", "[]")):
+        (shared / name).mkdir(parents=True)
+        (shared / name / "SKILL.md").write_text(
+            f"---\nname: {name}\ndescription: Shared {name}.\n"
+            f"dexterhouse:\n  schema: 1\n  tools_required: {tools}\n---\n\nBody.\n"
+        )
+    (shared / "broken").mkdir()
+    (shared / "broken" / "SKILL.md").write_text("no frontmatter\n")
+    settings.BUILTIN_DIR = str(tmp_path)
+    built = build_context(request(TurnInputs(), allowed=frozenset({"memory.search"})))
+    assert built.skills == ["brief-reading", "notes"]
+    assert "Shared brief-reading" not in built.messages[0].text()
+    with_git = build_context(
+        request(TurnInputs(), allowed=frozenset({"memory.search", "git.commit"}))
+    )
+    assert with_git.skills == ["brief-reading", "git-helper", "notes"]
 
 
 def test_history_reserve_drops_tree_then_memory():

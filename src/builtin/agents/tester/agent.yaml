@@ -1,0 +1,43 @@
+schema: 1
+role: tester
+display_name: "Tester"
+model_profile: balanced
+tools:
+  - workspace.list
+  - workspace.read
+  - workspace.search
+  - workspace.write
+  - workspace.edit
+  - workspace.exec
+  - workspace.run_tests
+  - workspace.services
+  - workspace.open_port
+  - git.status
+  - git.diff
+  - git.add
+  - git.commit
+  - project.artifact
+  - project.tasks
+  - skills.read
+skills: [acceptance-to-tests, pytest-patterns, jest-patterns, smoke-checklist]
+prompts:
+  system: prompts/system.md
+output_contract:
+  artifacts: [test_report]
+  schema: test_report
+limits:
+  max_tool_calls: 40
+  max_output_tokens: 6000
+  turn_timeout_s: 900
+office:
+  room: qa_lab
+  avatar: avatars/tester.gltf
+  color: "#E77DA6"
+# CD-032: the tester writes and edits test files and fixtures only.
+args_policy:
+  workspace.write:
+    path: { pattern: '^(?!.*\.\.)(tests/.+|(.+/)?test_[^/]+\.py|(.+/)?[^/]+\.(test|spec)\.[A-Za-z0-9]+|(.+/)?conftest\.py)$' }
+  workspace.edit:
+    path: { pattern: '^(?!.*\.\.)(tests/.+|(.+/)?test_[^/]+\.py|(.+/)?[^/]+\.(test|spec)\.[A-Za-z0-9]+|(.+/)?conftest\.py)$' }
+i18n:
+  display_name: { it: "Tester" }

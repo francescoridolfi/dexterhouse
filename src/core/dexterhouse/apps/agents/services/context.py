@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from dexterhouse.apps.agents.schemas import ArtifactInput, TurnInputs
-from dexterhouse.apps.agents.services.packages import AgentPackage, SkillInfo
+from dexterhouse.apps.agents.services.packages import AgentPackage, SkillInfo, shared_skills
 from dexterhouse.apps.gateway.messages import (
     Message,
     TextPart,
@@ -117,7 +117,7 @@ def build_context(request: ContextRequest) -> BuiltContext:
         raise ContextOverflowError(
             f"package system prompt is {tokens(package_prompt)} tokens, limit {budget.package}"
         )
-    skills = [s for s in request.package.skills if set(s.tools_required) <= request.allowed_tools]
+    skills = available_skills(request.package, request.allowed_tools)
     skill_text = render_skills(skills)
     if tokens(skill_text) > budget.skills:
         skill_text = render_skills(skills, SKILL_DESCRIPTION_CHARS)
@@ -217,6 +217,14 @@ def build_context(request: ContextRequest) -> BuiltContext:
 # Sections -------------------------------------------------------------------------------
 
 
+def available_skills(package: AgentPackage, tools: frozenset[str]) -> list[SkillInfo]:
+    """The package's skills, then the shared built-in ones it does not shadow, whose
+    `tools_required` the turn offers."""
+    own = {s.name for s in package.skills}
+    candidates = [*package.skills, *(s for s in shared_skills() if s.name not in own)]
+    return [s for s in candidates if set(s.tools_required) <= tools]
+
+
 def render_skills(skills: Sequence[SkillInfo], limit: int | None = None) -> str:
     if not skills:
         return ""
@@ -250,10 +258,12 @@ def render_contract(package: AgentPackage, inputs: TurnInputs) -> str:
         lines.append(
             "Questions to the human are not allowed in this step: record assumptions instead."
         )
-    model = ARTIFACT_MODELS.get(contract.output_schema)
-    if model is not None:
-        schema = json.dumps(model.model_json_schema(), separators=(",", ":"), sort_keys=True)
-        lines.append(f"JSON Schema of `{contract.output_schema}` data: {schema}")
+    structured = [contract.output_schema, *contract.artifacts]
+    for kind in dict.fromkeys(k for k in structured if k in ARTIFACT_MODELS):
+        schema = json.dumps(
+            ARTIFACT_MODELS[kind].model_json_schema(), separators=(",", ":"), sort_keys=True
+        )
+        lines.append(f"JSON Schema of `{kind}` data: {schema}")
     return "\n".join(lines)
 
 
