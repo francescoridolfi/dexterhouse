@@ -42,7 +42,7 @@ markers = [
 
 [tool.coverage.run]
 source = ["src/core/dexterhouse", "src/schema/dexterhouse_schema", "src/runner/dexterhouse_runner"]
-omit = ["*/migrations/*", "*/settings/prod.py", "*/asgi.py", "*/wsgi.py"]
+omit = ["*/migrations/*", "*/settings/prod.py", "*/settings/dev.py", "*/dexterhouse/manage.py", "*/asgi.py", "*/wsgi.py"]
 
 [tool.coverage.report]
 show_missing = true
@@ -62,6 +62,9 @@ ignore = ["S101"] # assert in tests
 [tool.ruff.lint.per-file-ignores]
 "**/tests/**" = ["S105", "S106"]
 "**/migrations/**" = ["E501", "RUF012"]
+# Django declares admin options and Meta attributes as mutable class attributes by design.
+"**/admin.py" = ["RUF012"]
+"**/models.py" = ["RUF012"]
 
 [tool.bandit]
 exclude_dirs = ["tests", "src/frontend"]
