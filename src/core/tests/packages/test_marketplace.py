@@ -175,3 +175,22 @@ def test_https_files_are_fetched_without_redirects(settings, monkeypatch):
     monkeypatch.setattr(repo_files.httpx2, "get", lambda *a, **k: Answer(500))
     with pytest.raises(repo_files.RepoFilesUnavailableError):
         repo_files.read("https://github.com/a/c", "v1", ["README.md"])
+
+
+def test_redis_down_only_costs_a_fetch(publish, monkeypatch):
+    import redis
+
+    from dexterhouse.apps.packages.services import shared_cache
+
+    publish("htmx-frontend-developer")
+
+    class Down:
+        def __getattr__(self, name):
+            def fail(*args, **kwargs):
+                raise redis.ConnectionError("down")
+
+            return fail
+
+    monkeypatch.setattr(shared_cache, "get_client", lambda: Down())
+    assert names(marketplace.search("htmx")) == ["htmx-frontend-developer"]
+    shared_cache.clear()  # logged, not raised

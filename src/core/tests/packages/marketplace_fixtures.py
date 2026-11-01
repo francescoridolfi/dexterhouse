@@ -24,7 +24,7 @@ def agent_definition(role: str, tools: list[str], room: str = "dev_room") -> dic
         "tools": tools,
         "skills": [],
         "prompts": {"system": "prompts/system.md"},
-        "output_contract": {"artifacts": ["dev_notes"], "schema": "dev_notes"},
+        "output_contract": {"artifacts": ["dev_notes"], "schema": "markdown"},
         "office": {"room": room},
     }
 

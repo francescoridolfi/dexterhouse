@@ -280,8 +280,9 @@ def _marketplace_line() -> str:
     state = marketplace.status()
     registry = state["registry"]
     if state["status"] == "unreachable":
+        reason = str(registry.get("error") or "no registry").splitlines()[0][:160]
         return (
-            f"Marketplace unreachable ({registry.get('error', 'no registry')}): declare "
+            f"Marketplace unreachable ({reason}): declare "
             "marketplace_status unreachable, propose nothing, the built-in team continues."
         )
     return (

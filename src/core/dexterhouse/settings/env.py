@@ -60,9 +60,9 @@ class Env(BaseSettings):
     WORKSPACE_IDLE_DESTROY_H: int = 24
     PACKAGES_DIR: str = "/data/packages"
     REGISTRY_INDEX_URL: str = ""
+    MARKETPLACE_URL: str = ""
     PACKAGES_ALLOW_LOCAL: bool = False
     PACKAGES_GIT_MIRRORS: dict[str, str] = Field(default_factory=dict)  # JSON {prefix: mirror}
-    MARKETPLACE_URL: str = ""
     MARKETPLACE_RAW_URL: str = ""
 
     def secret_key(self) -> str:

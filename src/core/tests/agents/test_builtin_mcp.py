@@ -4,6 +4,9 @@
 import json
 import uuid
 
+import pytest
+from asgiref.sync import sync_to_async
+from django.db import connections
 from mcp import Client
 
 from dexterhouse.apps.agents.builtin_mcp import build_server, main
@@ -44,3 +47,22 @@ def test_main_requires_the_project_organization_and_turn(monkeypatch, capsys):
     monkeypatch.setenv("DH_PROJECT_ID", str(uuid.uuid4()))
     assert main() == 1
     assert "DH_TURN_ID" in capsys.readouterr().err
+
+
+@pytest.mark.django_db
+async def test_package_tools_answer_through_mcp():
+    async with Client(build_server(uuid.uuid4(), uuid.uuid4(), uuid.uuid4())) as client:
+        installed = await client.call_tool("packages_installed", {"kind": "tool"})
+        names = {p["name"] for p in json.loads(installed.content[0].text)["packages"]}
+        proposed = await client.call_tool(
+            "packages_propose", {"proposals": [{"name": "ghost-agent", "for_tasks": ["T-01"]}]}
+        )
+        install = await client.call_tool("packages_install", {"name": "ghost-agent"})
+        details = await client.call_tool("marketplace_details", {"name": "ghost-agent"})
+    await sync_to_async(connections.close_all)()  # the tools' thread: no connection left open
+    assert {"marketplace", "packages"} <= names  # the built-ins are global
+    assert json.loads(proposed.content[0].text)["rejected"][0]["name"] == "ghost-agent"
+    assert install.is_error
+    assert "unknown project" in install.content[0].text
+    assert details.is_error
+    assert "no registry configured" in details.content[0].text

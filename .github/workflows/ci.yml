@@ -75,10 +75,13 @@ jobs:
           - name: brief-samples
             args: src/core/tests/brief_samples
           - name: e2e-builtin
-            args: src/core/tests/workflows/test_e2e_builtin.py
+            args: >-
+              src/core/tests/workflows/test_e2e_builtin.py
+              src/core/tests/workflows/test_e2e_recruiter.py
           - name: runtime
             args: >-
               --ignore=src/core/tests/brief_samples --ignore=src/core/tests/workflows/test_e2e_builtin.py
+              --ignore=src/core/tests/workflows/test_e2e_recruiter.py
               --ignore=src/core/tests/workflows/test_e2e_runner.py
               --ignore=src/core/tests/workspaces/test_runner_worker.py
           # The real runner: Docker, the workspace image, the egress proxy (E-05).
