@@ -397,7 +397,7 @@ def test_skip_and_add_task_and_edit_rules(started, user, settings):
     assert phase(project, "retrospective").status == "skipped"
 
 
-def test_team_without_packages_is_hired_as_placeholders(started):
+def test_team_without_packages_is_hired_as_placeholders(started, no_packages):
     from dexterhouse.apps.projects.services.snapshot import build_snapshot
 
     project = started(execution_mode="autonomous")

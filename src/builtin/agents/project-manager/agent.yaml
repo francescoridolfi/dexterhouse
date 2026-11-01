@@ -1,0 +1,28 @@
+schema: 1
+role: project_manager
+display_name: "Project Manager"
+model_profile: balanced
+tools:
+  - memory.search
+  - memory.recent
+  - project.artifact
+  - project.artifacts
+  - project.tasks
+  - project.notes
+  - skills.read
+skills: [task-decomposition, release-notes, retrospective-format]
+prompts:
+  system: prompts/system.md
+output_contract:
+  artifacts: [task_board, release_notes, retrospective]
+  schema: task_board
+limits:
+  max_tool_calls: 15
+  max_output_tokens: 10000
+  turn_timeout_s: 480
+office:
+  room: pm_office
+  avatar: avatars/project-manager.gltf
+  color: "#E7D77D"
+i18n:
+  display_name: { it: "Project manager" }

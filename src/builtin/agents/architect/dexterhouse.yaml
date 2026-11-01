@@ -1,0 +1,12 @@
+schema: 1
+kind: agent
+name: architect
+version: 1.0.0
+description: "Built-in Architect: architecture, ADRs and a machine-readable stack for the workspace"
+author:
+  name: "DexterHouse"
+  github: francescoridolfi
+license: AGPL-3.0-or-later
+compat:
+  core: ">=0.1,<2.0"
+tags: [architecture, adr, builtin]

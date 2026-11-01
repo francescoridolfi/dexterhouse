@@ -5,11 +5,17 @@ An agent invokes only `AgentInstance.allowed_tools`; a call outside the list nev
 the server: it is refused with a message to the agent and `security.violation`, and the
 third refusal fails the turn (`permission`). Every call is logged under `<turn>:<seq>`, so a
 resumed turn gets the recorded outcome instead of running the tool twice (ADR-0013).
+
+A tool the agent may use but the core cannot reach (no tool package installed, a runner
+tool before E-05, a server that does not start) is left out of the turn's tool list with a
+warning and recorded in `unavailable`; a call to it gets `tool_unavailable`, not a refusal.
+Arguments are checked against the tool package's `args_policy` and the agent's own (CD-032).
 """
 
 import json
 import re
 import time
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
@@ -49,28 +55,42 @@ class ToolGateway:
         pool: McpPool,
         catalog: ToolCatalog,
         allowed: frozenset[str],
+        policies: Mapping[str, dict[str, dict[str, Any]]] | None = None,
     ) -> None:
         self.turn = turn
         self.pool = pool
         self.catalog = catalog
         self.allowed = allowed
+        self.policies = dict(policies or {})
+        self.unavailable: dict[str, str] = {}
 
     # Tool specs ---------------------------------------------------------------------------
 
     def specs(self) -> list[ToolSpec]:
-        """Schemas of the allowed tools the core can reach (worker MCP servers)."""
+        """Schemas of the allowed tools the core can reach (worker MCP servers).
+
+        The others are recorded in :attr:`unavailable` (`not_installed`, `runs_in_runner`,
+        `server_unavailable`, `missing_on_server`) and logged once: the turn goes on without.
+        """
         specs: list[ToolSpec] = []
-        remote: dict[str, dict[str, RemoteTool]] = {}
+        remote: dict[str, dict[str, RemoteTool] | None] = {}
         for permission_id in sorted(self.allowed):
             binding = self.catalog.get(permission_id)
-            if binding is None or binding.tool.runs_in != "worker":
-                continue  # runner tools arrive with the runner (E-05)
+            if binding is None:
+                self.unavailable[permission_id] = "not_installed"
+                continue
+            if binding.tool.runs_in != "worker":
+                self.unavailable[permission_id] = "runs_in_runner"  # the runner is E-05
+                continue
             key = str(binding.root)
             if key not in remote:
-                remote[key] = {t.name: t for t in self.pool.list_tools(binding)}
-            tool = remote[key].get(binding.permission.mcp_tool)
+                remote[key] = self._list_tools(binding)
+            listed = remote[key]
+            tool = listed.get(binding.permission.mcp_tool) if listed is not None else None
             if tool is None:
-                logger.warning("agents.tool_missing_on_server", tool=permission_id)
+                self.unavailable[permission_id] = (
+                    "server_unavailable" if listed is None else "missing_on_server"
+                )
                 continue
             specs.append(
                 ToolSpec(
@@ -79,7 +99,24 @@ class ToolGateway:
                     input_schema=tool.input_schema,
                 )
             )
+        if self.unavailable:
+            logger.warning(
+                "agents.tools_unavailable",
+                turn_id=str(self.turn.id),
+                agent_id=str(self.turn.agent_instance_id),
+                tools=self.unavailable,
+            )
         return specs
+
+    def _list_tools(self, binding: Any) -> dict[str, RemoteTool] | None:
+        """The server's tools, or None when it cannot be started or listed."""
+        try:
+            return {t.name: t for t in self.pool.list_tools(binding)}
+        except Exception as exc:  # a missing or broken server: the turn runs without it
+            logger.warning(
+                "agents.tool_server_unavailable", package=binding.tool.name, error=str(exc)
+            )
+            return None
 
     # Invocation ---------------------------------------------------------------------------
 
@@ -91,10 +128,15 @@ class ToolGateway:
         if call.name not in self.allowed:
             denial = Denial("tool_not_allowed", f"{call.name} is not in this agent's allowed tools")
             return self._deny(seq, key, call, denial)
+        violation = check_args_policy(self.policies.get(call.name, {}), call.args)
+        if violation:
+            return self._deny(seq, key, call, Denial("args_policy", violation))
         binding = self.catalog.get(call.name)
-        if binding is None or binding.tool.runs_in != "worker":
-            where = "unknown" if binding is None else "runs in the runner, not available yet"
-            return self._unavailable(seq, key, call, f"tool_unavailable: {call.name} {where}")
+        if binding is None or binding.tool.runs_in != "worker" or call.name in self.unavailable:
+            reason = self.unavailable.get(call.name) or (
+                "not_installed" if binding is None else "runs_in_runner"
+            )
+            return self._unavailable(seq, key, call, f"tool_unavailable: {call.name} ({reason})")
         violation = check_args_policy(binding.permission.args_policy or {}, call.args)
         if violation:
             return self._deny(seq, key, call, Denial("args_policy", violation))

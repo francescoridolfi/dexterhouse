@@ -61,6 +61,8 @@ from dexterhouse_schema.turn_output import TurnOutput
 logger = structlog.get_logger(__name__)
 
 MAX_TOOL_CALLS = 50  # hard cap per turn, whatever the package says
+#: Tools offered only in autonomous mode (contracts/tools/marketplace.md).
+AUTONOMOUS_ONLY_TOOLS = frozenset({"packages.install"})
 IDLE_ROOM = "break_room"
 CONTEXT_RETRY_FACTOR = 0.75
 INITIAL_MESSAGES = 2  # system + first user message built by the context builder
@@ -257,7 +259,13 @@ def run_turn(turn_id: uuid.UUID) -> TurnOutput:
         "project.agent_name": agent.display_name,
     }
     with McpPool(variables, timeout_s=float(package.agent.limits.turn_timeout_s)) as pool:
-        tools = ToolGateway(turn, pool, load_tool_catalog(), frozenset(agent.allowed_tools))
+        tools = ToolGateway(
+            turn,
+            pool,
+            load_tool_catalog(),
+            turn_tools(agent.allowed_tools, inputs.mode),
+            policies=package.agent.args_policy,
+        )
         try:
             if turn.status == TurnStatus.QUEUED:
                 _start(turn, package, inputs, tools)
@@ -281,6 +289,12 @@ def run_turn(turn_id: uuid.UUID) -> TurnOutput:
             _fail(turn, code, f"{exc.code}: {exc}")
         except McpError as exc:
             raise TransientTurnError(str(exc)) from exc
+
+
+def turn_tools(allowed: list[str], mode: str) -> frozenset[str]:
+    """The agent's allowed tools for a turn in `mode` (no `packages.install` in supervised)."""
+    tools = frozenset(allowed)
+    return tools if mode == "autonomous" else tools - AUTONOMOUS_ONLY_TOOLS
 
 
 def fail_turn(turn_id: uuid.UUID, error_code: str, detail: str) -> None:
@@ -315,6 +329,8 @@ def _start(turn: AgentTurn, package: AgentPackage, inputs: TurnInputs, tools: To
     agent = turn.agent_instance
     specs = tools.specs()
     built = _build(turn, package, inputs, specs, factor=1.0)
+    if tools.unavailable:
+        built.manifest["unavailable_tools"] = dict(sorted(tools.unavailable.items()))
     room = inputs.room or agent.room or IDLE_ROOM
     with transaction.atomic():
         turn.status = TurnStatus.RUNNING
@@ -363,7 +379,7 @@ def _build(
             inputs=inputs,
             profile=turn.agent_instance.model_profile,
             tools=specs,
-            allowed_tools=frozenset(turn.agent_instance.allowed_tools),
+            allowed_tools=frozenset(s.name for s in specs),
             memory=_memory_search(turn, inputs),
             cap_factor=factor,
         )

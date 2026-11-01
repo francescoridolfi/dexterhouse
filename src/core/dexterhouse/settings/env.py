@@ -50,6 +50,7 @@ class Env(BaseSettings):
     DEFAULT_FROM_EMAIL: str = "DexterHouse <noreply@localhost>"
     NOTIFICATIONS_EMAIL: bool = False
     PUBLIC_URL: str = "http://localhost"
+    GATEWAY_FAKE_RESPONDER: str = ""
 
     def secret_key(self) -> str:
         """SECRET_KEY from env, else from SECRET_KEY_FILE."""

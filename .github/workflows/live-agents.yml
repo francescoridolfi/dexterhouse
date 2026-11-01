@@ -1,0 +1,61 @@
+name: Live agents
+
+# Manual job (testing.md, "Agenti (reale)"): the analysis phase of a brief sample on a real
+# provider with a budget cap; prints tokens and cost. Never triggered by pushes.
+on:
+  workflow_dispatch:
+    inputs:
+      provider:
+        description: "Gateway provider (anthropic, openai, openai-compatible)"
+        default: anthropic
+      model:
+        description: "Model for every chat profile"
+        default: claude-sonnet-5-5
+      brief:
+        description: "Brief sample (file stem in src/core/tests/brief_samples/briefs)"
+        default: gymbook
+      budget_eur:
+        description: "Budget cap in EUR"
+        default: "1.00"
+
+permissions:
+  contents: read
+
+jobs:
+  live-analysis:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: dexterhouse
+          POSTGRES_DB: dexterhouse
+          # Throwaway database reachable only from this job.
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U dexterhouse" --health-interval 5s
+          --health-timeout 5s --health-retries 20
+      redis:
+        image: redis:7.4-alpine
+        ports: ["6379:6379"]
+    env:
+      DATABASE_URL: postgres://dexterhouse@localhost:5432/dexterhouse
+      REDIS_URL: redis://localhost:6379/0
+      DH_LIVE_AGENTS: "1"
+      DH_LIVE_PROVIDER: ${{ inputs.provider }}
+      DH_LIVE_MODEL: ${{ inputs.model }}
+      DH_LIVE_BRIEF: ${{ inputs.brief }}
+      DH_LIVE_BUDGET_EUR: ${{ inputs.budget_eur }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      OPENAI_COMPATIBLE_BASE_URL: ${{ secrets.OPENAI_COMPATIBLE_BASE_URL }}
+      OPENAI_COMPATIBLE_API_KEY: ${{ secrets.OPENAI_COMPATIBLE_API_KEY }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          enable-cache: true
+      - run: uv sync --all-groups --frozen
+      - run: uv run pytest -s -p no:cacheprovider src/core/tests/brief_samples/test_live_analysis.py
