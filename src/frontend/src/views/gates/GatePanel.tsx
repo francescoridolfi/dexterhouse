@@ -76,7 +76,7 @@ export function GatePanel({ gateId, onClose }: { gateId: string; onClose: () => 
               {problem.status === 402 ? t("gate.budgetFirst") : problem.message}
             </p>
           ) : null}
-          {!admin && data?.status === "open" ? (
+          {!admin && data?.status === "open" && data.type !== "question" ? (
             <p className="text-sm text-muted">{t("gate.adminOnly")}</p>
           ) : null}
           {footer}
