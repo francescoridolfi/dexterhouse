@@ -27,6 +27,7 @@ No payments in 1.0.
 """
 
 
+@pytest.mark.slow  # real stdio MCP server process
 @pytest.mark.django_db(transaction=True)
 def test_memory_search_over_mcp_finds_the_indexed_artifact(agent, script, monkeypatch):
     settings_dict = connection.settings_dict

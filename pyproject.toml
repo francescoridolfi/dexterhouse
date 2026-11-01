@@ -33,11 +33,11 @@ dexterhouse-runner = { workspace = true }
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "dexterhouse.settings.test"
 testpaths = ["src/core/tests", "src/schema/tests", "src/runner/tests"]
-addopts = "-ra --strict-markers"
+addopts = "-ra --strict-markers --durations=10 --durations-min=1.0"
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 markers = [
-  "slow: long-running tests",
+  "slow: long-running tests (starts processes or runs a whole workflow); excluded from the fast CI job",
   "security: sandbox escape tests (T1-T9)",
 ]
 
