@@ -75,9 +75,9 @@ def test_error_contract(build, provider, scenario):
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("provider", ALL_PROVIDERS)
-def test_cost_recorded(build, organization, provider):
+def test_cost_recorded(build, organization, project, provider):
     instance, _, cassette = build(provider, "text")
-    project_id = organization.id  # any uuid: projects arrive with E-02
+    project_id = project.id
     result, call = complete(
         make_request(cassette["model"]),
         provider=instance,
@@ -107,7 +107,7 @@ def test_cost_recorded(build, organization, provider):
 
 @pytest.mark.django_db
 @pytest.mark.parametrize("provider", ALL_PROVIDERS)
-def test_failed_call_is_recorded(build, organization, provider):
+def test_failed_call_is_recorded(build, organization, project, provider):
     scenario = "server_error"
     instance, _, cassette = build(provider, scenario)
     with pytest.raises(ProviderError):
@@ -115,7 +115,7 @@ def test_failed_call_is_recorded(build, organization, provider):
             make_request(cassette["model"]),
             provider=instance,
             organization_id=organization.id,
-            project_id=organization.id,
+            project_id=project.id,
         )
     call = LLMCall.objects.get(provider=provider)
     assert call.status == CallStatus.ERROR

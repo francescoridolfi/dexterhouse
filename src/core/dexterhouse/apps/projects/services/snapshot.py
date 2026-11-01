@@ -3,6 +3,7 @@
 
 from typing import Any
 
+from dexterhouse.apps.agents.models import AgentInstance, AgentStatus
 from dexterhouse.apps.events.models import Event
 from dexterhouse.apps.projects.api.serializers import project_json
 from dexterhouse.apps.projects.models import Project
@@ -15,28 +16,30 @@ from dexterhouse.apps.workflows.models import (
     StepRun,
     Task,
 )
-from dexterhouse.apps.workflows.roles import ROLE_ROOMS, agent_id_for
+from dexterhouse.apps.workflows.roles import role_room
 
 IDLE_ROOM = "break_room"
 
 
 def _agents(project: Project) -> list[dict[str, Any]]:
-    """Agents from the process roles: working in the room of their active step, else idle.
-
-    E-03 replaces this with the project's AgentInstances.
-    """
+    """The hired agents: working in the room of their active step, else idle."""
     active = {
-        s.role: s for s in StepRun.objects.filter(project=project, status__in=ACTIVE_STEP_STATUSES)
+        s.agent_id: s.phase_run.room or role_room(s.role)
+        for s in StepRun.objects.filter(
+            project=project, status__in=ACTIVE_STEP_STATUSES
+        ).select_related("phase_run")
     }
-    roles = sorted(set(ROLE_ROOMS) | set(active))
+    agents = AgentInstance.objects.filter(project=project).exclude(status=AgentStatus.RELEASED)
     return [
         {
-            "agent_id": str(agent_id_for(project.id, role)),
-            "role": role,
-            "room": ROLE_ROOMS.get(role, "open_space") if role in active else IDLE_ROOM,
-            "status": "working" if role in active else "idle",
+            "agent_id": str(agent.id),
+            "role": agent.role,
+            "display_name": agent.display_name,
+            "room": active.get(agent.id, IDLE_ROOM),
+            "status": "working" if agent.id in active else "idle",
+            "avatar": agent.avatar,
         }
-        for role in roles
+        for agent in agents.order_by("role", "hired_at")
     ]
 
 

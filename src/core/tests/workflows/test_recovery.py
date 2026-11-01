@@ -92,7 +92,7 @@ def _broker_url() -> str:
 
 
 def _start_worker(log_path, env) -> subprocess.Popen:
-    argv = [sys.executable, "-m", "celery", "-A", "dexterhouse", "worker", "-Q", "default"]
+    argv = [sys.executable, "-m", "celery", "-A", "dexterhouse", "worker", "-Q", "agents"]
     argv += ["-P", "solo", "--without-gossip", "--without-mingle", "--without-heartbeat"]
     return subprocess.Popen(  # noqa: S603  # nosec B603: fixed argv of the test worker
         argv, env=env, stdout=log_path.open("ab"), stderr=subprocess.STDOUT
@@ -119,7 +119,7 @@ def test_killing_a_real_worker_mid_phase_loses_and_duplicates_nothing(
     monkeypatch.setattr(
         tasks.run_step,
         "delay",
-        lambda step_id: sender.send_task(RUN_STEP, args=[step_id], queue="default"),
+        lambda step_id: sender.send_task(RUN_STEP, args=[step_id], queue="agents"),
     )
     env = os.environ | {
         "DJANGO_SETTINGS_MODULE": "tests.workflows.worker_settings",

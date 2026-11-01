@@ -12,6 +12,7 @@ from dexterhouse.apps.accounts.models import Organization
 from dexterhouse.apps.gateway.messages import CompletionRequest, Message, TextPart
 from dexterhouse.apps.gateway.providers import UnknownProviderError, get_provider
 from dexterhouse.apps.gateway.services.complete import complete
+from dexterhouse.apps.projects.models import Project
 
 
 class Command(BaseCommand):
@@ -24,13 +25,21 @@ class Command(BaseCommand):
         call.add_argument("--provider", default="fake")
         call.add_argument("--model", default="fake-model")
         call.add_argument("--profile", default="fast")
-        call.add_argument("--project", type=uuid.UUID, default=None)
+        call.add_argument(
+            "--project", type=uuid.UUID, default=None, help="default: the latest project"
+        )
         call.add_argument("--org", default=settings.DEFAULT_ORG_SLUG)
 
     def handle(self, *args: Any, **options: Any) -> None:
         organization = Organization.objects.filter(slug=options["org"]).first()
         if organization is None:
             raise CommandError(f"unknown organization {options['org']}")
+        projects = Project.objects.filter(organization=organization)
+        if options["project"]:
+            projects = projects.filter(pk=options["project"])
+        project = projects.order_by("-created_at").first()
+        if project is None:
+            raise CommandError("no project: the call is recorded against one, create it first")
         try:
             provider = get_provider(options["provider"])
         except UnknownProviderError as exc:
@@ -45,7 +54,7 @@ class Command(BaseCommand):
             request,
             provider=provider,
             organization_id=organization.id,
-            project_id=options["project"] or uuid.uuid4(),
+            project_id=project.id,
         )
         self.stdout.write(result.message.text())
         self.stdout.write(

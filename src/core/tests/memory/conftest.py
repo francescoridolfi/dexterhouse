@@ -26,8 +26,8 @@ def embedder() -> FakeEmbedder:
 
 
 @pytest.fixture
-def project_id() -> uuid.UUID:
-    return uuid.uuid4()
+def project_id(project) -> uuid.UUID:
+    return project.id
 
 
 @pytest.fixture

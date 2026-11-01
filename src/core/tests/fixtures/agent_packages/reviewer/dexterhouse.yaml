@@ -1,0 +1,8 @@
+schema: 1
+kind: agent
+name: reviewer
+version: 1.0.0
+description: "Test Reviewer used by the integration tests"
+author: { name: "DexterHouse", github: francescoridolfi }
+license: AGPL-3.0-or-later
+compat: { core: ">=0.1,<2.0" }

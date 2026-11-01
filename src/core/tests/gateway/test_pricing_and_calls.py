@@ -1,5 +1,4 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-import uuid
 from decimal import Decimal
 from io import StringIO
 from pathlib import Path
@@ -42,8 +41,8 @@ def test_fx_override_and_prices_file(tmp_path: Path, settings):
 
 
 @pytest.mark.django_db
-def test_complete_records_llm_call_with_cost(organization, make_request):
-    project_id = uuid.uuid4()
+def test_complete_records_llm_call_with_cost(organization, project, make_request):
+    project_id = project.id
     provider = FakeProvider(
         [FakeResponse(text="done", usage=Usage(input=2000, output=500, cached_read=1000))]
     )
@@ -66,14 +65,14 @@ def test_complete_records_llm_call_with_cost(organization, make_request):
 
 
 @pytest.mark.django_db
-def test_failed_call_is_recorded(organization, make_request):
+def test_failed_call_is_recorded(organization, project, make_request):
     provider = FakeProvider([FakeResponse(error="rate_limited")])
     with pytest.raises(ProviderError):
         complete(
             make_request(),
             provider=provider,
             organization_id=organization.id,
-            project_id=uuid.uuid4(),
+            project_id=project.id,
         )
     call = LLMCall.objects.get()
     assert call.status == "rate_limited"
@@ -81,10 +80,10 @@ def test_failed_call_is_recorded(organization, make_request):
 
 
 @pytest.mark.django_db
-def test_unpriced_model_has_null_cost(organization, make_request):
+def test_unpriced_model_has_null_cost(organization, project, make_request):
     req = make_request().model_copy(update={"model": "not-in-table"})
     _, call = complete(
-        req, provider=FakeProvider(), organization_id=organization.id, project_id=uuid.uuid4()
+        req, provider=FakeProvider(), organization_id=organization.id, project_id=project.id
     )
     assert call.cost is None
     assert call.status == "ok"
@@ -92,10 +91,15 @@ def test_unpriced_model_has_null_cost(organization, make_request):
 
 
 @pytest.mark.django_db
-def test_gateway_command(organization):
+def test_gateway_command(organization, user):
+    from dexterhouse.apps.projects.services.projects import create_project
+
+    with pytest.raises(CommandError, match="no project"):
+        call_command("gateway", "call", "hi")
+    create_project(organization, user, {"name": "GymBook", "brief": "b", "budget": "1"})
     out = StringIO()
     call_command("gateway", "call", "hi", stdout=out)
-    assert "fake: hi" in out.getvalue()
+    assert "fake: hi" in out.getvalue()  # recorded against the latest project
     assert LLMCall.objects.count() == 1
     with pytest.raises(CommandError, match="unknown provider"):
         call_command("gateway", "call", "hi", "--provider", "nope")
@@ -104,7 +108,7 @@ def test_gateway_command(organization):
 
 
 @pytest.mark.django_db
-def test_admin_is_read_only(admin_client, organization):
+def test_admin_is_read_only(admin_client, organization, project):
     call_command("gateway", "call", "hi", stdout=StringIO())
     assert admin_client.get(reverse("admin:gateway_llmcall_changelist")).status_code == 200
     assert admin_client.get(reverse("admin:gateway_llmcall_add")).status_code == 403

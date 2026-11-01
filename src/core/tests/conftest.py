@@ -1,7 +1,12 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
+from pathlib import Path
+
 import pytest
 
 from dexterhouse.apps.accounts.models import Membership, Organization, Role, User
+
+#: One minimal agent package per built-in role (E-04 ships the real ones).
+TEAM_PACKAGES = Path(__file__).parent / "fixtures" / "agent_packages"
 
 
 @pytest.fixture
@@ -15,6 +20,23 @@ def user(db, organization: Organization) -> User:
     user = User.objects.create_user(username="ada", password="pw-for-tests-only")
     Membership.objects.create(user=user, organization=organization, role=Role.OWNER)
     return user
+
+
+@pytest.fixture
+def project(organization, user):
+    """A draft project (a real row: agents, LLM calls and memory point to it)."""
+    from dexterhouse.apps.projects.services.projects import create_project
+
+    return create_project(
+        organization, user, {"name": "GymBook", "brief": "A gym app.", "budget": "5"}
+    )
+
+
+@pytest.fixture
+def team_packages(settings) -> Path:
+    """Agent packages are looked up in the test team fixtures."""
+    settings.AGENTS_PACKAGE_DIRS = [str(TEAM_PACKAGES)]
+    return TEAM_PACKAGES
 
 
 @pytest.fixture

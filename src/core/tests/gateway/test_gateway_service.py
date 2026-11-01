@@ -1,8 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """generate(): profiles, residency, retries, circuit breaker, downgrade, idempotency."""
 
-import uuid
-
 import pytest
 from django.core.exceptions import ValidationError
 
@@ -36,8 +34,8 @@ def _fast_retries(settings):
 
 
 @pytest.fixture
-def ctx(organization) -> CallContext:
-    return CallContext(organization_id=organization.id, project_id=uuid.uuid4())
+def ctx(organization, project) -> CallContext:
+    return CallContext(organization_id=organization.id, project_id=project.id)
 
 
 def profile(organization, name, provider="fake", model="fake-model", **kwargs) -> ModelProfile:
@@ -56,18 +54,17 @@ class Scripted:
         return self.providers[resolved.provider]
 
 
-def test_resolution_order(organization):
-    project = uuid.uuid4()
-    assert resolve_profile(organization.id, project, "strong").source == "default"
-    assert resolve_profile(organization.id, project, "strong").provider == "anthropic"
+def test_resolution_order(organization, project):
+    assert resolve_profile(organization.id, project.id, "strong").source == "default"
+    assert resolve_profile(organization.id, project.id, "strong").provider == "anthropic"
     profile(organization, "strong", provider="ollama", model="qwen3:14b")
-    assert resolve_profile(organization.id, project, "strong").source == "organization"
-    profile(organization, "strong", provider="openai", model="gpt-5", project_id=project)
-    resolved = resolve_profile(organization.id, project, "strong")
+    assert resolve_profile(organization.id, project.id, "strong").source == "organization"
+    profile(organization, "strong", provider="openai", model="gpt-5", project=project)
+    resolved = resolve_profile(organization.id, project.id, "strong")
     assert (resolved.source, resolved.provider) == ("project", "openai")
     assert resolve_profile(organization.id, None, "strong").provider == "ollama"
     with pytest.raises(ProfileConfigurationError):
-        resolve_profile(organization.id, project, "embed")
+        resolve_profile(organization.id, project.id, "embed")
     assert downgrade_chain("strong", True) == ["strong", "balanced", "fast"]
     assert downgrade_chain("strong", False) == ["strong"]
 

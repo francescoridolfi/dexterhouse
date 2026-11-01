@@ -93,10 +93,12 @@ def create_agent_instance(
     source: str = AgentSource.BUILTIN,
     room: str | None = None,
     package_version_id: uuid.UUID | None = None,
+    agent_id: uuid.UUID | None = None,
 ) -> AgentInstance:
     """Hire the agent of the package at `package_path` into a project (`agent.hired`).
 
     `allowed_tools` = the package's `tools` ∩ `granted_tools` (all of them when None).
+    `agent_id` fixes the id (the built-in team uses one stable id per project and role).
     """
     package = load_agent_package(package_path)
     agent = package.agent
@@ -107,6 +109,7 @@ def create_agent_instance(
     )
     with transaction.atomic():
         instance = AgentInstance.objects.create(
+            id=agent_id or uuid.uuid4(),
             organization_id=organization_id,
             project_id=project_id,
             package_version_id=package_version_id,
@@ -124,21 +127,25 @@ def create_agent_instance(
             },
             source=source,
         )
-        _emit_system(
-            instance,
-            "agent.hired",
-            {
-                "agent_id": str(instance.id),
-                "role": instance.role,
-                "display_name": instance.display_name,
-                "package": {"name": package.name, "version": package.version},
-                "source": instance.source,
-                "room": instance.room,
-                "avatar": instance.avatar,
-                "allowed_tools": instance.allowed_tools,
-            },
-        )
+        emit_hired(instance)
     return instance
+
+
+def emit_hired(instance: AgentInstance) -> None:
+    _emit_system(
+        instance,
+        "agent.hired",
+        {
+            "agent_id": str(instance.id),
+            "role": instance.role,
+            "display_name": instance.display_name,
+            "package": {"name": instance.package_name, "version": instance.package_version},
+            "source": instance.source,
+            "room": instance.room,
+            "avatar": instance.avatar,
+            "allowed_tools": instance.allowed_tools,
+        },
+    )
 
 
 # Queueing -------------------------------------------------------------------------------

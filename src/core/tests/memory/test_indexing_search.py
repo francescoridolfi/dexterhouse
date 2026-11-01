@@ -55,7 +55,10 @@ def test_index_is_incremental_by_version(organization, project_id, embedder):
     assert stale.skipped
 
 
-def test_search_ranks_relevant_chunks_and_filters(organization, project_id, embedder):
+def test_search_ranks_relevant_chunks_and_filters(organization, project_id, embedder, user):
+    from dexterhouse.apps.projects.services.projects import create_project
+
+    other = create_project(organization, user, {"name": "Other", "brief": "b", "budget": "1"})
     arch = uuid.uuid4()
     index(organization, project_id, embedder, artifact_id=arch, content=ARCHITECTURE)
     index(
@@ -66,7 +69,7 @@ def test_search_ranks_relevant_chunks_and_filters(organization, project_id, embe
         name="stack.yaml",
         data={"language": "python", "framework": "django"},
     )
-    index(organization, uuid.uuid4(), embedder, content="waitlist FIFO email other project")
+    index(organization, other.id, embedder, content="waitlist FIFO email other project")
 
     result = search(
         project_id=project_id, query="waitlist FIFO email", embedder=embedder, k=3, min_score=0.1

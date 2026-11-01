@@ -1,7 +1,5 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Agent roles and rooms until the agents app (E-03) provides AgentPackage/AgentInstance."""
-
-import uuid
+"""Agent roles and rooms of the processes; the agents themselves live in `agents.roster`."""
 
 from dexterhouse_schema import Process
 from dexterhouse_schema.process import Phase
@@ -20,17 +18,17 @@ ROLE_ROOMS = {
     "tester": "qa_lab",
 }
 FALLBACK_ROOM = "open_space"
-_AGENT_NAMESPACE = uuid.UUID("5f0c8a52-4c1e-4d7e-9b2a-6d8e0f3a7c10")
 
 
 def installed_roles() -> frozenset[str]:
-    """Roles a process may reference; E-03 replaces this with the installed agent packages."""
-    return BUILTIN_ROLES
+    """Roles a process may reference: the built-in team plus the installed agent packages."""
+    from dexterhouse.apps.agents.services.roster import installed_package_roles
+
+    return BUILTIN_ROLES | installed_package_roles()
 
 
-def agent_id_for(project_id: uuid.UUID, role: str) -> uuid.UUID:
-    """Stable placeholder agent id per (project, role); becomes AgentInstance.id in E-03."""
-    return uuid.uuid5(_AGENT_NAMESPACE, f"{project_id}:{role}")
+def role_room(role: str) -> str:
+    return ROLE_ROOMS.get(role, FALLBACK_ROOM)
 
 
 def phase_room(process: Process, phase: Phase) -> str:

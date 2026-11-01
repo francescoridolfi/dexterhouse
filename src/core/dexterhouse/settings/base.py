@@ -140,6 +140,12 @@ LOGGING = {
 }
 
 # Agents runtime and LLM gateway (E-03)
-CELERY_TASK_ROUTES = {"dexterhouse.apps.agents.tasks.*": {"queue": "agents"}}
+# `run_step` runs the agent turn synchronously (AgentsTurnRunner): it belongs on `agents`.
+CELERY_TASK_ROUTES = {
+    "dexterhouse.apps.agents.tasks.*": {"queue": "agents"},
+    "dexterhouse.apps.workflows.tasks.run_step": {"queue": "agents"},
+}
 GATEWAY_RETRY_DELAYS = (2.0, 4.0, 8.0)
 AGENTS_TOOL_PACKAGE_DIRS = ["/data/packages/tools"]
+# Agent packages by lookup order: built-in team (E-04), then installed packages (E-07).
+AGENTS_PACKAGE_DIRS = [str(BUILTIN_DIR / "agents"), "/data/packages/agents"]

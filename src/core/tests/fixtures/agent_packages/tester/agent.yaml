@@ -1,0 +1,10 @@
+schema: 1
+role: tester
+display_name: "Test Tester"
+model_profile: fast
+tools: [project.tasks]
+skills: []
+prompts: { system: prompts/system.md }
+output_contract: { artifacts: [test_report], schema: test_report }
+limits: { max_tool_calls: 6, max_output_tokens: 4000, turn_timeout_s: 300 }
+office: { room: qa_lab, color: "#3366cc" }

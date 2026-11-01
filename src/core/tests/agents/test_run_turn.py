@@ -312,14 +312,16 @@ def test_cancel_only_queued_turns(agent):
     assert "agent.turn.cancelled" in events(turn)
 
 
-def test_hired_agent_gets_the_intersection_of_tools(organization, fake_profiles, tool_dirs):
+def test_hired_agent_gets_the_intersection_of_tools(
+    organization, project, fake_profiles, tool_dirs
+):
     from dexterhouse.apps.agents.services import create_agent_instance
 
     from .conftest import FIXTURES
 
     instance = create_agent_instance(
         organization_id=organization.id,
-        project_id=uuid.uuid4(),
+        project_id=project.id,
         package_path=str(FIXTURES / "agents" / "test-analyst"),
         granted_tools=["echo.say", "git.push"],
         display_name="Analyst #2",
@@ -340,8 +342,12 @@ def test_broken_package_is_a_configuration_failure(agent, tmp_path):
     assert info.value.error_code == "configuration"
 
 
-def test_queue_is_idempotent_per_step_run_and_attempt(agent):
-    step_run = uuid.uuid4()
+def test_queue_is_idempotent_per_step_run_and_attempt(agent, user):
+    from dexterhouse.apps.projects.services import lifecycle
+    from dexterhouse.apps.workflows.models import StepRun
+
+    lifecycle.start_project(agent.project_id, user)
+    step_run = StepRun.objects.get(project_id=agent.project_id).id
     first = queue_turn(agent=agent, purpose="p", inputs=INPUTS, enqueue=False, step_run_id=step_run)
     again = queue_turn(agent=agent, purpose="p", inputs=INPUTS, enqueue=False, step_run_id=step_run)
     retry = queue_turn(

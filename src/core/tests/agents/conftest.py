@@ -3,7 +3,6 @@
 
 import json
 import shutil
-import uuid
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -58,10 +57,10 @@ def script(monkeypatch) -> Callable[..., FakeProvider]:
 
 
 @pytest.fixture
-def agent(organization, fake_profiles, tool_dirs) -> AgentInstance:
+def agent(organization, project, fake_profiles, tool_dirs) -> AgentInstance:
     return create_agent_instance(
         organization_id=organization.id,
-        project_id=uuid.uuid4(),
+        project_id=project.id,
         package_path=str(FIXTURES / "agents" / "test-analyst"),
     )
 
