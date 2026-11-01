@@ -1,0 +1,34 @@
+# Built-in MCP server running in the worker (contracts/tools/memory.md). The core starts it
+# with its own interpreter and database settings, for one project and one turn.
+schema: 1
+name: project
+transport: stdio
+runs_in: worker
+command: ["python", "-m", "dexterhouse.apps.projects.mcp_server", "project"]
+env:
+  DH_PROJECT_ID: "${project.id}"
+  DH_TURN_ID: "${project.turn_id}"
+permissions:
+  - id: project.artifact
+    mcp_tool: project_artifact
+    description: "Read one artifact of the project by kind (and name, version or `## section`); past 64 KB only its sections are listed."
+    risk: low
+  - id: project.artifacts
+    mcp_tool: project_artifacts
+    description: "List the latest version of the project's artifacts (kind, name, version, size, produced_by)."
+    risk: low
+  - id: project.tasks
+    mcp_tool: project_tasks
+    description: "The current task board with states, iterations and dependencies."
+    risk: low
+  - id: project.notes
+    mcp_tool: project_notes
+    description: "The user's notes for the team; marks them read by this turn."
+    risk: low
+  - id: project.ask
+    mcp_tool: project_ask
+    description: "Ask the human structured questions ({id, text, kind, options?}) when the step allows it; in autonomous mode the answer is to state assumptions."
+    risk: low
+network: allowlist
+hosts: [postgres, redis]
+healthcheck: { timeout_s: 20 }

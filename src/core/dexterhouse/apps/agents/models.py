@@ -5,6 +5,7 @@ from django.contrib.postgres.fields import ArrayField
 from django.db import models
 
 from dexterhouse.apps.accounts.models import Organization
+from dexterhouse.apps.projects.models import Project
 from dexterhouse.common.models import BaseModel
 
 
@@ -58,7 +59,7 @@ class AgentInstance(BaseModel):
     """An agent hired in a project; `allowed_tools` is what the tool gateway enforces."""
 
     organization = models.ForeignKey(Organization, on_delete=models.PROTECT, related_name="+")
-    project_id = models.UUIDField()  # FK added at integration (E-02)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="agents")
     package_version_id = models.UUIDField(null=True, blank=True)  # FK added with E-07 packages
     package_name = models.CharField(max_length=120)
     package_version = models.CharField(max_length=32)
@@ -78,7 +79,7 @@ class AgentInstance(BaseModel):
 
     class Meta:
         db_table = "dh_agents_agentinstance"
-        indexes = [models.Index(fields=["project_id", "role"], name="dh_agent_project_role")]
+        indexes = [models.Index(fields=["project", "role"], name="dh_agent_project_role")]
 
     def __str__(self) -> str:
         return f"{self.display_name} ({self.role})"
@@ -92,13 +93,32 @@ class AgentTurn(BaseModel):
     """
 
     organization = models.ForeignKey(Organization, on_delete=models.PROTECT, related_name="+")
-    project_id = models.UUIDField()  # FK added at integration (E-02)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="agent_turns")
     agent_instance = models.ForeignKey(
         AgentInstance, on_delete=models.PROTECT, related_name="turns"
     )
-    phase_run_id = models.UUIDField(null=True, blank=True)  # FK added at integration (E-02)
-    task_id = models.UUIDField(null=True, blank=True)  # FK added at integration (E-02)
-    step_run_id = models.UUIDField(null=True, blank=True)  # workflow engine idempotency key
+    phase_run = models.ForeignKey(
+        "workflows.PhaseRun",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="agent_turns",
+    )
+    task = models.ForeignKey(
+        "workflows.Task",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="agent_turns",
+    )
+    # The workflow engine's idempotency key: one turn per (step run, attempt).
+    step_run = models.ForeignKey(
+        "workflows.StepRun",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="agent_turns",
+    )
     step_attempt = models.IntegerField(default=1)
     step = models.CharField(max_length=64, blank=True, default="")
     status = models.CharField(max_length=16, choices=TurnStatus.choices, default=TurnStatus.QUEUED)
@@ -126,7 +146,7 @@ class AgentTurn(BaseModel):
     class Meta:
         db_table = "dh_agents_agentturn"
         indexes = [
-            models.Index(fields=["project_id", "created_at"], name="dh_turn_project_created"),
+            models.Index(fields=["project", "created_at"], name="dh_turn_project_created"),
             models.Index(fields=["agent_instance", "status"], name="dh_turn_agent_status"),
         ]
         constraints = [
@@ -134,8 +154,8 @@ class AgentTurn(BaseModel):
                 condition=models.Q(status__in=TurnStatus.values), name="dh_turn_status_valid"
             ),
             models.UniqueConstraint(
-                fields=["step_run_id", "step_attempt"],
-                condition=models.Q(step_run_id__isnull=False),
+                fields=["step_run", "step_attempt"],
+                condition=models.Q(step_run__isnull=False),
                 name="dh_turn_step_run_attempt_unique",
             ),
         ]

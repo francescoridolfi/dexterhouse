@@ -15,11 +15,15 @@ CHUNK_KINDS = tuple(sorted(ARTIFACT_KINDS)) + EXTRA_KINDS
 class MemoryChunk(BaseModel):
     """`artifact_id` is the artifact (or the gate / note for comments and notes).
 
+    Being polymorphic, `artifact_id` is a plain uuid without a foreign key.
+
     Chunks of one source version are written together; a newer version replaces them.
     """
 
-    project_id = models.UUIDField()  # FK added at integration (E-02)
-    artifact_id = models.UUIDField()  # FK added at integration (E-02)
+    project = models.ForeignKey(
+        "projects.Project", on_delete=models.CASCADE, related_name="memory_chunks"
+    )
+    artifact_id = models.UUIDField()
     artifact_version = models.IntegerField(default=1)
     artifact_name = models.CharField(max_length=200, blank=True, default="")
     kind = models.CharField(max_length=32, choices=[(k, k) for k in CHUNK_KINDS])
@@ -34,7 +38,7 @@ class MemoryChunk(BaseModel):
     class Meta:
         db_table = "dh_memory_chunk"
         indexes = [
-            models.Index(fields=["project_id", "kind"], name="dh_memory_project_kind"),
+            models.Index(fields=["project", "kind"], name="dh_memory_project_kind"),
             models.Index(fields=["artifact_id", "artifact_version"], name="dh_memory_artifact"),
             HnswIndex(
                 name="dh_memory_embedding_hnsw",

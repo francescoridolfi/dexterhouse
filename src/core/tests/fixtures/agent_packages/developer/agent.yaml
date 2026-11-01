@@ -1,0 +1,10 @@
+schema: 1
+role: developer
+display_name: "Test Developer"
+model_profile: balanced
+tools: [project.tasks, skills.read]
+skills: [small-steps]
+prompts: { system: prompts/system.md }
+output_contract: { artifacts: [dev_notes, file], schema: markdown }
+limits: { max_tool_calls: 6, max_output_tokens: 4000, turn_timeout_s: 300 }
+office: { room: open_space, color: "#3366cc" }

@@ -3,6 +3,7 @@
 
 from django.utils import timezone
 
+from dexterhouse.apps.agents.services.roster import hire_team
 from dexterhouse.apps.projects.models import Project
 from dexterhouse.apps.projects.services.actors import emit
 from dexterhouse.apps.workflows.engine import common, phases
@@ -12,7 +13,7 @@ from dexterhouse.apps.workflows.models import (
     ProcessRun,
     ProcessRunStatus,
 )
-from dexterhouse.apps.workflows.roles import phase_room
+from dexterhouse.apps.workflows.roles import ROLE_ROOMS, phase_room, process_roles
 from dexterhouse_schema import Process
 
 
@@ -27,11 +28,12 @@ def create_run(project: Project, process: Process) -> ProcessRun:
 
 
 def start_run(run: ProcessRun) -> None:
-    """pending -> running: `process.started`, one PhaseRun per phase, schedule the first."""
+    """pending -> running: hire the team, `process.started`, PhaseRuns, schedule the first."""
     process = common.process_of(run)
     run.status = ProcessRunStatus.RUNNING
     run.started_at = timezone.now()
     common.save(run, "status", "started_at")
+    hire_team(run.project, sorted(process_roles(process)), ROLE_ROOMS)
     PhaseRun.objects.bulk_create(
         PhaseRun(process_run=run, phase_id=p.id, position=i, room=phase_room(process, p))
         for i, p in enumerate(process.phases)

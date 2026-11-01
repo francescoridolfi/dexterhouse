@@ -55,7 +55,10 @@ def test_index_is_incremental_by_version(organization, project_id, embedder):
     assert stale.skipped
 
 
-def test_search_ranks_relevant_chunks_and_filters(organization, project_id, embedder):
+def test_search_ranks_relevant_chunks_and_filters(organization, project_id, embedder, user):
+    from dexterhouse.apps.projects.services.projects import create_project
+
+    other = create_project(organization, user, {"name": "Other", "brief": "b", "budget": "1"})
     arch = uuid.uuid4()
     index(organization, project_id, embedder, artifact_id=arch, content=ARCHITECTURE)
     index(
@@ -66,7 +69,7 @@ def test_search_ranks_relevant_chunks_and_filters(organization, project_id, embe
         name="stack.yaml",
         data={"language": "python", "framework": "django"},
     )
-    index(organization, uuid.uuid4(), embedder, content="waitlist FIFO email other project")
+    index(organization, other.id, embedder, content="waitlist FIFO email other project")
 
     result = search(
         project_id=project_id, query="waitlist FIFO email", embedder=embedder, k=3, min_score=0.1
@@ -209,3 +212,25 @@ def test_main_requires_project(monkeypatch, capsys):
     monkeypatch.delenv("DH_PROJECT_ID", raising=False)
     assert main() == 1
     assert "DH_PROJECT_ID" in capsys.readouterr().err
+
+
+def test_index_task_skips_without_embedder_and_retries_transient_errors(
+    organization, project_id, monkeypatch
+):
+    from dexterhouse.apps.gateway.providers import ProviderError
+    from dexterhouse.apps.memory import tasks
+
+    args = (str(organization.id), str(project_id), str(uuid.uuid4()), 1, "brief")
+
+    def unavailable(*a, **k):
+        raise ProviderError("no embedder", code="configuration")
+
+    monkeypatch.setattr(tasks, "resolve_embedder", unavailable)
+    assert tasks.index_artifact_task(*args, content="x") == 0
+
+    def down(*a, **k):
+        raise ProviderError("down", code="provider", retryable=True)
+
+    monkeypatch.setattr(tasks, "resolve_embedder", down)
+    with pytest.raises(ProviderError):
+        tasks.index_artifact_task(*args, content="x")

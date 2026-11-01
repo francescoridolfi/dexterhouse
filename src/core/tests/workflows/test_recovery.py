@@ -16,12 +16,16 @@ from django.conf import settings as django_settings
 from django.db import connection
 from django.utils import timezone
 
+from dexterhouse.apps.agents.models import AgentTurn
 from dexterhouse.apps.events.models import Event
+from dexterhouse.apps.gateway.models import LLMCall
 from dexterhouse.apps.projects.models import Artifact
 from dexterhouse.apps.workflows import tasks
 from dexterhouse.apps.workflows.engine import steps
 from dexterhouse.apps.workflows.models import StepRun, StepRunStatus
 from dexterhouse.apps.workflows.runners.fake import FakeTurnRunner
+from tests.conftest import TEAM_PACKAGES
+from tests.workflows.agents_runtime import use_fake_profiles
 from tests.workflows.conftest import DyingRunner, KilledError, drain
 
 RUN_STEP = "dexterhouse.apps.workflows.tasks.run_step"
@@ -40,6 +44,19 @@ def assert_each_turn_applied_once(project) -> None:
     assert events["phase.step.completed"] == phase_steps
     assert events["task.step.completed"] == task_steps
     assert set(Artifact.objects.filter(project=project).values_list("version", flat=True)) == {1}
+
+
+def assert_no_duplicate_agent_turns(project, stuck) -> None:
+    """The killed turn was resumed (not paid twice): one AgentTurn per step run."""
+    turns = AgentTurn.objects.filter(project=project)
+    assert turns.count() == StepRun.objects.filter(project=project).count()
+    assert set(turns.values_list("status", flat=True)) == {"completed"}
+    resumed = turns.get(step_run=stuck)
+    assert (resumed.step_attempt, resumed.attempt) == (1, 2)  # created once, run twice
+    keys = LLMCall.objects.filter(project=project, status="ok").values_list(
+        "idempotency_key", flat=True
+    )
+    assert max(Counter(keys).values()) == 1
 
 
 @pytest.mark.django_db
@@ -92,7 +109,7 @@ def _broker_url() -> str:
 
 
 def _start_worker(log_path, env) -> subprocess.Popen:
-    argv = [sys.executable, "-m", "celery", "-A", "dexterhouse", "worker", "-Q", "default"]
+    argv = [sys.executable, "-m", "celery", "-A", "dexterhouse", "worker", "-Q", "agents"]
     argv += ["-P", "solo", "--without-gossip", "--without-mingle", "--without-heartbeat"]
     return subprocess.Popen(  # noqa: S603  # nosec B603: fixed argv of the test worker
         argv, env=env, stdout=log_path.open("ab"), stderr=subprocess.STDOUT
@@ -110,8 +127,9 @@ def _wait(predicate, timeout_s: float, what: str) -> None:
 
 @pytest.mark.slow
 @pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize("runner", ["fake", "agents"])
 def test_killing_a_real_worker_mid_phase_loses_and_duplicates_nothing(
-    started, monkeypatch, tmp_path
+    started, monkeypatch, tmp_path, runner, organization, settings
 ):
     broker = _broker_url()
     sender = Celery(broker=broker)
@@ -119,19 +137,29 @@ def test_killing_a_real_worker_mid_phase_loses_and_duplicates_nothing(
     monkeypatch.setattr(
         tasks.run_step,
         "delay",
-        lambda step_id: sender.send_task(RUN_STEP, args=[step_id], queue="default"),
+        lambda step_id: sender.send_task(RUN_STEP, args=[step_id], queue="agents"),
     )
+    db = connection.settings_dict
     env = os.environ | {
         "DJANGO_SETTINGS_MODULE": "tests.workflows.worker_settings",
         "DH_TEST_BROKER_URL": broker,
-        "DH_TEST_DB_NAME": connection.settings_dict["NAME"],
+        "DH_TEST_DB_NAME": db["NAME"],
+        "DH_TEST_TURN_RUNNER": runner,
+        "DATABASE_URL": f"postgres://{db['USER']}@{db['HOST']}:{db['PORT']}/{db['NAME']}",
     }
+    if runner == "agents":
+        settings.AGENTS_PACKAGE_DIRS = [str(TEAM_PACKAGES)]  # the team hired at start
+        use_fake_profiles(organization)
     log = tmp_path / "worker.log"
     worker = _start_worker(log, env)
     try:
         project = started(execution_mode="autonomous")
 
         def architect_running():
+            if runner == "agents":  # killed inside the turn, after its first message
+                return AgentTurn.objects.filter(
+                    project=project, step_run__role="architect", status="running"
+                ).exists()
             return StepRun.objects.filter(
                 project=project, role="architect", status=StepRunStatus.RUNNING
             ).exists()
@@ -158,6 +186,8 @@ def test_killing_a_real_worker_mid_phase_loses_and_duplicates_nothing(
         stuck.refresh_from_db()
         assert (stuck.status, stuck.attempts) == ("completed", 2)
         assert_each_turn_applied_once(project)
+        if runner == "agents":
+            assert_no_duplicate_agent_turns(project, stuck)
     finally:
         worker.kill()
         worker.wait(10)

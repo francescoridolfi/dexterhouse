@@ -82,3 +82,26 @@ class DyingRunner(FakeTurnRunner):
             self.died.add(request.role)
             raise KilledError
         return super().run(request)
+
+
+@pytest.fixture
+def real_runtime(settings, organization, monkeypatch, team_packages):
+    """`AgentsTurnRunner` + test agent packages + `fake` provider, MCP servers included.
+
+    For transactional tests: the stdio MCP servers read the test database through the
+    environment; `run_step` is not sent anywhere, `drain` runs the steps.
+    """
+    from django.db import connection
+
+    from dexterhouse.apps.workflows import tasks
+    from tests.workflows.agents_runtime import AGENTS_RUNNER, RESPONDER, use_fake_profiles
+
+    db = connection.settings_dict
+    monkeypatch.setenv(
+        "DATABASE_URL", f"postgres://{db['USER']}@{db['HOST']}:{db['PORT']}/{db['NAME']}"
+    )
+    monkeypatch.setenv("DJANGO_SETTINGS_MODULE", "dexterhouse.settings.test")
+    monkeypatch.setattr(tasks.run_step, "delay", lambda step_id: None)
+    settings.WORKFLOWS_TURN_RUNNER = AGENTS_RUNNER
+    settings.GATEWAY_FAKE_RESPONDER = RESPONDER
+    use_fake_profiles(organization)

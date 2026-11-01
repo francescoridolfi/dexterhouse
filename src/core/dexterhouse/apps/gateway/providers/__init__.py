@@ -12,7 +12,7 @@ from dexterhouse.apps.gateway.providers.base import (
     ProviderError,
     collect,
 )
-from dexterhouse.apps.gateway.providers.fake import FakeProvider
+from dexterhouse.apps.gateway.providers.fake import FakeProvider, configured_responder
 from dexterhouse.apps.gateway.providers.ollama import OllamaProvider
 from dexterhouse.apps.gateway.providers.openai import OpenAICompatibleProvider, OpenAIProvider
 
@@ -24,7 +24,7 @@ PROVIDERS: dict[str, ProviderFactory] = {
     "openai": OpenAIProvider,
     "openai-compatible": OpenAICompatibleProvider,
     "ollama": OllamaProvider,
-    "fake": lambda config: FakeProvider(),
+    "fake": lambda config: FakeProvider(responder=configured_responder()),
 }
 
 #: Providers whose data never leaves the installation, whatever the profile says.

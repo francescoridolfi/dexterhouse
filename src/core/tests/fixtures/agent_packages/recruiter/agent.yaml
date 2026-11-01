@@ -1,0 +1,10 @@
+schema: 1
+role: recruiter
+display_name: "Test Recruiter"
+model_profile: fast
+tools: [project.artifacts]
+skills: []
+prompts: { system: prompts/system.md }
+output_contract: { artifacts: [team_proposal], schema: team_proposal }
+limits: { max_tool_calls: 6, max_output_tokens: 4000, turn_timeout_s: 300 }
+office: { room: hr_office, color: "#3366cc" }

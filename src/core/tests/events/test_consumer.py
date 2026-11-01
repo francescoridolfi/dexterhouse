@@ -71,7 +71,7 @@ async def test_snapshot_live_events_speaking_and_ping(organization, project_id, 
     assert snapshot["last_event_id"] == str(first.id)
     assert snapshot["project"]["id"] == str(project_id)
     assert snapshot["project"]["status"] == "draft"
-    assert {a["role"] for a in snapshot["agents"]} >= {"analyst", "developer"}
+    assert snapshot["agents"] == []  # the team is hired when the process starts
 
     second = await database_sync_to_async(emit)(organization, project_id, "design")
     message = await communicator.receive_json_from(timeout=5)

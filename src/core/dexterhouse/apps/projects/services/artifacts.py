@@ -7,6 +7,7 @@ import json
 import uuid
 from typing import Any
 
+from django.db import transaction
 from django.db.models import Max
 from pydantic import ValidationError
 
@@ -73,7 +74,24 @@ def save_artifact(
     if kind == ArtifactKind.STACK:
         project.stack = clean
         project.save(update_fields=["stack", "updated_at"])
+    transaction.on_commit(lambda: index(artifact))
     return artifact
+
+
+def index(artifact: Artifact) -> None:
+    """Send the artifact version to the project memory (`memory.tasks.index_artifact`)."""
+    from dexterhouse.apps.memory.tasks import index_artifact_task
+
+    index_artifact_task.delay(
+        str(artifact.project.organization_id),
+        str(artifact.project_id),
+        str(artifact.id),
+        artifact.version,
+        artifact.kind,
+        artifact.name,
+        content=artifact.content if artifact.data is None else None,
+        data=artifact.data,
+    )
 
 
 def ref(artifact: Artifact) -> dict[str, Any]:

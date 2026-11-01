@@ -3,7 +3,7 @@
 
 Everything that needs the runner is a no-op here that only emits the catalogue events:
 E-05 (runner) replaces `workspace_create`, `branch_create`, `merge`, `deliver` and
-`check_exit`; E-07 (packages) `install_proposed_packages`; E-03 (agents) `hire`.
+`check_exit`; E-07 (packages) `install_proposed_packages`. `hire` is real (integration).
 """
 
 import hashlib
@@ -14,6 +14,7 @@ from typing import Any
 
 import structlog
 
+from dexterhouse.apps.agents.services.roster import hire_proposed
 from dexterhouse.apps.projects.models import Artifact, ArtifactKind, Project
 from dexterhouse.apps.projects.services.actors import emit
 from dexterhouse.apps.workflows.models import PhaseRun, Task
@@ -119,8 +120,15 @@ def install_proposed_packages(project: Project, phase_run: PhaseRun) -> ActionRe
 
 
 def hire(project: Project, phase_run: PhaseRun) -> ActionResult:
-    """No-op (E-03): the proposed roles count as hired, which enables `when: hired`."""
-    return ActionResult(data={"hired": [p["role"] for p in _proposals(project)]})
+    """Hire one agent per proposal whose package is installed (`agent.hired`).
+
+    The hired roles enable `when: hired`; a proposal whose package is missing (E-07 installs
+    from the marketplace) is skipped and logged.
+    """
+    agents = hire_proposed(project, _proposals(project))
+    return ActionResult(
+        data={"hired": [a.role for a in agents], "agents": [str(a.id) for a in agents]}
+    )
 
 
 def check_exit(project: Project, exit_kind: str, command: str | None) -> ActionResult:

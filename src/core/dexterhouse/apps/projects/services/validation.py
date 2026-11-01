@@ -47,6 +47,16 @@ def git_ls_remote(url: str, token: str | None) -> str | None:
     return None if result.returncode == 0 else "cannot read the repository with the given token"
 
 
+def _roles_without_package(roles: set[str]) -> list[str]:
+    """Roles that cannot run, when the configured runner needs agent packages."""
+    from dexterhouse.apps.agents.services.roster import installed_package_roles
+
+    runner = import_string(settings.WORKFLOWS_TURN_RUNNER)
+    if not getattr(runner, "requires_packages", False):
+        return []
+    return sorted(roles - installed_package_roles())
+
+
 def validate_for_start(project: Project) -> list[dict[str, str]]:
     """Return `[{field, message}]`; empty means the project can start."""
     errors: list[dict[str, str]] = []
@@ -64,6 +74,14 @@ def validate_for_start(project: Project) -> list[dict[str, str]]:
         if missing:
             errors.append(
                 {"field": "process", "message": f"agent roles not installed: {', '.join(missing)}"}
+            )
+        without = _roles_without_package(process_roles(installed.process))
+        if without:
+            errors.append(
+                {
+                    "field": "process",
+                    "message": f"no agent package for role(s): {', '.join(without)}",
+                }
             )
         if "stack" in installed.requirements and not project.stack:
             phases = ", ".join(installed.requirements["stack"])

@@ -32,15 +32,23 @@ class ProviderChoice(models.TextChoices):
 
 
 class LLMCall(BaseModel):
-    """`project_id` and `agent_turn_id` become foreign keys at integration (E-02).
+    """One provider call, priced; `agent_turn` is null for calls outside a turn (embeddings).
 
     A successful call made under an `idempotency_key` stores its aggregated `response`, so a
     resumed turn reuses it instead of calling the provider again (ADR-0013).
     """
 
     organization = models.ForeignKey(Organization, on_delete=models.PROTECT, related_name="+")
-    project_id = models.UUIDField()  # FK added at integration (E-02)
-    agent_turn_id = models.UUIDField(null=True, blank=True)
+    project = models.ForeignKey(
+        "projects.Project", on_delete=models.CASCADE, related_name="llm_calls"
+    )
+    agent_turn = models.ForeignKey(
+        "agents.AgentTurn",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="llm_calls",
+    )
     provider = models.CharField(max_length=64)
     model = models.CharField(max_length=64)
     profile = models.CharField(max_length=16, choices=ProfileChoice.choices)
@@ -61,8 +69,8 @@ class LLMCall(BaseModel):
         db_table = "dh_gateway_llmcall"
         indexes = [
             models.Index(fields=["organization", "created_at"], name="dh_llmcall_org_created"),
-            models.Index(fields=["project_id", "created_at"], name="dh_llmcall_project_created"),
-            models.Index(fields=["agent_turn_id"], name="dh_llmcall_turn"),
+            models.Index(fields=["project", "created_at"], name="dh_llmcall_project_created"),
+            models.Index(fields=["agent_turn"], name="dh_llmcall_turn"),
         ]
         constraints = [
             models.CheckConstraint(
@@ -90,7 +98,13 @@ class ModelProfile(BaseModel):
     organization = models.ForeignKey(
         Organization, on_delete=models.CASCADE, related_name="model_profiles"
     )
-    project_id = models.UUIDField(null=True, blank=True)  # FK added at integration (E-02)
+    project = models.ForeignKey(
+        "projects.Project",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="model_profiles",
+    )
     profile = models.CharField(max_length=16, choices=ProfileChoice.choices)
     provider = models.CharField(max_length=32, choices=ProviderChoice.choices)
     model = models.CharField(max_length=120)
@@ -104,12 +118,12 @@ class ModelProfile(BaseModel):
         constraints = [
             models.UniqueConstraint(
                 fields=["organization", "profile"],
-                condition=models.Q(project_id__isnull=True),
+                condition=models.Q(project__isnull=True),
                 name="dh_modelprofile_org_unique",
             ),
             models.UniqueConstraint(
-                fields=["organization", "project_id", "profile"],
-                condition=models.Q(project_id__isnull=False),
+                fields=["organization", "project", "profile"],
+                condition=models.Q(project__isnull=False),
                 name="dh_modelprofile_project_unique",
             ),
             models.CheckConstraint(

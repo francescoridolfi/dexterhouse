@@ -93,10 +93,12 @@ def create_agent_instance(
     source: str = AgentSource.BUILTIN,
     room: str | None = None,
     package_version_id: uuid.UUID | None = None,
+    agent_id: uuid.UUID | None = None,
 ) -> AgentInstance:
     """Hire the agent of the package at `package_path` into a project (`agent.hired`).
 
     `allowed_tools` = the package's `tools` ∩ `granted_tools` (all of them when None).
+    `agent_id` fixes the id (the built-in team uses one stable id per project and role).
     """
     package = load_agent_package(package_path)
     agent = package.agent
@@ -107,6 +109,7 @@ def create_agent_instance(
     )
     with transaction.atomic():
         instance = AgentInstance.objects.create(
+            id=agent_id or uuid.uuid4(),
             organization_id=organization_id,
             project_id=project_id,
             package_version_id=package_version_id,
@@ -124,21 +127,25 @@ def create_agent_instance(
             },
             source=source,
         )
-        _emit_system(
-            instance,
-            "agent.hired",
-            {
-                "agent_id": str(instance.id),
-                "role": instance.role,
-                "display_name": instance.display_name,
-                "package": {"name": package.name, "version": package.version},
-                "source": instance.source,
-                "room": instance.room,
-                "avatar": instance.avatar,
-                "allowed_tools": instance.allowed_tools,
-            },
-        )
+        emit_hired(instance)
     return instance
+
+
+def emit_hired(instance: AgentInstance) -> None:
+    _emit_system(
+        instance,
+        "agent.hired",
+        {
+            "agent_id": str(instance.id),
+            "role": instance.role,
+            "display_name": instance.display_name,
+            "package": {"name": instance.package_name, "version": instance.package_version},
+            "source": instance.source,
+            "room": instance.room,
+            "avatar": instance.avatar,
+            "allowed_tools": instance.allowed_tools,
+        },
+    )
 
 
 # Queueing -------------------------------------------------------------------------------
@@ -244,6 +251,7 @@ def run_turn(turn_id: uuid.UUID) -> TurnOutput:
     agent = turn.agent_instance
     variables = {
         "project.id": str(turn.project_id),
+        "project.turn_id": str(turn.id),
         "project.organization_id": str(turn.organization_id),
         "project.data_residency": inputs.data_residency,
         "project.agent_name": agent.display_name,
@@ -537,10 +545,15 @@ def _asked(turn: AgentTurn) -> bool:
 
 
 def _complete(turn: AgentTurn, output: TurnOutput) -> TurnOutput:
+    """Persist the output and its artifacts once, even if two attempts finish together."""
     agent = turn.agent_instance
     room = TurnInputs.model_validate(turn.inputs).room or agent.room or IDLE_ROOM
     with transaction.atomic():
+        current = AgentTurn.objects.select_for_update().get(pk=turn.pk)
+        if current.status == TurnStatus.COMPLETED:
+            return TurnOutput.model_validate(current.output)
         fields = _usage_fields(turn)
+        saved = _store_artifacts(turn, output)
         turn.output = output.model_dump(mode="json")
         turn.status = TurnStatus.COMPLETED
         turn.finished_at = timezone.now()
@@ -560,12 +573,37 @@ def _complete(turn: AgentTurn, output: TurnOutput) -> TurnOutput:
                 "cached_tokens": turn.cached_tokens,
                 "cost": str(turn.cost),
                 "tool_calls": turn.tool_calls_count,
-                "artifacts": [],  # artifacts get ids when the workflow engine stores them (E-02)
+                "artifacts": [
+                    {"id": str(a.id), "kind": a.kind, "version": a.version} for a in saved
+                ],
             },
         )
         _leave(turn, room, "idle")
     logger.info("agents.turn_completed", turn_id=str(turn.id), status=output.status)
     return output
+
+
+def _store_artifacts(turn: AgentTurn, output: TurnOutput) -> list[Any]:
+    """Each output artifact becomes the next version of its (kind, name), produced by the turn.
+
+    The workflow engine reads them back by `produced_by_turn` instead of saving them again.
+    """
+    from dexterhouse.apps.projects.services.artifacts import save_artifact
+
+    project = turn.project
+    return [
+        save_artifact(
+            project,
+            kind=artifact.kind,
+            name=artifact.name,
+            content=getattr(artifact, "content", ""),
+            data=artifact.data.model_dump(mode="json") if hasattr(artifact, "data") else None,
+            phase_run_id=turn.phase_run_id,
+            turn_id=turn.id,
+            role=turn.agent_instance.role,
+        )
+        for artifact in output.artifacts
+    ]
 
 
 def _fail(turn: AgentTurn, error_code: str, detail: str) -> NoReturn:

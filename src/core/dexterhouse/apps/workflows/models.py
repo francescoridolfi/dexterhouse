@@ -3,7 +3,7 @@
 
 `StepRun` is the engine's idempotency record: one row per agent turn the process asks for.
 It is created under the ProcessRun lock, at most one is active per phase run, and its output
-is applied exactly once (ADR-0013). The agents app (E-03) links `AgentTurn` to it.
+is applied exactly once (ADR-0013). `AgentTurn.step_run` links the agent turns to it.
 """
 
 from django.conf import settings
@@ -171,7 +171,13 @@ class Task(BaseModel):
     depends_on = ArrayField(models.UUIDField(), default=list, blank=True)
     estimate = models.CharField(max_length=1, choices=Estimate.choices, default=Estimate.M)
     assigned_role = models.CharField(max_length=64)
-    assigned_instance_id = models.UUIDField(null=True, blank=True)  # FK added in E-03
+    assigned_instance = models.ForeignKey(
+        "agents.AgentInstance",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="tasks",
+    )
     status = models.CharField(max_length=32, choices=TaskStatus.choices, default="pending")
     branch = models.CharField(max_length=120, null=True, blank=True)
     order = models.PositiveIntegerField(default=0)
@@ -250,8 +256,16 @@ class StepRun(BaseModel):
     step_index = models.PositiveSmallIntegerField()
     step = models.CharField(max_length=64)
     role = models.CharField(max_length=64)
-    agent_id = models.UUIDField()  # FK to AgentInstance added in E-03
-    agent_turn_id = models.UUIDField(null=True, blank=True)  # FK added in E-03
+    agent = models.ForeignKey(
+        "agents.AgentInstance", on_delete=models.PROTECT, related_name="step_runs"
+    )
+    agent_turn = models.ForeignKey(  # the turn of the latest attempt (AgentsTurnRunner)
+        "agents.AgentTurn",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
     round = models.PositiveSmallIntegerField(default=0)
     iteration = models.PositiveSmallIntegerField(default=1)
     status = models.CharField(max_length=16, choices=StepRunStatus.choices, default="queued")

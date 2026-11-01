@@ -13,7 +13,6 @@ from dexterhouse.apps.workflows.models import (
     StepRun,
     Task,
 )
-from dexterhouse.apps.workflows.roles import agent_id_for
 
 
 def _ts(value: Any) -> str | None:
@@ -66,8 +65,7 @@ def gate_json(gate: Gate) -> dict[str, Any]:
 
 
 def phase_json(phase: PhaseRun, open_gate: Gate | None = None) -> dict[str, Any]:
-    project_id = phase.process_run.project_id
-    roles = sorted(set(phase.step_runs.values_list("role", flat=True)) if phase.pk else set())
+    agents = sorted(set(phase.step_runs.values_list("role", "agent_id"))) if phase.pk else []
     return {
         "id": str(phase.id),
         "phase_id": phase.phase_id,
@@ -78,7 +76,7 @@ def phase_json(phase: PhaseRun, open_gate: Gate | None = None) -> dict[str, Any]
         "reopen_count": phase.reopen_count,
         "exit_attempts": phase.exit_attempts,
         "room": phase.room,
-        "agents": [{"role": r, "agent_id": str(agent_id_for(project_id, r))} for r in roles],
+        "agents": [{"role": role, "agent_id": str(agent_id)} for role, agent_id in agents],
         "gate": gate_json(open_gate) if open_gate else None,
         "error_code": phase.error_code,
         "started_at": _ts(phase.started_at),
@@ -101,6 +99,7 @@ def task_json(task: Task) -> dict[str, Any]:
         "depends_on": [str(d) for d in task.depends_on],
         "estimate": task.estimate,
         "assigned_role": task.assigned_role,
+        "assigned_agent": str(task.assigned_instance_id) if task.assigned_instance_id else None,
         "status": task.status,
         "branch": task.branch,
         "order": task.order,

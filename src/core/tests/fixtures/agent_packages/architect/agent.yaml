@@ -1,0 +1,10 @@
+schema: 1
+role: architect
+display_name: "Test Architect"
+model_profile: balanced
+tools: [project.artifact, memory.search]
+skills: []
+prompts: { system: prompts/system.md }
+output_contract: { artifacts: [architecture, adr, stack], schema: stack }
+limits: { max_tool_calls: 6, max_output_tokens: 4000, turn_timeout_s: 300 }
+office: { room: design_studio, color: "#3366cc" }

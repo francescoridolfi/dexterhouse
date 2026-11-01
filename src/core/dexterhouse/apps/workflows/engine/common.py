@@ -8,6 +8,8 @@ from django.db.models import Max
 from django.utils import timezone
 from pydantic import BaseModel, ConfigDict, Field
 
+from dexterhouse.apps.agents.models import AgentInstance
+from dexterhouse.apps.agents.services.roster import ensure_agent
 from dexterhouse.apps.projects.models import Project, ProjectStatus
 from dexterhouse.apps.projects.services.actors import SYSTEM, emit
 from dexterhouse.apps.projects.services.transitions import transition
@@ -24,7 +26,7 @@ from dexterhouse.apps.workflows.models import (
     Task,
     TaskStatus,
 )
-from dexterhouse.apps.workflows.roles import agent_id_for
+from dexterhouse.apps.workflows.roles import role_room
 from dexterhouse_schema import Process
 from dexterhouse_schema.process import Phase, Step
 
@@ -88,6 +90,11 @@ def save(obj: Any, *fields: str) -> None:
     obj.save(update_fields=[*fields, "updated_at"])
 
 
+def agent_for(project: Project, role: str) -> AgentInstance:
+    """The project's agent for `role` (hired on first use)."""
+    return ensure_agent(project, role, room=role_room(role))
+
+
 def has_active_step(phase_run: PhaseRun) -> bool:
     return StepRun.objects.filter(phase_run=phase_run, status__in=ACTIVE_STEP_STATUSES).exists()
 
@@ -113,12 +120,20 @@ def queue_step(
         step_index=step_index,
         step=step.step or step.agent,
         role=role,
-        agent_id=agent_id_for(project.id, role),
+        agent=_task_agent(task, role) or agent_for(project, role),
         round=phase_run.round,
         iteration=task.iteration if task else 1,
     )
     dispatch(step_run)
     return step_run
+
+
+def _task_agent(task: Task | None, role: str) -> AgentInstance | None:
+    """A task's own steps go to its assigned agent (resolved when the task got ready)."""
+    if task is None or task.assigned_instance_id is None:
+        return None
+    agent = task.assigned_instance
+    return agent if agent.role == role and agent.status != "released" else None
 
 
 def dispatch(step_run: StepRun) -> None:

@@ -135,7 +135,13 @@ class Artifact(BaseModel):
     content = models.TextField(blank=True, default="")
     data = models.JSONField(null=True, blank=True)
     content_hash = models.CharField(max_length=64)
-    produced_by_turn_id = models.UUIDField(null=True, blank=True)  # FK added in E-03
+    produced_by_turn = models.ForeignKey(
+        "agents.AgentTurn",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="artifacts",
+    )
     produced_by_role = models.CharField(max_length=64, blank=True, default="")
     phase_run = models.ForeignKey(
         "workflows.PhaseRun",

@@ -2,7 +2,7 @@
 """Test settings: real Postgres and Redis (CI services), eager Celery."""
 
 from dexterhouse.settings.base import *  # noqa: F403  (settings pattern: re-export base)
-from dexterhouse.settings.base import DATABASES, ENV, MIDDLEWARE
+from dexterhouse.settings.base import BUILTIN_DIR, DATABASES, ENV, MIDDLEWARE
 
 # nosec B105 below: test-only key, never used outside pytest.
 SECRET_KEY = "test-key"  # noqa: S105 # nosec B105 # pragma: allowlist secret
@@ -24,3 +24,4 @@ DATABASES["default"]["CONN_MAX_AGE"] = 0
 FERNET_KEY = "dGVzdC1mZXJuZXQta2V5LW5vdC1hLXNlY3JldC0wMDA="  # pragma: allowlist secret
 GATEWAY_RETRY_DELAYS = (0.0, 0.0, 0.0)
 AGENTS_TOOL_PACKAGE_DIRS: list[str] = []
+AGENTS_PACKAGE_DIRS = [str(BUILTIN_DIR / "agents")]

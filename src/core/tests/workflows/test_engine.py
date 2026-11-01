@@ -3,6 +3,7 @@
 
 import pytest
 
+from dexterhouse.apps.agents.models import AgentInstance
 from dexterhouse.apps.projects.models import Artifact
 from dexterhouse.apps.projects.services import lifecycle
 from dexterhouse.apps.workflows import services
@@ -284,7 +285,7 @@ def test_resume_with_open_gate_goes_back_to_waiting(started, user):
     assert (project.status, project.waiting_reason) == ("waiting", "gate")
 
 
-def test_hire_enables_the_replan_step(started, user, settings):
+def test_hire_enables_the_replan_step(started, user, settings, team_packages):
     settings.WORKFLOWS_FAKE_RUNNER = {"ask_questions": False, "hire": True, "tasks": 1}
     project = started(execution_mode="autonomous")
     drain(project)
@@ -292,6 +293,11 @@ def test_hire_enables_the_replan_step(started, user, settings):
     assert project.status == "completed"
     planning = phase(project, "planning")
     assert planning.context["hired"] == ["htmx_frontend_developer"]
+    hired = AgentInstance.objects.get(project=project, role="htmx_frontend_developer")
+    assert (hired.package_name, hired.allowed_tools) == ("htmx-frontend-developer", [])
+    team = AgentInstance.objects.filter(project=project).exclude(pk=hired.pk)
+    assert all(a.package_path for a in team)  # packages found: no placeholders
+    assert event_types(project, "agent.hired").count("agent.hired") == 8
     steps = StepRun.objects.filter(phase_run=planning).order_by("seq")
     assert [s.step for s in steps] == ["project_manager", "recruiter", "replan"]
     boards = Artifact.objects.filter(project=project, kind="task_board")
@@ -339,3 +345,23 @@ def test_skip_and_add_task_and_edit_rules(started, user, settings):
     assert implementation.status == "completed"
     assert Gate.objects.filter(project=project, status="open").count() == 1
     assert phase(project, "retrospective").status == "skipped"
+
+
+def test_team_without_packages_is_hired_as_placeholders(started):
+    from dexterhouse.apps.projects.services.snapshot import build_snapshot
+
+    project = started(execution_mode="autonomous")
+    team = AgentInstance.objects.filter(project=project)
+    assert sorted(team.values_list("role", flat=True)) == sorted(
+        ["analyst", "architect", "project_manager", "recruiter", "developer", "reviewer", "tester"]
+    )
+    assert {a.package_path for a in team} == {""}
+    step = StepRun.objects.get(project=project)
+    assert step.agent == team.get(role="analyst")
+    agents = {a["role"]: a for a in build_snapshot(project)["agents"]}
+    assert (agents["analyst"]["status"], agents["analyst"]["room"]) == ("working", "meeting_room")
+    assert agents["tester"]["status"] == "idle"
+    drain(project)
+    tasks = Task.objects.filter(project=project)
+    assert tasks.exists()
+    assert {t.assigned_instance.role for t in tasks} == {"developer"}

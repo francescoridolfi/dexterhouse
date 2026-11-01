@@ -22,7 +22,6 @@ from dexterhouse.apps.workflows.models import (
     TaskKind,
     TaskStatus,
 )
-from dexterhouse.apps.workflows.roles import agent_id_for
 from dexterhouse_schema import TurnOutput
 from dexterhouse_schema.artifacts.task_board import TaskBoard
 from dexterhouse_schema.process import Phase
@@ -146,7 +145,8 @@ def progress(phase: Phase, row: PhaseRun) -> Literal["queued", "blocked", "done"
     for task in tasks:
         if task.status == TaskStatus.PENDING and set(task.depends_on) <= done:
             task.status = TaskStatus.READY
-            save(task, "status")
+            task.assigned_instance = common.agent_for(task.project, task.assigned_role)
+            save(task, "status", "assigned_instance")
             emit(task.project, "task.ready", {"task_id": task.id})
     ready = [t for t in tasks if t.status == TaskStatus.READY]
     if ready:
@@ -172,7 +172,8 @@ def _start(phase: Phase, row: PhaseRun, task: Task) -> None:
         "task.started",
         {
             "task_id": task.id,
-            "agent_id": agent_id_for(task.project_id, task.assigned_role),
+            "agent_id": task.assigned_instance_id
+            or common.agent_for(task.project, task.assigned_role).id,
             "branch": task.branch,
             "iteration": task.iteration,
         },
@@ -256,6 +257,7 @@ def iterate(
         acceptance=task.acceptance,
         estimate=task.estimate,
         assigned_role=task.assigned_role,
+        assigned_instance=task.assigned_instance,
         status=TaskStatus.IN_PROGRESS,
         branch=task.branch,
         order=task.order,

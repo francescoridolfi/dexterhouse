@@ -1,0 +1,18 @@
+# Built-in MCP server running in the worker (contracts/tools/memory.md): the same module as
+# the `project` tools, started with the `skills` group.
+schema: 1
+name: skills
+transport: stdio
+runs_in: worker
+command: ["python", "-m", "dexterhouse.apps.projects.mcp_server", "skills"]
+env:
+  DH_PROJECT_ID: "${project.id}"
+  DH_TURN_ID: "${project.turn_id}"
+permissions:
+  - id: skills.read
+    mcp_tool: skills_read
+    description: "Read a skill of your package (SKILL.md, or a support file with `path`); load it only when the task needs it."
+    risk: low
+network: allowlist
+hosts: [postgres, redis]
+healthcheck: { timeout_s: 20 }

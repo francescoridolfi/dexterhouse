@@ -19,7 +19,6 @@ from dexterhouse.apps.workflows.models import (
     ProcessRun,
     ProcessRunStatus,
 )
-from dexterhouse.apps.workflows.roles import agent_id_for
 from dexterhouse_schema import TurnOutput
 from dexterhouse_schema.process import Phase
 
@@ -81,7 +80,7 @@ def start_phase(phase: Phase, row: PhaseRun) -> None:
         {
             "phase_id": phase.id,
             "room": row.room,
-            "agents": [agent_id_for(project.id, r) for r in roles],
+            "agents": [common.agent_for(project, r).id for r in roles],
             "workspace_required": phase.workspace,
         },
     )
@@ -295,5 +294,5 @@ def _questions(phase: Phase, row: PhaseRun, output: TurnOutput) -> None:
         gate_id="question",
         type=GateType.QUESTION,
         payload=payload,
-        actor=agent_actor(agent_id_for(project.id, role), role),
+        actor=agent_actor(common.agent_for(project, role).id, role),
     )
