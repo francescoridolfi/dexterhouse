@@ -42,11 +42,20 @@ def test_json_logs_carry_context_and_redact_secrets():
     assert isinstance(log.renderer("console"), structlog.dev.ConsoleRenderer)
 
 
-def test_request_middleware_echoes_request_id(client, project):
+def test_request_middleware_echoes_request_id(client, project, caplog):
     response = client.get(f"/api/v1/projects/{project.id}", HTTP_X_REQUEST_ID="req-12345678")
     assert response["X-Request-ID"] == "req-12345678"
     generated = client.get("/api/v1/projects", HTTP_X_REQUEST_ID="bad id")
     assert len(generated["X-Request-ID"]) == 32
+
+    def access_lines():
+        dicts = (r.msg for r in caplog.records if isinstance(r.msg, dict))
+        return [m for m in dicts if m.get("event") == "http.request"]
+
+    first = access_lines()[0]
+    assert (first["status"], first["project_id"]) == (200, str(project.id))
+    client.get("/health/live")  # probes stay out of the access log
+    assert len(access_lines()) == 2
 
 
 def test_metrics_endpoint(client, project, make_call, started):
