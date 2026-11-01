@@ -28,7 +28,9 @@ RUN apt-get update \
     && mkdir -p /app/staticfiles /run/dh-secrets /data/packages \
     && chown dexterhouse:dexterhouse /run/dh-secrets /data/packages
 COPY --from=builder /opt/venv /opt/venv
+COPY src/builtin /app/builtin
 ENV PATH=/opt/venv/bin:$PATH \
+    BUILTIN_DIR=/app/builtin \
     PYTHONUNBUFFERED=1 \
     DJANGO_SETTINGS_MODULE=dexterhouse.settings.prod \
     STATIC_ROOT=/app/staticfiles

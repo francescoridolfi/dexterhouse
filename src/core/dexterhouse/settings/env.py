@@ -39,10 +39,17 @@ class Env(BaseSettings):
     EVENTS_RETENTION_MONTHS: int = Field(default=12, ge=1)
     PRICES_FILE: str = ""
     FX_EUR_PER_USD: str = ""
+    FERNET_KEY: str = ""
+    FERNET_KEY_FILE: str = ""
+    BUILTIN_DIR: str = ""
 
     def secret_key(self) -> str:
         """SECRET_KEY from env, else from SECRET_KEY_FILE."""
         return self.SECRET_KEY or read_secret_file(self.SECRET_KEY_FILE)
+
+    def fernet_key(self) -> str:
+        """FERNET_KEY from env, else from FERNET_KEY_FILE."""
+        return self.FERNET_KEY or read_secret_file(self.FERNET_KEY_FILE)
 
     def database_url(self) -> str:
         """DATABASE_URL with the password from DATABASE_PASSWORD_FILE when the URL has none."""
