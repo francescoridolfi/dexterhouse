@@ -171,9 +171,12 @@ def check_exit(project: Project, exit_kind: str, command: str | None) -> ActionR
     probe = None
     if command and "${stack.run_command}" in command and stack.get("ports"):
         probe = f"http://127.0.0.1:{stack['ports'][0]}{stack.get('healthcheck_path') or '/'}"
+    client = get_client()
+    if client.inline:  # no runner in this setup: nothing runs, as before E-05
+        return ActionResult(detail=f"{exit_kind} not executed: no runner")
     scope = "integration" if exit_kind == "tests_pass" else "smoke"
     emit(project, "test.run.started", {"task_id": None, "scope": scope, "command": run[:300]})
-    result = get_client().call(
+    result = client.call(
         "runner.system.exit_check",
         ExitCheck(
             workspace_id=workspace.id, kind=exit_kind, command=run, timeout_s=900, probe_url=probe

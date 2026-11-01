@@ -4,6 +4,12 @@ from pathlib import Path
 import pytest
 
 from dexterhouse.apps.accounts.models import Membership, Organization, Role, User
+from tests.live_runner import (  # noqa: F401 - session fixtures of the real runner (Docker)
+    docker_client,
+    egress_proxy,
+    live_runner,
+    runner_settings,
+)
 
 #: One minimal agent package per built-in role (the real ones are in `src/builtin/agents`).
 TEAM_PACKAGES = Path(__file__).parent / "fixtures" / "agent_packages"

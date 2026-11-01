@@ -11,12 +11,6 @@ from dexterhouse.apps.projects.services.projects import create_project
 from dexterhouse.apps.workflows.engine import steps
 from dexterhouse.apps.workflows.models import Gate, GateStatus, StepRun, StepRunStatus
 from dexterhouse.apps.workflows.runners.fake import FakeTurnRunner
-from tests.live_runner import (  # noqa: F401 - the real runner, for test_e2e_runner (Docker)
-    docker_client,
-    egress_proxy,
-    live_runner,
-    runner_settings,
-)
 
 BRIEF = "A web app for a small gym: courses, members, bookings with a waiting list."
 
