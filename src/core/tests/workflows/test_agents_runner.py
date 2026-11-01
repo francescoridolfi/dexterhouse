@@ -108,3 +108,14 @@ def test_inputs_of_loop_steps(started, settings):
     assert review_inputs.known_finding_ids == ["R-1"]
     assert [a.kind for a in review_inputs.artifacts][-1] == "dev_notes"
     assert all("T-01" in a.name for a in review_inputs.artifacts if a.kind == "dev_notes")
+
+
+def test_start_is_refused_without_a_package_per_role(make_project, user, settings):
+    from dexterhouse.apps.projects.services import lifecycle
+    from dexterhouse.common.errors import ValidationFailedError
+
+    settings.WORKFLOWS_TURN_RUNNER = "dexterhouse.apps.workflows.runners.agents.AgentsTurnRunner"
+    project = make_project()
+    with pytest.raises(ValidationFailedError) as info:
+        lifecycle.start_project(project.id, user)
+    assert "no agent package for role(s): analyst" in str(info.value.errors)

@@ -35,6 +35,8 @@ ENDED = (TurnStatus.FAILED, TurnStatus.CANCELLED)
 class AgentsTurnRunner:
     """Implements `TurnRunner` with `agents.services.queue_turn` + `run_turn`."""
 
+    requires_packages = True  # projects do not start without a package per role
+
     def run(self, request: TurnRequest) -> TurnOutput:
         step_run = StepRun.objects.select_related("project", "phase_run", "agent", "task").get(
             pk=request.step_run_id
