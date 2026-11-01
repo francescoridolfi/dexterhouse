@@ -148,10 +148,16 @@ async def test_mcp_server_groups(committed_ctx):
             ("project_ask", {"questions": [{"id": "q1", "text": "?"}]}),
         ):
             assert not (await client.call_tool(name, args)).is_error, name
+        refused = await client.call_tool("project_artifact", {"kind": "nothing"})
+        assert refused.is_error
+        assert refused.content[0].text.endswith(": no nothing artifact")
     async with Client(build_server(context.project_id, context.turn_id, "skills")) as client:
         assert [t.name for t in (await client.list_tools()).tools] == ["skills_read"]
         result = await client.call_tool("skills_read", {"name": "brief-reading"})
         assert result.structured_content["name"] == "brief-reading"
+        missing = await client.call_tool("skills_read", {"name": "no-such-skill"})
+        assert missing.is_error
+        assert "unknown skill 'no-such-skill'" in missing.content[0].text
     await sync_to_async(connections.close_all)()  # the tools ran in a worker thread
 
 
