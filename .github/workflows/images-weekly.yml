@@ -1,0 +1,67 @@
+# Weekly rebuild of the workspace images from their updated base images (unpinned tags of the
+# same line, e.g. python:3.12-slim-bookworm), Trivy scan, push of `:<flavour>` and
+# `:<flavour>-YYYY.MM.DD`. Running workspaces keep their image; new ones get the new digest.
+# Core, runner and frontend images change only with a release (release.yml).
+name: Workspace images (weekly)
+
+on:
+  schedule:
+    - cron: "0 3 * * 1" # Monday 03:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: images-weekly
+  cancel-in-progress: false
+
+jobs:
+  workspace:
+    if: github.repository == 'francescoridolfi/dexterhouse'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        flavour: [python, node, full]
+    name: workspace:${{ matrix.flavour }}
+    env:
+      DOCKERFILE: docker/Dockerfile.workspace-${{ matrix.flavour }}
+      IMAGE: ghcr.io/${{ github.repository_owner }}/dexterhouse-workspace
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-qemu-action@v4
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: bases
+        name: Base images without their pinned digests
+        run: |
+          # ARG BASE=python:3.12-slim-bookworm@sha256:... -> --build-arg BASE=python:3.12-slim-bookworm
+          args="$(grep -E '^ARG [A-Z_]+=[^ ]+@sha256:' "$DOCKERFILE" \
+            | sed -E 's/^ARG ([A-Z_]+)=([^@]+)@.*/--build-arg \1=\2/' | tr '\n' ' ')"
+          echo "args=$args" >> "$GITHUB_OUTPUT"
+          echo "date=$(date -u +%Y.%m.%d)" >> "$GITHUB_OUTPUT"
+      - name: Build for the scan (linux/amd64)
+        run: >-
+          docker buildx build --load --pull --no-cache ${{ steps.bases.outputs.args }}
+          -f "$DOCKERFILE" -t scan:local .
+      - name: Trivy (CRITICAL with a fix fails, allowlist .trivyignore)
+        run: docker/scan-images.sh scan:local
+      - name: Build and push (amd64, arm64)
+        run: |
+          tag="$IMAGE:${{ matrix.flavour }}"
+          docker buildx build --push --pull --platform linux/amd64,linux/arm64 \
+            ${{ steps.bases.outputs.args }} -f "$DOCKERFILE" \
+            -t "$tag" -t "$tag-${{ steps.bases.outputs.date }}" \
+            --label "org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}" \
+            --label "org.opencontainers.image.revision=${{ github.sha }}" \
+            --metadata-file metadata.json .
+          digest="$(python3 -c "import json; print(json.load(open('metadata.json'))['containerimage.digest'])")"
+          echo "$tag-${{ steps.bases.outputs.date }}@$digest" >> "$GITHUB_STEP_SUMMARY"

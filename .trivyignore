@@ -1,0 +1,4 @@
+# Trivy allowlist for docker/scan-images.sh (CI, release, weekly rebuild).
+# Only CRITICAL findings with a fix available fail the scan. One entry per line:
+#   CVE-YYYY-NNNNN  # image, why it does not apply or why it waits, review by YYYY-MM-DD
+# Keep it empty when possible; every entry needs a reason and a review date.

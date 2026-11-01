@@ -81,3 +81,17 @@ name = "cz_conventional_commits"
 version_provider = "pep621"
 update_changelog_on_bump = true
 tag_format = "v$version"
+# One version for the whole product: the root (pep621 provider) plus these files. Images are
+# tagged with it and compose pulls them by DH_VERSION (docs/release.md).
+version_files = [
+  "src/core/pyproject.toml:^version",
+  "src/schema/pyproject.toml:^version",
+  "src/runner/pyproject.toml:^version",
+  "src/core/dexterhouse/__init__.py:^__version__",
+  "src/schema/dexterhouse_schema/__init__.py:^__version__",
+  "src/runner/dexterhouse_runner/__init__.py:^__version__",
+  ".env.example:^DH_VERSION=",
+  "compose.yaml:DH_VERSION:-",
+]
+# uv.lock records the workspace versions: refresh it in the bump commit.
+pre_bump_hooks = ["uv lock --quiet"]
