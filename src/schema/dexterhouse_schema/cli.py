@@ -1,11 +1,16 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""`dexterhouse-schema` command line: `validate <path>` and `export-jsonschema <out_dir>`."""
+"""`dexterhouse-schema` command line.
+
+`validate <path>` and `export-jsonschema <out_dir>`, plus the registry CI commands of
+:mod:`dexterhouse_schema.registry_cli` (`hash`, `scan-prompts`, `check-entry`,
+`check-registry-update`).
+"""
 
 import argparse
 import sys
 from collections.abc import Sequence
 
-from dexterhouse_schema import __version__
+from dexterhouse_schema import __version__, registry_cli
 from dexterhouse_schema.jsonschema import export_json_schemas
 from dexterhouse_schema.validate import validate_path
 
@@ -20,6 +25,7 @@ def _build_parser() -> argparse.ArgumentParser:
     validate.add_argument("path")
     export = commands.add_parser("export-jsonschema", help="write the JSON Schemas")
     export.add_argument("out_dir")
+    registry_cli.add_commands(commands)
     return parser
 
 
@@ -37,10 +43,12 @@ def _validate(path: str) -> int:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    """Run the CLI; returns the exit code (0 valid, 1 invalid, 2 usage error)."""
+    """Run the CLI; returns the exit code (0 ok, 1 invalid or failed, 2 usage error)."""
     args = _build_parser().parse_args(argv)
     if args.command == "validate":
         return _validate(args.path)
+    if args.command != "export-jsonschema":
+        return registry_cli.run(args)
     for path in export_json_schemas(args.out_dir):
         sys.stdout.write(f"{path}\n")
     return 0

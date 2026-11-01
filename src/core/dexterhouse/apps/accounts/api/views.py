@@ -105,6 +105,8 @@ class OrganizationInput(serializers.Serializer):
         unknown = sorted(set(value) - SETTINGS_KEYS)
         if unknown:
             raise serializers.ValidationError(f"unknown settings: {', '.join(unknown)}")
+        if not isinstance(value.get("telemetry", False), bool):
+            raise serializers.ValidationError("telemetry must be true or false")
         return value
 
 

@@ -32,7 +32,7 @@ from dexterhouse.apps.packages.models import (
     RejectReason,
     VersionStatus,
 )
-from dexterhouse.apps.packages.services import catalog, store
+from dexterhouse.apps.packages.services import catalog, store, telemetry
 from dexterhouse.apps.packages.services import index as registry
 from dexterhouse.apps.packages.services.events import emit
 from dexterhouse.common.errors import InvalidTransitionError, ValidationFailedError
@@ -140,7 +140,7 @@ def run_install(install_id: uuid.UUID) -> PackageInstall:
         fetched = _fetch(install, staging / "pkg")
         _set(install, status=InstallStatus.VERIFYING)
         manifest, report = _verify(install, fetched)
-        return _register(install, fetched, manifest, report)
+        return telemetry.reported(_register(install, fetched, manifest, report))
     except RejectedError as exc:
         return _reject(install, exc.reason, exc.errors)
     except registry.IndexUnavailableError as exc:  # fail closed: no index, no hash check
