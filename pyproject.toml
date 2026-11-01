@@ -1,17 +1,59 @@
 [project]
-name = "dexterhouse"
+name = "dexterhouse-workspace"
 version = "0.1.0"
 description = "An open-source software house run by AI agents."
 readme = "README.md"
 license = "AGPL-3.0-or-later"
 license-files = ["LICENSE"]
-requires-python = ">=3.12"
+requires-python = ">=3.12,<3.13"
 authors = [{ name = "Francesco Ridolfi" }]
+dependencies = ["dexterhouse", "dexterhouse-schema", "dexterhouse-runner"]
+
+[dependency-groups]
+dev = [
+  "pytest>=8.3",
+  "pytest-django>=4.9",
+  "pytest-asyncio>=0.24",
+  "pytest-cov>=6.0",
+  "hypothesis>=6.112",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = ["src/core", "src/schema", "src/runner"]
+
+[tool.uv.sources]
+dexterhouse = { workspace = true }
+dexterhouse-schema = { workspace = true }
+dexterhouse-runner = { workspace = true }
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "dexterhouse.settings.test"
+testpaths = ["src/core/tests", "src/schema/tests", "src/runner/tests"]
+addopts = "-ra --strict-markers"
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+markers = [
+  "slow: long-running tests",
+  "security: sandbox escape tests (T1-T9)",
+]
+
+[tool.coverage.run]
+source = ["src/core/dexterhouse", "src/schema/dexterhouse_schema", "src/runner/dexterhouse_runner"]
+omit = ["*/migrations/*", "*/settings/prod.py", "*/asgi.py", "*/wsgi.py"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+fail_under = 80
 
 [tool.ruff]
 line-length = 100
 target-version = "py312"
 src = ["src/core", "src/runner", "src/schema"]
+extend-exclude = ["src/frontend"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "UP", "B", "S", "C4", "DJ", "PT", "RUF", "ASYNC", "T20"]
@@ -19,6 +61,7 @@ ignore = ["S101"] # assert in tests
 
 [tool.ruff.lint.per-file-ignores]
 "**/tests/**" = ["S105", "S106"]
+"**/migrations/**" = ["E501", "RUF012"]
 
 [tool.bandit]
 exclude_dirs = ["tests", "src/frontend"]

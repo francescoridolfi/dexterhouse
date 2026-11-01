@@ -1,0 +1,18 @@
+[project]
+name = "dexterhouse-schema"
+version = "0.1.0"
+description = "Schemas and validator for DexterHouse packages (agents, tools, processes, skills)."
+license = "AGPL-3.0-or-later"
+requires-python = ">=3.12"
+authors = [{ name = "Francesco Ridolfi" }]
+dependencies = ["pydantic>=2.9", "pyyaml>=6.0", "packaging>=24.0"]
+
+[project.scripts]
+dexterhouse-schema = "dexterhouse_schema.cli:main"
+
+[build-system]
+requires = ["hatchling>=1.26"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["dexterhouse_schema"]

@@ -221,3 +221,11 @@ __marimo__/
 
 # DexterHouse: documentazione di lavoro interna, non versionata
 dev_docs/
+
+# DexterHouse: segreti generati, frontend, coverage
+secrets/
+node_modules/
+.coverage
+coverage.xml
+htmlcov/
+staticfiles/
