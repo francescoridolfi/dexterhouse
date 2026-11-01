@@ -8,8 +8,9 @@ import { Vector3 } from "three";
 import { BREAK_ROOM_LIMIT } from "../avatars/visible.ts";
 import { roomById, roomCenter } from "../rooms/plan.ts";
 import { useOffice } from "../scene/context.ts";
+import { avatarMode } from "../state/mode.ts";
 
-const RADIUS = [11, 18, Infinity];
+const RADIUS = [Infinity, 14, Infinity];
 const BREAK = roomCenter(roomById("break_room")!);
 const v = new Vector3();
 
@@ -28,9 +29,10 @@ function moveLabel(
 }
 
 export function OverlaySync() {
-  const { runtime, motion, labels } = useOffice();
+  const { runtime, motion, labels, clock } = useOffice();
   useFrame(({ camera, size }) => {
     const { camera: view, selected, model } = runtime.getState();
+    const now = clock();
     const radius = RADIUS[view.zoom] ?? Infinity;
     const centre = view.follow ? motion.get(view.follow) : undefined;
     const cx = centre?.x ?? view.target.x;
@@ -50,7 +52,11 @@ export function OverlaySync() {
         moveLabel(el, v.set(0, 0, 0), { width: 0, height: 0 }, false);
         continue;
       }
-      const near = Math.hypot(rt.x - cx, rt.z - cz) <= radius || id === selected;
+      // Overview: only agents doing something; closer in, everyone within the radius.
+      const avatar = model.avatars[id];
+      const busy = !!avatar && avatarMode(avatar, now) !== "idle";
+      const near =
+        id === selected || (view.zoom === 0 ? busy : Math.hypot(rt.x - cx, rt.z - cz) <= radius);
       place(el, rt.x, 1.55, rt.z, near && rt.opacity > 0.5);
     }
   });

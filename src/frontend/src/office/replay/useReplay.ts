@@ -79,9 +79,12 @@ export function useReplay(
   );
 
   const open = useCallback(
-    (events: EventEnvelope[], startWall: number | null) => {
+    (events: EventEnvelope[], startWall: number | null, clipProject: string = projectId) => {
       const tl: Timeline = buildTimeline(events);
-      engine.current = new ReplayEngine(tl, emptyReplayState(projectId, project));
+      engine.current = new ReplayEngine(
+        tl,
+        emptyReplayState(clipProject, clipProject === projectId ? project : null),
+      );
       setUi({
         ...OFF,
         status: "ready",

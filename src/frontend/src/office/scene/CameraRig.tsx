@@ -4,7 +4,7 @@ import { useFrame } from "@react-three/fiber";
 import { useRef } from "react";
 import type { OrthographicCamera } from "three";
 
-import { ZOOM_FACTORS, azimuth, cameraOffset, fitZoom } from "./camera.ts";
+import { PLAN_CENTER, ZOOM_FACTORS, azimuth, cameraOffset, fitZoom } from "./camera.ts";
 import { useOffice } from "./context.ts";
 
 export function CameraRig() {
@@ -19,8 +19,8 @@ export function CameraRig() {
     const goal = {
       az: azimuth(wanted.orientation),
       zoom: fitZoom(size.width, size.height) * (ZOOM_FACTORS[wanted.zoom] ?? 1),
-      x: followed?.x ?? wanted.target.x,
-      z: followed?.z ?? wanted.target.z,
+      x: followed?.x ?? (wanted.zoom === 0 ? PLAN_CENTER.x : wanted.target.x),
+      z: followed?.z ?? (wanted.zoom === 0 ? PLAN_CENTER.z : wanted.target.z),
     };
     const now = (current.current ??= { ...goal });
     const k = fast ? 1 : 1 - Math.exp(-dt * 8);

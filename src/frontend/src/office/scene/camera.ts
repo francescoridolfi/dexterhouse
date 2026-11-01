@@ -21,11 +21,14 @@ export function cameraOffset(az: number): [number, number, number] {
   return [Math.sin(az) * flat, Math.sin(ELEVATION) * DISTANCE, Math.cos(az) * flat];
 }
 
-/** Pixels per metre that fit the whole plan in a viewport of `width` × `height`. */
+/** Pixels per metre that fit the whole plan (projected at 45°) in `width` × `height`. */
 export function fitZoom(width: number, height: number): number {
-  const span = Math.hypot(PLAN.grid.w, PLAN.grid.h);
-  return Math.max(4, Math.min(width / span, height / (span * Math.sin(ELEVATION) + 4)));
+  const span = (PLAN.grid.w + PLAN.grid.h) * Math.SQRT1_2;
+  return Math.max(4, Math.min(width / (span + 4), height / (span * Math.sin(ELEVATION) + 6)));
 }
+
+/** The overview (zoom 0) always shows the whole plan, centred. */
+export const PLAN_CENTER: Ground = { x: PLAN.grid.w / 2, z: PLAN.grid.h / 2 };
 
 /** World movement for a drag of (dx, dy) pixels: the floor follows the pointer. */
 export function panDelta(az: number, zoom: number, dx: number, dy: number): Ground {

@@ -78,7 +78,7 @@ function wallInstances(grid: FloorGrid): Instance[] {
     for (let y = 0; y < grid.h;) {
       let end = y;
       let fresh = false;
-      while (wall(x, end)) fresh = fresh || !used[end++ * grid.w + x];
+      for (; wall(x, end); end++) if (!used[end * grid.w + x]) fresh = true;
       if (fresh) {
         out.push(box(x + 0.5, (y + end) / 2, WALL_THICKNESS, end - y));
       }

@@ -6,6 +6,7 @@ import { GRID, decodeWalls, isFree, roomAt } from "./grid.ts";
 import { key, place } from "./occupancy.ts";
 import { MANIFEST, PLAN, ROOM_IDS, roomById } from "./plan.ts";
 import { resolveRoom } from "./roomFor.ts";
+import { staticInstances } from "./staticInstances.ts";
 import { planErrors } from "./validate.ts";
 
 describe("office.json", () => {
@@ -81,5 +82,18 @@ describe("resolveRoom", () => {
     expect(resolveRoom("rooftop").id).toBe("open_space");
     expect(resolveRoom(null).id).toBe("open_space");
     expect(warn).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("static geometry", () => {
+  it("builds floors, walls, furniture and chairs within the budget", () => {
+    const items = staticInstances();
+    const walls = items.filter((i) => i.color === "wall");
+    expect(items.filter((i) => i.color.startsWith("floor:"))).toHaveLength(11);
+    expect(walls.length).toBeGreaterThan(20);
+    expect(walls.length).toBeLessThan(200);
+    const seats = PLAN.rooms.reduce((n, r) => n + r.seats.length, 0);
+    expect(items.length).toBeGreaterThan(seats * 2);
+    for (const item of items) expect(Number.isFinite(item.x + item.y + item.z)).toBe(true);
   });
 });
