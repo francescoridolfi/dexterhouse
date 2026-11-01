@@ -24,7 +24,13 @@ from django.db import transaction
 
 from dexterhouse.apps.agents.models import AgentTurn, ToolCall, ToolCallStatus, TurnStatus
 from dexterhouse.apps.agents.services.events import emit_turn
-from dexterhouse.apps.agents.services.mcp_client import McpError, McpPool, RemoteTool
+from dexterhouse.apps.agents.services.mcp_client import (
+    McpError,
+    McpPool,
+    RemoteTool,
+    server_spec,
+    spec_key,
+)
 from dexterhouse.apps.agents.services.packages import ToolCatalog
 from dexterhouse.apps.gateway.messages import ToolCallPart, ToolResultPart, ToolSpec
 
@@ -82,7 +88,7 @@ class ToolGateway:
             if binding.tool.runs_in != "worker":
                 self.unavailable[permission_id] = "runs_in_runner"  # the runner is E-05
                 continue
-            key = str(binding.root)
+            key = spec_key(server_spec(binding, self.pool.variables))
             if key not in remote:
                 remote[key] = self._list_tools(binding)
             listed = remote[key]

@@ -1,9 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """`dexterhouse-memory`: the built-in MCP server behind `memory.*` (contracts/tools/memory.md).
 
-Started by the agents runtime over stdio, one process per turn, with the project in
-`DH_PROJECT_ID` / `DH_ORGANIZATION_ID` (from the `${project.*}` interpolations of
-`src/builtin/tools/memory/tool.yaml`). It never sees other projects.
+In production the built-in tools run in one process per turn (`dexterhouse.apps.agents.
+builtin_mcp`), which registers these tools next to the `project.*` ones. This module keeps a
+standalone entry point for the same tools, with the project in `DH_PROJECT_ID` /
+`DH_ORGANIZATION_ID`. It never sees other projects.
 """
 
 import os
@@ -23,19 +24,24 @@ def wrap_untrusted(text: str, source: str) -> str:
     return f"{UNTRUSTED_OPEN.format(source=source)}\n{text}\n{UNTRUSTED_CLOSE}"
 
 
-def build_server(
+def register_memory_tools(
+    server: MCPServer,
     project_id: uuid.UUID,
     organization_id: uuid.UUID,
     data_residency: str = "any",
     embedder: Any = None,
-) -> MCPServer:
-    from dexterhouse.apps.gateway.embeddings import resolve_embedder
-    from dexterhouse.apps.memory.services.search import recent, search
+) -> None:
+    """Add `memory_search` and `memory_recent` to `server` (shared by the combined server).
 
-    server: MCPServer = MCPServer("dexterhouse-memory", version="0.1.0")
+    The embedder stack (provider SDKs) is imported on first use: it costs half a second at
+    startup and most turns never search the memory.
+    """
     state: dict[str, Any] = {"embedder": embedder}
 
     def _search(query: str, k: int, kinds: list[str] | None, min_score: float) -> dict[str, Any]:
+        from dexterhouse.apps.gateway.embeddings import resolve_embedder
+        from dexterhouse.apps.memory.services.search import search
+
         if state["embedder"] is None:
             state["embedder"] = resolve_embedder(
                 organization_id,
@@ -66,9 +72,20 @@ def build_server(
 
     @server.tool(name="memory_recent", description="Latest indexed sources of the project.")
     async def memory_recent(kinds: list[str] | None = None, limit: int = 10) -> dict[str, Any]:
+        from dexterhouse.apps.memory.services.search import recent
+
         items = await sync_to_async(recent)(project_id=project_id, kinds=kinds, limit=limit)
         return {"items": items}
 
+
+def build_server(
+    project_id: uuid.UUID,
+    organization_id: uuid.UUID,
+    data_residency: str = "any",
+    embedder: Any = None,
+) -> MCPServer:
+    server: MCPServer = MCPServer("dexterhouse-memory", version="0.1.0")
+    register_memory_tools(server, project_id, organization_id, data_residency, embedder)
     return server
 
 
