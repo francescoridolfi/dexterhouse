@@ -10,14 +10,16 @@ Thank you for considering a contribution. This guide covers setup, conventions a
 ## Development setup
 ```bash
 git clone https://github.com/francescoridolfi/dexterhouse.git && cd dexterhouse
-cp .env.example .env && make init-secrets
+cp .env.example .env
 uv sync --all-groups
 uv tool install pre-commit && pre-commit install --hook-type pre-commit --hook-type commit-msg
-docker compose up -d postgres redis
+docker compose up -d postgres redis   # exposed on 127.0.0.1 by compose.override.yaml
+export DATABASE_URL=postgres://dexterhouse:$(docker compose exec -T postgres cat /run/dh-secrets/pg_password)@localhost:5432/dexterhouse
+export REDIS_URL=redis://localhost:6379/0
 uv run manage.py migrate && uv run manage.py createsuperuser
 cd src/frontend && npm ci && cd -
 ```
-Run: `uv run manage.py runserver`, `uv run celery -A dexterhouse worker -Q agents,default,core-callbacks -l info`, `cd src/frontend && npm run dev`. The runner needs Docker: `docker compose up runner proxy`.
+Run: `uv run manage.py runserver`, `uv run celery -A dexterhouse worker -Q agents,default,core-callbacks -l info`, `cd src/frontend && npm run dev`. Useful: `uv run manage.py events tail <project_id>`, `uv run manage.py gateway call "hi"` (fake provider), `uv run dexterhouse-schema validate <package_dir>`. The runner arrives in a later epic.
 
 Tests: `uv run pytest` (unit + integration, no real LLM calls: the `fake` provider is used), `npm test` in `src/frontend`, `uv run pytest -m security` with the runner up.
 
