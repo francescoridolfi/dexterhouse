@@ -1,0 +1,167 @@
+{
+  "schema": 1,
+  "note": "Procedural low-poly models: every part is a box or a cylinder, instanced across the plan. size/at x and z are fractions of the prop footprint (w × h cells), y is metres. Bound props draw their live part (screen, lamp, light) on top.",
+  "models": {
+    "dh/shelf": {
+      "parts": [
+        { "shape": "box", "size": [0.9, 1.8, 0.4], "at": [0, 0, -0.25], "color": "#B0A58F" }
+      ]
+    },
+    "dh/table": {
+      "parts": [
+        { "shape": "box", "size": [0.9, 0.08, 0.8], "at": [0, 0.7, 0], "color": "#C8A27A" },
+        { "shape": "box", "size": [0.12, 0.7, 0.12], "at": [0, 0, 0], "color": "#8B7355" }
+      ]
+    },
+    "dh/counter": {
+      "parts": [
+        { "shape": "box", "size": [1, 1.0, 0.8], "at": [0, 0, 0], "color": "#E7C27D" },
+        { "shape": "box", "size": [1, 0.06, 0.9], "at": [0, 1.0, 0], "color": "#F2E3C2" }
+      ]
+    },
+    "dh/bell": {
+      "bind": "bell",
+      "parts": [
+        { "shape": "cyl", "size": [0.25, 0.04, 0.25], "at": [0, 1.06, 0], "color": "#6B7280" }
+      ]
+    },
+    "dh/budget_lamp": {
+      "bind": "budget_lamp",
+      "parts": [
+        { "shape": "cyl", "size": [0.06, 0.4, 0.06], "at": [0, 1.06, 0], "color": "#6B7280" }
+      ]
+    },
+    "dh/plant": {
+      "parts": [
+        { "shape": "cyl", "size": [0.4, 0.4, 0.4], "at": [0, 0, 0], "color": "#A0522D" },
+        { "shape": "cyl", "size": [0.6, 0.8, 0.6], "at": [0, 0.4, 0], "color": "#4CAF50" }
+      ]
+    },
+    "dh/sofa": {
+      "parts": [
+        { "shape": "box", "size": [0.95, 0.45, 0.8], "at": [0, 0, 0], "color": "#7D9CE7" },
+        { "shape": "box", "size": [0.95, 0.5, 0.2], "at": [0, 0.45, 0.3], "color": "#6A88D0" }
+      ]
+    },
+    "dh/table_oval": {
+      "bind": "documents",
+      "parts": [
+        { "shape": "cyl", "size": [0.95, 0.08, 0.9], "at": [0, 0.72, 0], "color": "#C8A27A" },
+        { "shape": "box", "size": [0.5, 0.72, 0.3], "at": [0, 0, 0], "color": "#8B7355" }
+      ]
+    },
+    "dh/whiteboard": {
+      "parts": [
+        { "shape": "box", "size": [0.15, 1.3, 0.9], "at": [0.3, 0.5, 0], "color": "#F5F5F5" }
+      ]
+    },
+    "dh/drafting_table": {
+      "parts": [
+        { "shape": "box", "size": [0.95, 0.06, 0.8], "at": [0, 0.85, 0], "color": "#E8E1D4" },
+        { "shape": "box", "size": [0.9, 0.85, 0.15], "at": [0, 0, 0], "color": "#8B7355" }
+      ]
+    },
+    "dh/desk": {
+      "parts": [
+        { "shape": "box", "size": [0.98, 0.06, 0.9], "at": [0, 0.72, 0], "color": "#D9C7A7" },
+        { "shape": "box", "size": [0.96, 0.72, 0.1], "at": [0, 0, 0], "color": "#A08A6A" }
+      ]
+    },
+    "dh/poster": {
+      "walkable": true,
+      "parts": [
+        { "shape": "box", "size": [0.9, 0.9, 0.05], "at": [0, 1.0, -0.45], "color": "#B48CE7" }
+      ]
+    },
+    "dh/agent_door": {
+      "parts": [
+        { "shape": "box", "size": [0.15, 2.0, 0.9], "at": [-0.4, 0, 0], "color": "#E79D7D" }
+      ]
+    },
+    "dh/package_box": {
+      "bind": "package_box",
+      "parts": [{ "shape": "box", "size": [0.9, 0.12, 0.9], "at": [0, 0, 0], "color": "#8B7355" }]
+    },
+    "dh/kanban_board": {
+      "bind": "kanban",
+      "parts": [
+        { "shape": "box", "size": [1, 1.4, 0.12], "at": [0, 0.4, -0.4], "color": "#F5F5F5" }
+      ]
+    },
+    "dh/pc": {
+      "bind": "workspace_pc",
+      "parts": [
+        { "shape": "box", "size": [0.5, 0.35, 0.05], "at": [0, 0.82, 0.05], "color": "#374151" }
+      ]
+    },
+    "dh/big_monitor": {
+      "parts": [
+        { "shape": "box", "size": [1, 1.0, 0.1], "at": [0, 0.6, -0.3], "color": "#1F2937" },
+        { "shape": "box", "size": [0.1, 0.6, 0.1], "at": [0, 0, -0.3], "color": "#6B7280" }
+      ]
+    },
+    "dh/lamp": {
+      "parts": [
+        { "shape": "cyl", "size": [0.08, 1.5, 0.08], "at": [0, 0, 0], "color": "#6B7280" },
+        { "shape": "cyl", "size": [0.4, 0.25, 0.4], "at": [0, 1.5, 0], "color": "#FFF3C4" }
+      ]
+    },
+    "dh/armchair": {
+      "parts": [
+        { "shape": "box", "size": [0.8, 0.45, 0.8], "at": [0, 0, 0], "color": "#7D9CE7" },
+        { "shape": "box", "size": [0.8, 0.5, 0.2], "at": [0, 0.45, 0.3], "color": "#6A88D0" }
+      ]
+    },
+    "dh/desk_lab": {
+      "parts": [
+        { "shape": "box", "size": [0.98, 0.08, 0.9], "at": [0, 0.85, 0], "color": "#E5E7EB" },
+        { "shape": "box", "size": [0.9, 0.85, 0.8], "at": [0, 0, 0], "color": "#9CA3AF" }
+      ]
+    },
+    "dh/traffic_light": {
+      "bind": "test_light",
+      "parts": [
+        { "shape": "cyl", "size": [0.1, 1.2, 0.1], "at": [0, 0, 0], "color": "#4B5563" },
+        { "shape": "box", "size": [0.3, 0.8, 0.25], "at": [0, 1.2, 0], "color": "#1F2937" }
+      ]
+    },
+    "dh/rack": {
+      "parts": [{ "shape": "box", "size": [0.8, 1.9, 0.8], "at": [0, 0, 0], "color": "#374151" }]
+    },
+    "dh/coffee_table": {
+      "parts": [{ "shape": "box", "size": [0.95, 0.4, 0.7], "at": [0, 0, 0], "color": "#C8A27A" }]
+    },
+    "dh/coffee_machine": {
+      "parts": [
+        { "shape": "box", "size": [0.8, 0.9, 0.6], "at": [0, 0, 0], "color": "#9CA3AF" },
+        { "shape": "box", "size": [0.6, 0.6, 0.5], "at": [0, 0.9, 0], "color": "#374151" }
+      ]
+    },
+    "dh/pinball": {
+      "parts": [
+        { "shape": "box", "size": [0.7, 0.9, 0.95], "at": [0, 0, 0], "color": "#E77DA6" },
+        { "shape": "box", "size": [0.7, 0.6, 0.12], "at": [0, 0.9, 0.4], "color": "#B48CE7" }
+      ]
+    },
+    "dh/dock_door": {
+      "parts": [{ "shape": "box", "size": [0.2, 2.4, 0.95], "at": [0.4, 0, 0], "color": "#6B7280" }]
+    },
+    "dh/conveyor": {
+      "parts": [{ "shape": "box", "size": [1, 0.6, 0.6], "at": [0, 0, 0], "color": "#4B5563" }]
+    },
+    "dh/dock_light": {
+      "bind": "dock_light",
+      "parts": [{ "shape": "cyl", "size": [0.1, 1.8, 0.1], "at": [0, 0, 0], "color": "#4B5563" }]
+    },
+    "dh/crate": {
+      "parts": [{ "shape": "box", "size": [0.7, 0.7, 0.7], "at": [0, 0, 0], "color": "#C8A27A" }]
+    },
+    "dh/chair": {
+      "walkable": true,
+      "parts": [
+        { "shape": "box", "size": [0.45, 0.06, 0.45], "at": [0, 0.42, 0], "color": "#4B5563" },
+        { "shape": "box", "size": [0.08, 0.42, 0.08], "at": [0, 0, 0], "color": "#6B7280" }
+      ]
+    }
+  }
+}
