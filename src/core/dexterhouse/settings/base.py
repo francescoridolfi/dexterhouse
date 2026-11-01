@@ -29,6 +29,7 @@ INSTALLED_APPS = [
     "django_celery_beat",
     "dexterhouse.apps.accounts",
     "dexterhouse.apps.events",
+    "dexterhouse.apps.gateway",
 ]
 
 MIDDLEWARE = [
@@ -113,6 +114,8 @@ CELERY_BEAT_SCHEDULE = {
 DEFAULT_ORG_SLUG = ENV.DEFAULT_ORG_SLUG
 EVENTS_RETENTION_MONTHS = ENV.EVENTS_RETENTION_MONTHS
 EVENTS_STREAM_MAXLEN = 10_000
+PRICES_FILE = ENV.PRICES_FILE
+FX_EUR_PER_USD = ENV.FX_EUR_PER_USD
 
 LOGGING = {
     "version": 1,

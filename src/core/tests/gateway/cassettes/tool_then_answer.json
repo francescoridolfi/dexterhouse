@@ -1,0 +1,10 @@
+{
+  "responses": [
+    {
+      "text": "Let me read the brief.",
+      "tool_calls": [{ "id": "call_1", "name": "workspace.read", "args": { "path": "brief.md" } }],
+      "usage": { "input": 1200, "output": 40, "cached_read": 1000, "cached_write": 100 }
+    },
+    { "text": "{\"status\": \"done\", \"summary\": \"ok\", \"artifacts\": []}" }
+  ]
+}
