@@ -59,7 +59,7 @@ class PackageRejected(EventPayload):
 
     install_id: uuid.UUID
     name: str
-    reason: Literal["hash", "schema", "compat", "scan", "declined"]
+    reason: Literal["hash", "schema", "compat", "scan", "declined", "fetch"]  # fetch: E-07
     errors: list[str]
 
 

@@ -5,6 +5,7 @@ from dexterhouse.settings.base import *  # noqa: F403  (settings pattern: re-exp
 from dexterhouse.settings.base import ENV
 
 DEBUG = True
+PACKAGES_ALLOW_LOCAL = True  # `dexterhouse pkg install ./my-agent` while developing a package
 ALLOWED_HOSTS = ["*"]
 # nosec B105 below: dev-only fallback when no key is configured, prod refuses to start without one.
 SECRET_KEY = ENV.secret_key() or "dev-insecure-key"  # nosec B105

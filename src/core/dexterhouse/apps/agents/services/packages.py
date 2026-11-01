@@ -1,16 +1,25 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Load agent and tool packages from disk (validated with `dexterhouse-schema`)."""
+"""Load agent and tool packages (validated with `dexterhouse-schema`).
 
-from dataclasses import dataclass, field
+Which packages exist comes from the installed PackageVersions (`apps.packages`); the
+files are read from each version's `install_path`.
+"""
+
+import uuid
+from dataclasses import dataclass, field, replace
 from functools import lru_cache
 from pathlib import Path
+from typing import Any
 
+import structlog
 from django.conf import settings
 
 from dexterhouse_schema.agent import Agent
 from dexterhouse_schema.package import validate_package
 from dexterhouse_schema.skill import SkillFrontmatter, split_skill_md
 from dexterhouse_schema.tool import Permission, Tool
+
+logger = structlog.get_logger(__name__)
 
 
 def builtin_tools_dir() -> Path:
@@ -42,6 +51,9 @@ class AgentPackage:
     agent: Agent
     system_prompt: str
     skills: tuple[SkillInfo, ...] = ()
+    version_id: uuid.UUID | None = None
+    """The installed PackageVersion (None when loaded from a bare folder)."""
+    source: str = "local"
 
 
 @dataclass(frozen=True)
@@ -118,30 +130,61 @@ def _shared_skills(folders: tuple[str, ...], _mtime: float) -> tuple[SkillInfo, 
     return tuple(skills)
 
 
-def tool_package_dirs() -> list[Path]:
-    """Built-in tools first, then installed packages (`AGENTS_TOOL_PACKAGE_DIRS`)."""
-    extra = [Path(p) for p in getattr(settings, "AGENTS_TOOL_PACKAGE_DIRS", [])]
-    return [builtin_tools_dir(), *extra]
+def installed_agent_packages(organization_id: uuid.UUID | None = None) -> list[AgentPackage]:
+    """The enabled agent packages an organization sees, built-in first."""
+    from dexterhouse.apps.packages.services.catalog import enabled_versions
+
+    return [
+        package
+        for version in enabled_versions("agent", organization_id)
+        if (package := agent_package_for(version)) is not None
+    ]
 
 
-def load_tool_catalog(dirs: list[Path] | None = None) -> ToolCatalog:
-    """Every permission of every valid tool package; the first package wins on duplicates."""
+def agent_package_for(version: Any) -> AgentPackage | None:
+    """Load an installed PackageVersion; None (logged) if its files are missing or invalid."""
+    try:
+        package = load_agent_package(version.install_path)
+    except PackageError as exc:
+        logger.warning("agents.package_invalid", path=version.install_path, error=str(exc))
+        return None
+    return replace(package, version_id=version.id, source=version.package.source)
+
+
+def load_tool_catalog(
+    dirs: list[Path] | None = None, *, organization_id: uuid.UUID | None = None
+) -> ToolCatalog:
+    """Every permission of every enabled tool package; the first package wins on duplicates.
+
+    `dirs` scans package folders instead (tests and tooling that work on bare folders).
+    """
+    if dirs is not None:
+        roots = [
+            (root, False)
+            for base in dirs
+            if base.is_dir()
+            for root in sorted(p.parent for p in base.glob("*/tool.yaml"))
+        ]
+    else:
+        from dexterhouse.apps.packages.services.catalog import enabled_versions
+
+        roots = [
+            (Path(v.install_path), v.package.source == "builtin")
+            for v in enabled_versions("tool", organization_id)
+        ]
     bindings: dict[str, ToolBinding] = {}
-    builtin = builtin_tools_dir().resolve()
-    for base in dirs or tool_package_dirs():
-        if not base.is_dir():
-            continue
-        for root in sorted(p.parent for p in base.glob("*/tool.yaml")):
+    for root, builtin in roots:
+        try:
             tool = _load_tool(str(root.resolve()), _mtime(root))
-            if tool is None:
-                continue
-            for permission in tool.permissions:
-                bindings.setdefault(
-                    permission.id,
-                    ToolBinding(
-                        permission, tool, root.resolve(), builtin=base.resolve() == builtin
-                    ),
-                )
+        except PackageError:
+            logger.warning("agents.tool_package_missing", path=str(root))
+            continue
+        if tool is None:
+            continue
+        for permission in tool.permissions:
+            bindings.setdefault(
+                permission.id, ToolBinding(permission, tool, root.resolve(), builtin=builtin)
+            )
     return ToolCatalog(bindings)
 
 

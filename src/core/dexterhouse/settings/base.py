@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     "dexterhouse.apps.observability",
     "dexterhouse.apps.notifications",
     "dexterhouse.apps.workspaces",
+    "dexterhouse.apps.packages",
 ]
 
 MIDDLEWARE = [
@@ -189,4 +190,19 @@ CELERY_TASK_ROUTES["core.runner.*"] = {"queue": "core-callbacks"}
 CELERY_BEAT_SCHEDULE["workspaces-cleanup"] = {
     "task": "dexterhouse.apps.workspaces.tasks.cleanup",
     "schedule": 600.0,
+}
+
+# Packages (E-07): agents, tools and processes are read from the installed PackageVersions;
+# built-ins are synced by `manage.py packages sync-builtin`, the others stored in PACKAGES_DIR.
+PACKAGES_DIR = Path(ENV.PACKAGES_DIR)
+REGISTRY_INDEX_URL = ENV.REGISTRY_INDEX_URL
+REGISTRY_INDEX_TTL_S = 300
+PACKAGES_ALLOW_LOCAL = ENV.PACKAGES_ALLOW_LOCAL  # local paths and git+file:// (development)
+CELERY_BEAT_SCHEDULE["packages-collect-unused"] = {
+    "task": "dexterhouse.apps.packages.tasks.collect_unused",
+    "schedule": 3600.0,
+}
+CELERY_BEAT_SCHEDULE["packages-check-updates"] = {
+    "task": "dexterhouse.apps.packages.tasks.check_updates",
+    "schedule": crontab(minute=30, hour=4),
 }

@@ -4,7 +4,7 @@
 The runner actions (E-05) go through `dexterhouse.apps.workspaces`: the workspace is
 requested asynchronously (the engine waits while it is `pending`), branches, merges and
 exit checks are synchronous runner calls, `deliver` is a Celery task after the gate.
-E-07 (packages) replaces `install_proposed_packages`. `hire` is real (integration).
+`install_proposed_packages` (E-07) and `hire` (integration) are real.
 """
 
 import re
@@ -126,10 +126,49 @@ def _proposals(project: Project) -> list[dict[str, Any]]:
 
 
 def install_proposed_packages(project: Project, phase_run: PhaseRun) -> ActionResult:
-    """No-op (E-07): records which packages would be installed."""
-    names = [f"{p['name']}@{p['version']}" for p in _proposals(project)]
-    logger.info("workflows.install_noop", project_id=str(project.id), packages=names)
-    return ActionResult(data={"installed": names})
+    """Install the packages of the approved `team_proposal` from the registry (E-07).
+
+    Approving the gate is the consent to the permissions listed in the proposal (never
+    `risk: high`: a package that needs one stays `awaiting_consent` until an admin accepts
+    it). Packages already installed at the proposed version are skipped; a failed install
+    is reported in `failed` (and `package.rejected`), `hire` then skips that proposal.
+    """
+    from dexterhouse.apps.packages.services import installer
+    from dexterhouse.apps.packages.services.catalog import find_version
+
+    installed, skipped, failed = [], [], {}
+    for proposal in _proposals(project):
+        pinned = f"{proposal['name']}@{proposal['version']}"
+        current = find_version("agent", proposal["name"], project.organization_id)
+        if current is not None and current.version == proposal["version"]:
+            skipped.append(pinned)
+            continue
+        result = installer.install(
+            organization=project.organization,
+            source=proposal["name"],
+            version=proposal["version"],
+            project=project,
+            user=_approver(phase_run),
+            confirm_permissions=[p["id"] for p in proposal.get("permissions", [])],
+        )
+        if result.status == "installed":
+            installed.append(pinned)
+        else:
+            failed[pinned] = result.errors or [result.status]
+    logger.info(
+        "workflows.install_proposed",
+        project_id=str(project.id),
+        installed=installed,
+        skipped=skipped,
+        failed=failed,
+    )
+    return ActionResult(data={"installed": installed, "skipped": skipped, "failed": failed})
+
+
+def _approver(phase_run: PhaseRun) -> Any:
+    """Who approved the phase gate (the consent of the install), if a user did."""
+    gate = phase_run.gates.exclude(decided_by=None).order_by("-decided_at").first()
+    return gate.decided_by if gate else None
 
 
 def hire(project: Project, phase_run: PhaseRun) -> ActionResult:

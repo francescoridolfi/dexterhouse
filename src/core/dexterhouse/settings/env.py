@@ -58,6 +58,9 @@ class Env(BaseSettings):
     WORKSPACE_MEM: str = "2g"
     WORKSPACE_DISK: str = "5G"
     WORKSPACE_IDLE_DESTROY_H: int = 24
+    PACKAGES_DIR: str = "/data/packages"
+    REGISTRY_INDEX_URL: str = ""
+    PACKAGES_ALLOW_LOCAL: bool = False
 
     def secret_key(self) -> str:
         """SECRET_KEY from env, else from SECRET_KEY_FILE."""

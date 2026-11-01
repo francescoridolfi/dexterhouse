@@ -9,7 +9,7 @@ import yaml
 
 from dexterhouse.apps.projects.models import Project
 from tests.brief_samples import structure
-from tests.conftest import TEAM_PACKAGES
+from tests.conftest import TEAM_PACKAGES, install_test_packages
 from tests.workflows.conftest import drain, event_types, open_gate
 
 pytestmark = [
@@ -60,7 +60,7 @@ def test_brief_sample(client, settings, path):
     sample = load(path)
     settings.AGENTS_DEMO_SCRIPT = sample.get("script", {})
     if settings.AGENTS_DEMO_SCRIPT.get("hire"):  # the proposed specialist is installed
-        settings.AGENTS_PACKAGE_DIRS = [*settings.AGENTS_PACKAGE_DIRS, str(TEAM_PACKAGES)]
+        install_test_packages(TEAM_PACKAGES)  # extra roles; the built-in team stays
 
     project = run(client, sample)
 

@@ -15,6 +15,7 @@ from dexterhouse.apps.agents.services import create_agent_instance, queue_turn, 
 from dexterhouse.apps.agents.services.turns import turn_tools
 from dexterhouse.apps.events.models import Event
 from dexterhouse.apps.gateway.providers.fake import FakeResponse
+from tests.conftest import install_test_packages
 
 from .conftest import FIXTURES, call, final
 
@@ -48,6 +49,7 @@ def test_unreachable_tools_are_left_out_and_reported(
             }
         )
     )
+    install_test_packages(tool_dirs)
     package = tool_dirs.parent / "analyst"
     shutil.copytree(FIXTURES / "agents" / "test-analyst", package)
     agent_yaml = yaml.safe_load((package / "agent.yaml").read_text())

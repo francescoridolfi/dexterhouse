@@ -32,9 +32,11 @@ dependencies = [
   "prometheus-client>=0.21",
   "opentelemetry-sdk>=1.30",
   "opentelemetry-exporter-otlp-proto-http>=1.30",
+  "typer>=0.15",
 ]
 
 [project.scripts]
+dexterhouse = "dexterhouse.cli.main:app"
 dexterhouse-manage = "dexterhouse.manage:main"
 dexterhouse-mcp-bridge = "dexterhouse.apps.gateway.bridge:main"
 

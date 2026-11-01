@@ -25,7 +25,7 @@ from dexterhouse.apps.agents.services.packages import (
 from dexterhouse.apps.agents.services.tool_gateway import check_args_policy, redact
 from dexterhouse_schema.tool import Permission, Tool
 
-from .conftest import FIXTURES
+from .conftest import FIXTURES, installed_root
 
 
 def test_catalog_has_builtin_memory_and_installed_tools(tool_dirs):
@@ -33,7 +33,10 @@ def test_catalog_has_builtin_memory_and_installed_tools(tool_dirs):
     memory = catalog.get("memory.search")
     assert memory is not None
     assert memory.builtin
-    assert memory.root == (builtin_tools_dir() / "memory").resolve()
+    assert memory.root == installed_root("memory").resolve()
+    assert (memory.root / "tool.yaml").read_bytes() == (
+        builtin_tools_dir() / "memory" / "tool.yaml"
+    ).read_bytes()
     echo = catalog.get("echo.say")
     assert echo is not None
     assert not echo.builtin
@@ -71,9 +74,7 @@ def test_server_spec_for_builtin_and_installed_packages(tool_dirs, monkeypatch):
     assert builtin.env["DATABASE_URL"] == "postgres://db/x"
     installed = server_spec(catalog.get("echo.say"), variables)
     assert installed.env == {"ECHO_PROJECT": "p1"}  # no core secrets for third-party servers
-    assert installed.cwd == tool_dirs.resolve() / "echo-tools" or str(installed.cwd).endswith(
-        "echo-tools"
-    )
+    assert installed.cwd == installed_root("echo-tools").resolve()
     http = Tool.model_validate(
         {
             "schema": 1,

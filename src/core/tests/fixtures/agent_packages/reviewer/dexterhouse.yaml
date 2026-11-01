@@ -1,6 +1,6 @@
 schema: 1
 kind: agent
-name: reviewer
+name: team-reviewer
 version: 1.0.0
 description: "Test Reviewer used by the integration tests"
 author: { name: "DexterHouse", github: francescoridolfi }

@@ -1,6 +1,6 @@
 schema: 1
 kind: agent
-name: recruiter
+name: team-recruiter
 version: 1.0.0
 description: "Test Recruiter used by the integration tests"
 author: { name: "DexterHouse", github: francescoridolfi }

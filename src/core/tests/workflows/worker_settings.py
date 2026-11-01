@@ -6,12 +6,9 @@ but not the `DH_TEST_*` variables, so those are optional here.
 """
 
 import os
-from pathlib import Path
 
 from dexterhouse.settings.test import *  # noqa: F403  (settings pattern: re-export test)
 from dexterhouse.settings.test import DATABASES
-
-TEAM_PACKAGES = Path(__file__).parents[1] / "fixtures" / "agent_packages"
 
 CELERY_TASK_ALWAYS_EAGER = False
 CELERY_BROKER_URL = os.environ.get("DH_TEST_BROKER_URL", "memory://")
@@ -23,4 +20,3 @@ WORKFLOWS_STEP_LEASE_S = 2
 if os.environ.get("DH_TEST_TURN_RUNNER") == "agents":
     WORKFLOWS_TURN_RUNNER = "dexterhouse.apps.workflows.runners.agents.AgentsTurnRunner"
     GATEWAY_FAKE_RESPONDER = "tests.workflows.agents_runtime.respond"
-    AGENTS_PACKAGE_DIRS = [str(TEAM_PACKAGES)]

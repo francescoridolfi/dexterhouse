@@ -12,6 +12,7 @@ x-core: &core
     RUNNER_KEY_FILE: /run/dh-secrets/runner_key
   volumes: &core-volumes
     - dh_secrets:/run/dh-secrets:ro
+    - packages:/data/packages
   depends_on: &core-depends
     postgres: { condition: service_healthy }
     redis: { condition: service_healthy }
@@ -31,7 +32,8 @@ services:
 
   migrate:
     <<: *core
-    command: ["dexterhouse-manage", "migrate", "--noinput"]
+    # Built-in agents, tools and processes go through the package installer (E-07).
+    command: ["sh", "-c", "dexterhouse-manage migrate --noinput && dexterhouse-manage packages sync-builtin"]
     depends_on:
       postgres: { condition: service_healthy }
     restart: "no"

@@ -1,24 +1,23 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """The team of a project: agent packages by role or name, hiring, the agent of a role.
 
-Packages are looked up in `settings.AGENTS_PACKAGE_DIRS`, in order (built-in agents first,
-then installed ones). The built-in team is hired when the process starts, one agent per
-role with a stable id; a role without a package gets a *placeholder* agent (no package,
-no tools) so the workflow engine always has an `AgentInstance` to point at. A placeholder
-can run turns only with the `FakeTurnRunner`; E-04 ships the real built-in packages.
+Packages are the enabled agent PackageVersions the project's organization sees (built-in
+first, then installed ones, `apps.packages`); a hired agent is pinned to its version
+(`AgentInstance.installed_version`) until the project ends. The built-in team is hired
+when the process starts, one agent per role with a stable id; a role without a package
+gets a *placeholder* agent (no package, no tools) so the workflow engine always has an
+`AgentInstance` to point at. A placeholder can run turns only with the `FakeTurnRunner`.
 """
 
 import uuid
 from collections.abc import Iterable, Mapping
-from pathlib import Path
 from typing import Any
 
 import structlog
-from django.conf import settings
 from django.db import transaction
 
 from dexterhouse.apps.agents.models import AgentInstance, AgentSource, AgentStatus
-from dexterhouse.apps.agents.services.packages import AgentPackage, PackageError, load_agent_package
+from dexterhouse.apps.agents.services.packages import AgentPackage, installed_agent_packages
 from dexterhouse.apps.agents.services.turns import create_agent_instance, emit_hired
 from dexterhouse.apps.projects.models import Project
 
@@ -29,31 +28,23 @@ TEAM_NAMESPACE = uuid.UUID("5f0c8a52-4c1e-4d7e-9b2a-6d8e0f3a7c10")
 PLACEHOLDER_VERSION = "0.0.0"
 
 
-def agent_package_dirs() -> list[Path]:
-    return [Path(p) for p in settings.AGENTS_PACKAGE_DIRS]
+def installed_packages(organization_id: uuid.UUID | None = None) -> list[AgentPackage]:
+    """Every valid enabled agent package, in lookup order; invalid ones are logged and skipped."""
+    return installed_agent_packages(organization_id)
 
 
-def installed_packages() -> list[AgentPackage]:
-    """Every valid agent package, in lookup order; invalid ones are logged and skipped."""
-    packages = []
-    for base in agent_package_dirs():
-        if not base.is_dir():
-            continue
-        for root in sorted(p.parent for p in base.glob("*/agent.yaml")):
-            try:
-                packages.append(load_agent_package(root))
-            except PackageError as exc:
-                logger.warning("agents.package_invalid", path=str(root), error=str(exc))
-    return packages
+def installed_package_roles(organization_id: uuid.UUID | None = None) -> frozenset[str]:
+    return frozenset(p.agent.role for p in installed_packages(organization_id))
 
 
-def installed_package_roles() -> frozenset[str]:
-    return frozenset(p.agent.role for p in installed_packages())
-
-
-def find_package(*, role: str | None = None, name: str | None = None) -> AgentPackage | None:
+def find_package(
+    *,
+    role: str | None = None,
+    name: str | None = None,
+    organization_id: uuid.UUID | None = None,
+) -> AgentPackage | None:
     """The first valid package with this `name` (or, without a name, for this `role`)."""
-    for package in installed_packages():
+    for package in installed_packages(organization_id):
         if package.name == name if name else package.agent.role == role:
             return package
     return None
@@ -69,11 +60,6 @@ def active_agent(project_id: uuid.UUID, role: str) -> AgentInstance | None:
     return agents.exclude(status=AgentStatus.RELEASED).order_by("hired_at").first()
 
 
-def _source(package: AgentPackage) -> str:
-    builtin = (Path(settings.BUILTIN_DIR) / "agents").resolve()
-    return AgentSource.BUILTIN if package.root.is_relative_to(builtin) else AgentSource.LOCAL
-
-
 def ensure_agent(project: Project, role: str, *, room: str | None = None) -> AgentInstance:
     """The project's active agent for `role`, hired on first use (package or placeholder)."""
     agent = active_agent(project.id, role)
@@ -83,15 +69,16 @@ def ensure_agent(project: Project, role: str, *, room: str | None = None) -> Age
     existing = AgentInstance.objects.filter(pk=agent_id).first()
     if existing is not None:  # released team member: a new one with a fresh id
         agent_id = uuid.uuid4()
-    package = find_package(role=role)
+    package = find_package(role=role, organization_id=project.organization_id)
     if package is None:
         return hire_placeholder(project, role, agent_id=agent_id, room=room)
     return create_agent_instance(
         organization_id=project.organization_id,
         project_id=project.id,
         package_path=str(package.root),
-        source=_source(package),
+        source=package.source,
         room=room if not package.agent.office.room else None,
+        package_version_id=package.version_id,
         agent_id=agent_id,
     )
 
@@ -129,7 +116,7 @@ def hire_placeholder(
 def hire_proposed(project: Project, proposals: list[dict[str, Any]]) -> list[AgentInstance]:
     """System action `hire`: one agent per accepted `team_proposal` entry (idempotent).
 
-    The package must be installed (E-07 installs it from the marketplace); its tools are
+    The package must be installed (`install_proposed_packages` runs first); its tools are
     granted as listed in the proposal, so `allowed_tools` = package ∩ proposal permissions.
     """
     hired: list[AgentInstance] = []
@@ -140,7 +127,7 @@ def hire_proposed(project: Project, proposals: list[dict[str, Any]]) -> list[Age
         if (agent := current.first()) is not None:
             hired.append(agent)
             continue
-        package = find_package(name=proposal["name"])
+        package = find_package(name=proposal["name"], organization_id=project.organization_id)
         if package is None or package.agent.role != proposal["role"]:
             logger.warning(
                 "agents.hire_package_missing",
@@ -163,7 +150,8 @@ def hire_proposed(project: Project, proposals: list[dict[str, Any]]) -> list[Age
                 project_id=project.id,
                 package_path=str(package.root),
                 granted_tools=granted,
-                source=_source(package),
+                source=package.source,
+                package_version_id=package.version_id,
             )
         )
     return hired

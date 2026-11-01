@@ -26,7 +26,7 @@ def start_project(project_id, user: User) -> Project:
         if errors:
             raise ValidationFailedError("the project cannot start", errors)
         budget.ensure_org_can_start(project.organization)
-        installed = get_process(project.process_name)
+        installed = get_process(project.process_name, project.organization_id)
         run = start.create_run(project, installed.process)
         run.project = project
         transition(project, ProjectStatus.RUNNING)

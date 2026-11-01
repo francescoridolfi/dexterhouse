@@ -18,7 +18,7 @@ from django.db.models import Count, Max, Sum
 
 from dexterhouse.apps.agents.models import AgentInstance, AgentStatus, AgentTurn
 from dexterhouse.apps.agents.schemas import ArtifactInput, NoteInput, TaskInput, TurnInputs
-from dexterhouse.apps.projects.models import Artifact, Note
+from dexterhouse.apps.projects.models import Artifact, Note, Project
 from dexterhouse.apps.workflows.models import Gate, StepRun, Task
 from dexterhouse.apps.workflows.roles import BUILTIN_ROLES, installed_roles
 from dexterhouse.apps.workflows.runner import TurnRequest
@@ -111,7 +111,8 @@ def _team(project_id: Any) -> list[AgentInstance]:
 
 
 def _roles(project_id: Any) -> list[str]:
-    return sorted(installed_roles() | {a.role for a in _team(project_id)})
+    org = Project.objects.filter(id=project_id).values_list("organization_id", flat=True).first()
+    return sorted(installed_roles(org) | {a.role for a in _team(project_id)})
 
 
 def _board(project_id: Any) -> dict[str, Any] | None:

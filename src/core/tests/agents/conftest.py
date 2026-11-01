@@ -14,22 +14,31 @@ from dexterhouse.apps.agents.services import create_agent_instance
 from dexterhouse.apps.gateway.models import ModelProfile
 from dexterhouse.apps.gateway.providers import PROVIDERS, FakeProvider
 from dexterhouse.apps.gateway.providers.fake import FakeResponse, FakeToolCall
+from dexterhouse.apps.packages.models import Package
+from tests.conftest import install_test_packages
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
 
 @pytest.fixture
-def tool_dirs(tmp_path: Path, settings) -> Path:
-    """A private copy of the echo tool package (its call log is per test)."""
+def tool_dirs(tmp_path: Path, settings, db) -> Path:
+    """A private copy of the echo tool package, installed from it (its call log is per test)."""
     root = tmp_path / "tools"
     shutil.copytree(FIXTURES / "tools", root)
-    settings.AGENTS_TOOL_PACKAGE_DIRS = [str(root)]
+    settings.PACKAGES_DIR = tmp_path / "packages"
+    install_test_packages(root)
     return root
+
+
+def installed_root(name: str) -> Path:
+    """Where the enabled version of package `name` is installed."""
+    package = Package.objects.get(name=name, deleted_at__isnull=True)
+    return Path(package.enabled_version.install_path)
 
 
 @pytest.fixture
 def echo_log(tool_dirs: Path) -> Callable[[], list[str]]:
-    log = tool_dirs / "echo-tools" / "calls.log"
+    log = installed_root("echo-tools") / "calls.log"
     return lambda: log.read_text(encoding="utf-8").splitlines() if log.exists() else []
 
 
