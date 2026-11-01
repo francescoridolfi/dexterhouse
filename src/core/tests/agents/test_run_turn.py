@@ -338,3 +338,15 @@ def test_broken_package_is_a_configuration_failure(agent, tmp_path):
     with pytest.raises(AgentTurnFailedError) as info:
         run_turn(turn.id)
     assert info.value.error_code == "configuration"
+
+
+def test_queue_is_idempotent_per_step_run_and_attempt(agent):
+    step_run = uuid.uuid4()
+    first = queue_turn(agent=agent, purpose="p", inputs=INPUTS, enqueue=False, step_run_id=step_run)
+    again = queue_turn(agent=agent, purpose="p", inputs=INPUTS, enqueue=False, step_run_id=step_run)
+    retry = queue_turn(
+        agent=agent, purpose="p", inputs=INPUTS, enqueue=False, step_run_id=step_run, attempt=2
+    )
+    assert first.id == again.id
+    assert retry.id != first.id
+    assert AgentTurn.objects.filter(step_run_id=step_run).count() == 2

@@ -98,6 +98,8 @@ class AgentTurn(BaseModel):
     )
     phase_run_id = models.UUIDField(null=True, blank=True)  # FK added at integration (E-02)
     task_id = models.UUIDField(null=True, blank=True)  # FK added at integration (E-02)
+    step_run_id = models.UUIDField(null=True, blank=True)  # workflow engine idempotency key
+    step_attempt = models.IntegerField(default=1)
     step = models.CharField(max_length=64, blank=True, default="")
     status = models.CharField(max_length=16, choices=TurnStatus.choices, default=TurnStatus.QUEUED)
     purpose = models.CharField(max_length=120)
@@ -130,6 +132,11 @@ class AgentTurn(BaseModel):
         constraints = [
             models.CheckConstraint(
                 condition=models.Q(status__in=TurnStatus.values), name="dh_turn_status_valid"
+            ),
+            models.UniqueConstraint(
+                fields=["step_run_id", "step_attempt"],
+                condition=models.Q(step_run_id__isnull=False),
+                name="dh_turn_step_run_attempt_unique",
             ),
         ]
 

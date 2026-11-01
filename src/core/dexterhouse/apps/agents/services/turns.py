@@ -153,13 +153,25 @@ def queue_turn(
     task_id: uuid.UUID | None = None,
     step: str = "",
     enqueue: bool = True,
+    step_run_id: uuid.UUID | None = None,
+    attempt: int = 1,
 ) -> AgentTurn:
-    """Create a `queued` turn (`agent.turn.queued`) and enqueue `run_turn` on queue `agents`."""
+    """Create a `queued` turn (`agent.turn.queued`) and enqueue `run_turn` on queue `agents`.
+
+    With `step_run_id` the call is idempotent: the same (step_run_id, attempt) returns the
+    turn already created for it, whatever its status, without queueing it again.
+    """
     from dexterhouse.apps.agents.tasks import run_turn_task
 
+    if step_run_id is not None:
+        existing = AgentTurn.objects.filter(step_run_id=step_run_id, step_attempt=attempt).first()
+        if existing is not None:
+            return existing
     data = TurnInputs.model_validate(inputs).model_dump(mode="json")
     with transaction.atomic():
         turn = AgentTurn.objects.create(
+            step_run_id=step_run_id,
+            step_attempt=attempt,
             organization_id=agent.organization_id,
             project_id=agent.project_id,
             agent_instance=agent,

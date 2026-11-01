@@ -10,7 +10,8 @@ create_agent_instance(*, organization_id, project_id, package_path, granted_tool
                       display_name=None, source="builtin", room=None,
                       package_version_id=None) -> AgentInstance
 queue_turn(*, agent: AgentInstance, purpose: str, inputs: TurnInputs | dict,
-           phase_run_id=None, task_id=None, step="", enqueue=True) -> AgentTurn
+           phase_run_id=None, task_id=None, step="", enqueue=True,
+           step_run_id=None, attempt=1) -> AgentTurn
 run_turn(turn_id: uuid.UUID) -> dexterhouse_schema.TurnOutput
 cancel_turn(turn_id: uuid.UUID, reason: str) -> bool
 ```
@@ -19,7 +20,8 @@ cancel_turn(turn_id: uuid.UUID, reason: str) -> bool
   the package tools ∩ `granted_tools` and emits `agent.hired`.
 - `queue_turn` stores the turn as `queued`, emits `agent.turn.queued` and, on commit, sends
   the Celery task `dexterhouse.apps.agents.tasks.run_turn` to the `agents` queue
-  (`enqueue=False` to run it yourself).
+  (`enqueue=False` to run it yourself). With `step_run_id`, the same `(step_run_id, attempt)`
+  returns the turn already created for it: queueing is idempotent too.
 - `run_turn` builds the context, calls the LLM through the gateway, executes tool calls over
   MCP and returns the validated `TurnOutput` (the turn is then `completed`). It is
   idempotent: calling it again resumes a `running` turn from the last persisted message and
