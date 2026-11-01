@@ -3,7 +3,13 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
 import App from "./App.tsx";
+import i18n from "./i18n/index.ts";
+import { applyTheme } from "./utils/theme.ts";
 import "./index.css";
+
+applyTheme();
+document.documentElement.lang = i18n.language;
+window.matchMedia?.("(prefers-color-scheme: dark)").addEventListener("change", () => applyTheme());
 
 const container = document.getElementById("root");
 if (container === null) {
