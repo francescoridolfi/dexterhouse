@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     "dexterhouse.apps.agents",
     "dexterhouse.apps.observability",
     "dexterhouse.apps.notifications",
+    "dexterhouse.apps.workspaces",
 ]
 
 MIDDLEWARE = [
@@ -103,7 +104,9 @@ REST_FRAMEWORK = {
 
 REDIS_URL = ENV.REDIS_URL
 CELERY_BROKER_URL = ENV.REDIS_URL
-CELERY_RESULT_BACKEND = None
+# Runner results (E-05) come back through Redis; the core's own tasks store none.
+CELERY_RESULT_BACKEND = ENV.REDIS_URL
+CELERY_TASK_IGNORE_RESULT = True
 CELERY_TASK_DEFAULT_QUEUE = "default"
 CELERY_TASK_ACKS_LATE = True
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
@@ -171,3 +174,19 @@ AGENTS_DEMO_SCRIPT: dict[str, object] = {}
 AGENTS_TOOL_PACKAGE_DIRS = ["/data/packages/tools"]
 # Agent packages by lookup order: built-in team (E-04), then installed packages (E-07).
 AGENTS_PACKAGE_DIRS = [str(BUILTIN_DIR / "agents"), "/data/packages/agents"]
+
+# Runner and workspaces (E-05): the runner client, the runner key for grants, limits.
+RUNNER_CLIENT = "dexterhouse.apps.workspaces.client.CeleryRunnerClient"
+RUNNER_KEY = ENV.runner_key()
+WORKSPACE_LIMITS = {
+    "cpus": ENV.WORKSPACE_CPUS,
+    "memory": ENV.WORKSPACE_MEM,
+    "disk": ENV.WORKSPACE_DISK,
+}
+WORKSPACE_IDLE_AFTER_S = 15 * 60
+WORKSPACE_IDLE_DESTROY_H = ENV.WORKSPACE_IDLE_DESTROY_H
+CELERY_TASK_ROUTES["core.runner.*"] = {"queue": "core-callbacks"}
+CELERY_BEAT_SCHEDULE["workspaces-cleanup"] = {
+    "task": "dexterhouse.apps.workspaces.tasks.cleanup",
+    "schedule": 600.0,
+}

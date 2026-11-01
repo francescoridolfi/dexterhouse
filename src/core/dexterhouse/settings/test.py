@@ -28,3 +28,6 @@ AGENTS_PACKAGE_DIRS = [str(BUILTIN_DIR / "agents")]
 # Engine tests script their turns; end-to-end tests opt in to AgentsTurnRunner (the default).
 WORKFLOWS_TURN_RUNNER = "dexterhouse.apps.workflows.runners.fake.FakeTurnRunner"
 GATEWAY_FAKE_RESPONDER = ""
+# No runner in the unit tests: system actions succeed without executing anything.
+RUNNER_CLIENT = "dexterhouse.apps.workspaces.client.LocalRunnerClient"
+RUNNER_KEY = "test-runner-key"  # pragma: allowlist secret
