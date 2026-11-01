@@ -18,9 +18,7 @@ from dexterhouse.apps.gateway.providers.fake import FakeToolCall
 
 QUERY = "frontend developer"
 MAX_CANDIDATES = 2
-# The tools return null ratings and installs (no marketplace site in 1.0); the team_proposal
-# schema requires numbers, so the artifact carries 0 until the site publishes them.
-UNKNOWN_METRIC = 0
+UNKNOWN_METRIC = None  # ratings and installs come from the marketplace site (1.x)
 
 
 def _json(text: str | None) -> dict[str, Any]:

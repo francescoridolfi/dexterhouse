@@ -18,7 +18,7 @@ In 1.0 the marketplace is the registry index (`REGISTRY_INDEX_URL`, see
 tag: the README, the manifest and `agent.yaml` (role, room, required tools). Files come from
 `raw.githubusercontent.com` for GitHub repositories; set `MARKETPLACE_RAW_URL` for another
 host, for example `https://git.example.com/{path}/-/raw/{ref}/{file}`. The core talks to no
-other host. Ratings and installs are not published yet, so proposals show 0 for them.
+other host. Ratings and installs are not published yet, so proposals leave them empty.
 
 | Setting | Default | Meaning |
 |---|---|---|

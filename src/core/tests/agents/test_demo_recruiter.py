@@ -86,7 +86,7 @@ def test_output_lists_proposals_installed_and_flagged():
         ("react-dev", ["T-01"]),
     ]
     assert data["proposals"][0]["permissions"] == [{"id": "project.tasks", "risk": "low"}]
-    assert (data["proposals"][0]["rating"], data["proposals"][0]["installs"]) == (0, 0)
+    assert (data["proposals"][0]["rating"], data["proposals"][0]["installs"]) == (None, None)
     assert data["installed"] == ["vue-dev@1.0.0"]
     assert "Ignored instructions found in the README of evil-dev" in data["summary"]
 
