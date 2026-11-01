@@ -1,7 +1,8 @@
 # Agents runtime: how the workflow engine runs a turn
 
-This app owns `AgentInstance`, `AgentTurn` and `ToolCall`. It knows nothing about projects,
-phases or tasks beyond their ids: what a turn needs from them arrives as `TurnInputs`.
+This app owns `AgentInstance`, `AgentTurn` and `ToolCall`. Turns point to their project,
+phase run, task and step run (foreign keys), but what a turn needs to *read* from them
+arrives as `TurnInputs`; a completed turn stores its output artifacts as `Artifact` rows.
 
 ## API (`dexterhouse.apps.agents.services`)
 
@@ -30,23 +31,23 @@ cancel_turn(turn_id: uuid.UUID, reason: str) -> bool
   context_overflow, configuration) or `TransientTurnError` (provider or tool server down: the
   turn stays resumable and the Celery task retries with backoff).
 
-A synchronous `TurnRunner` (E-02) can therefore be:
+The workflow engine uses them through `AgentsTurnRunner`
+(`dexterhouse/apps/workflows/runners/agents.py`), selected with
+`WORKFLOWS_TURN_RUNNER`: one step run is one turn, created with
+`queue_turn(step_run_id=..., attempt=..., enqueue=False)` and run synchronously in the
+`run_step` worker (queue `agents`). A retry resumes the previous attempt's turn while it is
+`queued` or `running`; only a `failed` turn gets a new one. The mapping
+`TurnRequest -> TurnInputs` is `workflows/runners/inputs.py`.
 
-```python
-turn = queue_turn(
-    agent=agent,
-    purpose=step.purpose,
-    inputs=inputs,
-    phase_run_id=phase_run.id,
-    task_id=task.id,
-    step=step.id,
-    enqueue=False,
-)
-output = run_turn(turn.id)  # TurnOutput
-```
+## The team (`services/roster.py`)
 
-or asynchronous: `queue_turn(...)` and react to `agent.turn.completed` / `agent.turn.failed`
-(`AgentTurn.output` holds the TurnOutput JSON).
+- `ensure_agent(project, role)`: the active agent of the role, hired on first use from the
+  first package for the role in `settings.AGENTS_PACKAGE_DIRS` (built-in, then installed);
+  without a package, a *placeholder* agent (no package, no tools) that only
+  `FakeTurnRunner` can run. The built-in team uses the stable id `team_agent_id(project, role)`.
+- `hire_team`: the process start hires one agent per process role.
+- `hire_proposed`: the `hire` system action, one agent per accepted `team_proposal` entry
+  whose package is installed, `allowed_tools` = package tools ∩ proposal permissions.
 
 ## `TurnInputs` (`dexterhouse.apps.agents.schemas`)
 
@@ -62,11 +63,8 @@ or asynchronous: `queue_turn(...)` and react to `agent.turn.completed` / `agent.
 | `room`, `mode`, `may_ask`, `data_residency` (`any`/`local`), `verdict_rule` (`review`/`test`/`none`) | behaviour and output rules |
 | `known_finding_ids`, `installed_roles`, `task_ids`, `stack_test_command` | TurnOutput validation context |
 
-## What the integration still has to wire
+## Still to wire
 
-- Foreign keys: every `# FK added at integration (E-02)` uuid becomes a FK to `Project`,
-  `PhaseRun` or `Task`.
-- Storing `TurnOutput.artifacts` as `Artifact` rows (and indexing them with
-  `dexterhouse.apps.memory.tasks.index_artifact`), then filling `agent.turn.completed.artifacts`.
-- Budget checks before the call and `Project.spent` updates (F-012).
-- `project.*` and `skills.read` MCP tools (contracts/tools/memory.md) need the projects app.
+- Budget checks before the call and `Project.spent` updates (F-012, E-10).
+- The real built-in agent packages and prompts (E-04); tests use
+  `src/core/tests/fixtures/agent_packages/`.
