@@ -1,0 +1,103 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pre-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: src/frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: src/frontend/package-lock.json
+      - run: npm ci --no-audit --no-fund
+        working-directory: src/frontend
+      - name: pre-commit run --all-files
+        # no-commit-to-branch guards local commits; on a push to main it would always fail.
+        env:
+          SKIP: no-commit-to-branch
+        run: uvx pre-commit run --all-files --show-diff-on-failure
+
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: dexterhouse
+          POSTGRES_DB: dexterhouse
+          # Throwaway CI database reachable only from this job.
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U dexterhouse" --health-interval 5s
+          --health-timeout 5s --health-retries 20
+      redis:
+        image: redis:7.4-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 5s
+          --health-timeout 5s --health-retries 20
+    env:
+      DATABASE_URL: postgres://dexterhouse@localhost:5432/dexterhouse
+      REDIS_URL: redis://localhost:6379/0
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+        with:
+          enable-cache: true
+      - run: uv sync --all-groups --frozen
+      - run: uv run manage.py makemigrations --check --dry-run
+      - run: uv run pytest --cov --cov-report=term-missing --cov-report=xml
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/frontend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: src/frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: src/frontend/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm run typecheck
+      - run: npm run test
+      - run: npm run build
+
+  images:
+    runs-on: ubuntu-latest
+    needs: [test, frontend]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - name: Build images
+        run: |
+          cp .env.example .env
+          docker compose -f compose.yaml build
+      - name: Smoke test the stack
+        run: |
+          docker compose -f compose.yaml up -d --wait --wait-timeout 180
+          docker compose -f compose.yaml ps
+          curl -fsS http://localhost/health/ready
+      - name: Logs on failure
+        if: failure()
+        run: docker compose -f compose.yaml logs --no-color
+      - name: Tear down
+        if: always()
+        run: docker compose -f compose.yaml down -v
