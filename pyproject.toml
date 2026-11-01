@@ -1,0 +1,31 @@
+[project]
+name = "dexterhouse"
+version = "0.1.0"
+description = "An open-source software house run by AI agents."
+readme = "README.md"
+license = "AGPL-3.0-or-later"
+license-files = ["LICENSE"]
+requires-python = ">=3.12"
+authors = [{ name = "Francesco Ridolfi" }]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src/core", "src/runner", "src/schema"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "S", "C4", "DJ", "PT", "RUF", "ASYNC", "T20"]
+ignore = ["S101"] # assert in tests
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**" = ["S105", "S106"]
+
+[tool.bandit]
+exclude_dirs = ["tests", "src/frontend"]
+skips = []
+
+[tool.commitizen]
+name = "cz_conventional_commits"
+version_provider = "pep621"
+update_changelog_on_bump = true
+tag_format = "v$version"
