@@ -8,7 +8,7 @@ from django.utils import timezone
 from dexterhouse.apps.projects.models import Artifact, ExecutionMode
 from dexterhouse.apps.projects.services.actors import agent_actor, emit
 from dexterhouse.apps.projects.services.artifacts import save_artifact
-from dexterhouse.apps.workflows import actions
+from dexterhouse.apps.workflows import actions, proposals
 from dexterhouse.apps.workflows.engine import common, loop
 from dexterhouse.apps.workflows.engine.common import GatePayload, save
 from dexterhouse.apps.workflows.models import (
@@ -208,6 +208,7 @@ def finish_steps(phase: Phase, row: PhaseRun) -> bool:
         on_approve=list(gate.on_approve),
         round=row.round,
         produced_by=_last_turn(row),
+        team=proposals.gate_team(row),
     )
     always = project.gate_overrides.get(gate.id) == "always_required"
     supervised = project.execution_mode == ExecutionMode.SUPERVISED

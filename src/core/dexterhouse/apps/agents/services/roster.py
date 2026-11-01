@@ -25,6 +25,7 @@ logger = structlog.get_logger(__name__)
 
 #: Same namespace as the E-02 placeholder ids, so ids already in events stay valid.
 TEAM_NAMESPACE = uuid.UUID("5f0c8a52-4c1e-4d7e-9b2a-6d8e0f3a7c10")
+HIRING_ROOM = "hr_office"  # a hired specialist enters the office from HR (`agent.hired.room`)
 PLACEHOLDER_VERSION = "0.0.0"
 
 
@@ -118,6 +119,7 @@ def hire_proposed(project: Project, proposals: list[dict[str, Any]]) -> list[Age
 
     The package must be installed (`install_proposed_packages` runs first); its tools are
     granted as listed in the proposal, so `allowed_tools` = package ∩ proposal permissions.
+    The new agent starts in the HR office; its first turn moves it to its own room.
     """
     hired: list[AgentInstance] = []
     for proposal in proposals:
@@ -151,6 +153,7 @@ def hire_proposed(project: Project, proposals: list[dict[str, Any]]) -> list[Age
                 package_path=str(package.root),
                 granted_tools=granted,
                 source=package.source,
+                room=HIRING_ROOM,
                 package_version_id=package.version_id,
             )
         )

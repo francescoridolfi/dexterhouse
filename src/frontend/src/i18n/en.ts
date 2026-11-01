@@ -422,6 +422,23 @@ const gates = {
       "The budget is exhausted: no agent can call a model. Raise the budget, then resume.",
     budgetOpenProject: "Open the project to raise its budget.",
     budgetFirst: "Raise the budget first.",
+    team: {
+      title: "Proposed specialists",
+      none: "No specialist proposed: the built-in team does the work.",
+      package: "Package",
+      tasks: "Tasks",
+      permissions: "Permissions",
+      trust: "Trust",
+      reason: "Why",
+      installed: "already installed",
+      verified: "verified",
+      unverified: "not verified",
+      risk: "risk {{risk}}",
+      status: {
+        unreachable: "The marketplace was unreachable: the built-in team continues.",
+        degraded: "The marketplace answered from its last saved copy.",
+      },
+    },
     reason: {
       default: "The team needs a human decision.",
       task_exhausted: "The task used all its iterations without passing review and tests.",

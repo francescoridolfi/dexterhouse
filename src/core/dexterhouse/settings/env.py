@@ -61,6 +61,9 @@ class Env(BaseSettings):
     PACKAGES_DIR: str = "/data/packages"
     REGISTRY_INDEX_URL: str = ""
     PACKAGES_ALLOW_LOCAL: bool = False
+    PACKAGES_GIT_MIRRORS: dict[str, str] = Field(default_factory=dict)  # JSON {prefix: mirror}
+    MARKETPLACE_URL: str = ""
+    MARKETPLACE_RAW_URL: str = ""
 
     def secret_key(self) -> str:
         """SECRET_KEY from env, else from SECRET_KEY_FILE."""

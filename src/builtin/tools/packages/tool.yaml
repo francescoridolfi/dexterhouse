@@ -1,0 +1,30 @@
+# Built-in tools served by the combined per-turn process `dexterhouse.apps.agents.builtin_mcp`
+# (one stdio process per turn shared by the built-in worker tools). `packages.*` lists the
+# organization's packages, records the Recruiter's proposals and, in autonomous mode only,
+# installs verified low-risk packages through the installer.
+schema: 1
+name: packages
+transport: stdio
+runs_in: worker
+command: ["python", "-m", "dexterhouse.apps.agents.builtin_mcp"]
+env:
+  DH_PROJECT_ID: "${project.id}"
+  DH_ORGANIZATION_ID: "${project.organization_id}"
+  DH_TURN_ID: "${project.turn_id}"
+  DH_DATA_RESIDENCY: "${project.data_residency}"
+permissions:
+  - id: packages.installed
+    mcp_tool: packages_installed
+    description: "Packages installed in the organization (kind?), with version, status, source and role."
+    risk: low
+  - id: packages.propose
+    mcp_tool: packages_propose
+    description: "Record the packages you propose ([{name, version, reason, for_tasks}]); checks them against the index and the task board and returns what team_proposal.json must copy. Installs nothing."
+    risk: low
+  - id: packages.install
+    mcp_tool: packages_install
+    description: "Autonomous mode only: install a verified package whose risk is low (name, version); anything else fails with requires_gate."
+    risk: medium
+network: allowlist
+hosts: [postgres, redis, raw.githubusercontent.com]   # plus the registry host of REGISTRY_INDEX_URL
+healthcheck: { timeout_s: 20 }

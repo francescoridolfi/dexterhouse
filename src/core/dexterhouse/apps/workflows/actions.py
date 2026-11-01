@@ -16,8 +16,9 @@ import structlog
 from django.db import transaction
 
 from dexterhouse.apps.agents.services.roster import hire_proposed
-from dexterhouse.apps.projects.models import Artifact, ArtifactKind, Project
+from dexterhouse.apps.projects.models import Project
 from dexterhouse.apps.projects.services.actors import emit
+from dexterhouse.apps.workflows import proposals as team
 from dexterhouse.apps.workflows.models import PhaseRun, Task
 from dexterhouse.apps.workspaces import events as workspace_events
 from dexterhouse.apps.workspaces import services as workspaces
@@ -116,39 +117,36 @@ def deliver(project: Project, phase_run: PhaseRun) -> ActionResult:
     return ActionResult(detail="delivery queued")
 
 
-def _proposals(project: Project) -> list[dict[str, Any]]:
-    latest = (
-        Artifact.objects.filter(project=project, kind=ArtifactKind.TEAM_PROPOSAL)
-        .order_by("-created_at")
-        .first()
-    )
-    return list(latest.data.get("proposals", [])) if latest and latest.data else []
-
-
 def install_proposed_packages(project: Project, phase_run: PhaseRun) -> ActionResult:
     """Install the packages of the approved `team_proposal` from the registry (E-07).
 
     Approving the gate is the consent to the permissions listed in the proposal (never
     `risk: high`: a package that needs one stays `awaiting_consent` until an admin accepts
-    it). Packages already installed at the proposed version are skipped; a failed install
+    it). An automatic approval (autonomous mode) installs only the proposals that are
+    verified with risk low in the registry index; the others are `held`, still proposals
+    (E-08). Packages already installed at the proposed version are skipped; a failed install
     is reported in `failed` (and `package.rejected`), `hire` then skips that proposal.
     """
     from dexterhouse.apps.packages.services import installer
     from dexterhouse.apps.packages.services.catalog import find_version
 
-    installed, skipped, failed = [], [], {}
-    for proposal in _proposals(project):
+    approver = _approver(phase_run)
+    installed, skipped, held, failed = [], [], [], {}
+    for proposal in team.proposals(project):
         pinned = f"{proposal['name']}@{proposal['version']}"
         current = find_version("agent", proposal["name"], project.organization_id)
         if current is not None and current.version == proposal["version"]:
             skipped.append(pinned)
+            continue
+        if approver is None and not team.installs_without_gate(proposal):
+            held.append(pinned)
             continue
         result = installer.install(
             organization=project.organization,
             source=proposal["name"],
             version=proposal["version"],
             project=project,
-            user=_approver(phase_run),
+            user=approver,
             confirm_permissions=[p["id"] for p in proposal.get("permissions", [])],
         )
         if result.status == "installed":
@@ -160,9 +158,12 @@ def install_proposed_packages(project: Project, phase_run: PhaseRun) -> ActionRe
         project_id=str(project.id),
         installed=installed,
         skipped=skipped,
+        held=held,
         failed=failed,
     )
-    return ActionResult(data={"installed": installed, "skipped": skipped, "failed": failed})
+    return ActionResult(
+        data={"installed": installed, "skipped": skipped, "held": held, "failed": failed}
+    )
 
 
 def _approver(phase_run: PhaseRun) -> Any:
@@ -177,7 +178,7 @@ def hire(project: Project, phase_run: PhaseRun) -> ActionResult:
     The hired roles enable `when: hired`; a proposal whose package is missing (E-07 installs
     from the marketplace) is skipped and logged.
     """
-    agents = hire_proposed(project, _proposals(project))
+    agents = hire_proposed(project, team.proposals(project))
     return ActionResult(
         data={"hired": [a.role for a in agents], "agents": [str(a.id) for a in agents]}
     )

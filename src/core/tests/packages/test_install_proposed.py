@@ -57,11 +57,12 @@ def test_installs_then_hires_the_proposed_package(
 ):
     src = pkg_dir()
     fake_git[REPO] = src
-    index_file(index_entry("security-reviewer", REPO, [("1.0.0", "v1.0.0", sha_of(src))]))
+    entry = index_entry("security-reviewer", REPO, [("1.0.0", "v1.0.0", sha_of(src))])
+    index_file({**entry, "verified": True})  # no approver below: only verified + low install
     propose(project, proposal(), proposal(name="ghost-agent"))
     result = actions.install_proposed_packages(project, phase_run)
     assert result.data["installed"] == ["security-reviewer@1.0.0"]
-    assert "ghost-agent@1.0.0" in result.data["failed"]
+    assert result.data["held"] == ["ghost-agent@1.0.0"]  # not in the index
     installed = Event.objects.get(type="package.installed", project_id=project.id)
     assert installed.payload["roles"] == ["security_reviewer"]
     hired = actions.hire(project, phase_run)
@@ -71,3 +72,46 @@ def test_installs_then_hires_the_proposed_package(
     assert agent.source == "marketplace"
     again = actions.install_proposed_packages(project, phase_run)
     assert again.data["skipped"] == ["security-reviewer@1.0.0"]
+
+
+def test_an_automatic_approval_holds_unverified_proposals(
+    project, phase_run, pkg_dir, fake_git, index_file
+):
+    src = pkg_dir()
+    fake_git[REPO] = src
+    index_file(index_entry("security-reviewer", REPO, [("1.0.0", "v1.0.0", sha_of(src))]))
+    propose(project, proposal(verified=True))  # the proposal's own claim is not trusted
+    result = actions.install_proposed_packages(project, phase_run)
+    assert (result.data["installed"], result.data["held"]) == ([], ["security-reviewer@1.0.0"])
+    assert actions.hire(project, phase_run).data["hired"] == []
+
+
+def test_a_person_approving_installs_every_proposal(
+    project, phase_run, pkg_dir, fake_git, index_file, user
+):
+    from django.utils import timezone
+
+    src = pkg_dir()
+    fake_git[REPO] = src
+    index_file(index_entry("security-reviewer", REPO, [("1.0.0", "v1.0.0", sha_of(src))]))
+    propose(project, proposal(), proposal(name="ghost-agent"))
+    phase_run.gates.create(
+        project=project,
+        gate_id="approve_plan",
+        type="approval",
+        status="approved",
+        payload={},
+        decided_by=user,
+        decided_at=timezone.now(),
+    )
+    result = actions.install_proposed_packages(project, phase_run)
+    assert result.data["installed"] == ["security-reviewer@1.0.0"]
+    assert "ghost-agent@1.0.0" in result.data["failed"]
+    agent = actions.hire(project, phase_run)
+    assert agent.data["hired"] == ["security_reviewer"]
+    hired = AgentInstance.objects.get(project=project, role="security_reviewer")
+    assert hired.room == "hr_office"
+    event = Event.objects.get(type="agent.hired", payload__agent_id=str(hired.id))
+    assert event.payload["package"] == {"name": "security-reviewer", "version": "1.0.0"}
+    assert (event.payload["source"], event.payload["room"]) == ("marketplace", "hr_office")
+    assert event.payload["allowed_tools"] == ["memory.search"]

@@ -11,6 +11,7 @@ import { Button } from "../../components/Button.tsx";
 import { EmptyState, LoadingBlock } from "../../components/Feedback.tsx";
 import { Tabs } from "../../components/Tabs.tsx";
 import { ArtifactContent, DiffView } from "../shared/DiffView.tsx";
+import { TeamProposal } from "./TeamProposal.tsx";
 
 type Decide = UseMutationResult<Gate, Error, DecideBody>;
 
@@ -60,6 +61,7 @@ export function ApprovalBody({ gate }: { gate: Gate }) {
   const current = artifacts.find((a) => a.id === active) ?? artifacts[0];
   return (
     <div>
+      {gate.payload.team ? <TeamProposal team={gate.payload.team} /> : null}
       <Tabs
         label={t("gate.artifacts")}
         idPrefix="gate-artifact"

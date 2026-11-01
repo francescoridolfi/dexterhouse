@@ -180,7 +180,13 @@ def _installing(install: PackageInstall) -> None:
 
 
 def _clone_url(url: str) -> str:
-    """Hook for mirrors (tests map registry URLs to local bare repositories)."""
+    """The URL to clone: the first `PACKAGES_GIT_MIRRORS` prefix that matches is replaced.
+
+    The hash is still checked against the index entry of the original URL.
+    """
+    for prefix, mirror in settings.PACKAGES_GIT_MIRRORS.items():
+        if url.startswith(prefix):
+            return mirror + url.removeprefix(prefix)
     return url
 
 

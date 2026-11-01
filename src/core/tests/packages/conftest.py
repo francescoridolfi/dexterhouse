@@ -206,3 +206,7 @@ def git_repo(path: Path, source: Path, tag: str) -> Path:
 
 def run(source: str, **kwargs: Any):  # type: ignore[no-untyped-def]
     return installer.install(source=source, **{"organization": None, **kwargs})
+
+
+# The test marketplace (E-08) needs the helpers above, so it is imported last.
+from .marketplace_fixtures import _clean_marketplace_cache, publish, raw_tree  # noqa: E402, F401

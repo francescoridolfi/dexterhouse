@@ -198,6 +198,16 @@ PACKAGES_DIR = Path(ENV.PACKAGES_DIR)
 REGISTRY_INDEX_URL = ENV.REGISTRY_INDEX_URL
 REGISTRY_INDEX_TTL_S = 300
 PACKAGES_ALLOW_LOCAL = ENV.PACKAGES_ALLOW_LOCAL  # local paths and git+file:// (development)
+# Clone `https://github.com/acme/x` from `file:///srv/mirror/acme/x`: {"https://github.com/": ...}.
+PACKAGES_GIT_MIRRORS = ENV.PACKAGES_GIT_MIRRORS
+# Marketplace client (E-08). In 1.0 the registry index is the only source: MARKETPLACE_URL
+# (the future marketplace site API, CD-041) is read but not used yet. MARKETPLACE_RAW_URL is
+# the template of a package file at a tag (`{host}`, `{path}` = owner/repo, `{ref}`, `{file}`);
+# empty = GitHub repositories only, through raw.githubusercontent.com.
+MARKETPLACE_URL = ENV.MARKETPLACE_URL
+MARKETPLACE_RAW_URL = ENV.MARKETPLACE_RAW_URL
+MARKETPLACE_SEARCH_TTL_S = 300
+MARKETPLACE_DETAILS_TTL_S = 3600
 CELERY_BEAT_SCHEDULE["packages-collect-unused"] = {
     "task": "dexterhouse.apps.packages.tasks.collect_unused",
     "schedule": 3600.0,

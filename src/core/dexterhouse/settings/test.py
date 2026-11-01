@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Test settings: real Postgres and Redis (CI services), eager Celery."""
 
+import json
+import os
 import tempfile
 from pathlib import Path
 
@@ -27,8 +29,15 @@ DATABASES["default"]["CONN_MAX_AGE"] = 0
 FERNET_KEY = "dGVzdC1mZXJuZXQta2V5LW5vdC1hLXNlY3JldC0wMDA="  # pragma: allowlist secret
 GATEWAY_RETRY_DELAYS = (0.0, 0.0, 0.0)
 # Installed packages of this test run (removed by the session fixture in tests/conftest.py).
-PACKAGES_DIR = Path(tempfile.mkdtemp(prefix="dh-test-packages-")).resolve()
-REGISTRY_INDEX_URL = ""
+# The tool server processes an end-to-end test starts get the test's store and registry from
+# the `DH_TEST_*` variables (fixture `test_registry`); a plain run never sets them.
+PACKAGES_DIR = Path(
+    os.environ.get("DH_TEST_PACKAGES_DIR") or tempfile.mkdtemp(prefix="dh-test-packages-")
+).resolve()
+REGISTRY_INDEX_URL = os.environ.get("DH_TEST_REGISTRY_INDEX_URL", "")
+PACKAGES_GIT_MIRRORS = json.loads(os.environ.get("DH_TEST_PACKAGES_GIT_MIRRORS") or "{}")
+MARKETPLACE_URL = ""
+MARKETPLACE_RAW_URL = os.environ.get("DH_TEST_MARKETPLACE_RAW_URL", "")
 PACKAGES_ALLOW_LOCAL = True
 # Engine tests script their turns; end-to-end tests opt in to AgentsTurnRunner (the default).
 WORKFLOWS_TURN_RUNNER = "dexterhouse.apps.workflows.runners.fake.FakeTurnRunner"
