@@ -8,6 +8,9 @@ export interface FrameStats {
   frames: number;
   fps: number;
   frameMs: number[];
+  /** Last frame's draw calls and triangles (budget: 150 and 400 k). */
+  calls: number;
+  triangles: number;
 }
 
 declare global {

@@ -19,8 +19,11 @@ export default defineConfig({
       name: "chromium",
       use: {
         ...devices["Desktop Chrome"],
-        // WebGL 2 without a GPU (CI): the 3D office runs on SwiftShader.
-        launchOptions: { args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] },
+        // WebGL 2 without a GPU (CI): the 3D office runs on SwiftShader. E2E_GPU=1 keeps the
+        // real GPU (run headed for the frame-time numbers of NFR-P3).
+        launchOptions: process.env.E2E_GPU
+          ? {}
+          : { args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] },
       },
     },
   ],

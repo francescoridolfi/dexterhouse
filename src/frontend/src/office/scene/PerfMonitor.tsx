@@ -13,8 +13,16 @@ export function PerfMonitor({ active, onSlow }: { active: boolean; onSlow: () =>
   const fired = useRef(false);
 
   useFrame((state, dt) => {
-    const stats = (window.__dhOffice ??= { frames: 0, fps: 0, frameMs: [] });
+    const stats = (window.__dhOffice ??= {
+      frames: 0,
+      fps: 0,
+      frameMs: [],
+      calls: 0,
+      triangles: 0,
+    });
     stats.frames += 1;
+    stats.calls = state.gl.info.render.calls;
+    stats.triangles = state.gl.info.render.triangles;
     stats.frameMs.push(dt * 1000);
     if (stats.frameMs.length > 600) stats.frameMs.splice(0, stats.frameMs.length - 600);
     if (!active || document.hidden) {

@@ -35,7 +35,7 @@ export function ReplayBar({ replay }: { replay: Replay }) {
     <div
       role="group"
       aria-label={t("office.replay.title")}
-      className="flex flex-wrap items-center gap-2 border-t border-line bg-surface px-3 py-2 text-sm"
+      className="flex flex-wrap items-center gap-1 border-t border-line bg-surface px-2 py-2 text-sm"
     >
       {ui.status === "loading" ? (
         <p role="status" className="flex-1">
@@ -76,7 +76,7 @@ export function ReplayBar({ replay }: { replay: Replay }) {
           >
             <SkipForward aria-hidden className="size-4" />
           </button>
-          <div className="relative min-w-48 flex-1">
+          <div className="relative min-w-24 flex-1">
             <input
               type="range"
               min={0}
@@ -102,7 +102,7 @@ export function ReplayBar({ replay }: { replay: Replay }) {
               </button>
             ))}
           </div>
-          <time className="w-36 font-mono text-xs text-muted">
+          <time className="hidden w-32 font-mono text-xs text-muted xl:block">
             {dateTime(new Date(wallTime()).toISOString())}
           </time>
           <select

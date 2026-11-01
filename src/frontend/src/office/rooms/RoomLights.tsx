@@ -27,8 +27,10 @@ export function RoomLights({
   const order = useProject((s) => s.phaseOrder);
   const lit = useMemo(() => litRooms({ phases, phaseOrder: order }), [phases, order]);
   const mesh = useRef<InstancedMesh>(null);
+  const lamps = useRef<InstancedMesh>(null);
   const level = useRef(PLAN.rooms.map(() => OFF));
   const material = useMemo(() => glow("#ffffff", 0.55), []);
+  const lampMaterial = useMemo(() => glow(), []);
   const matrices = useMemo(
     () =>
       PLAN.rooms.map((room) => {
@@ -39,11 +41,25 @@ export function RoomLights({
       }),
     [],
   );
+  // A lamp in the back corner of each room carries the hover and the click; the glowing
+  // floor itself lets clicks through (the floor deselects).
+  const lampAt = useMemo(
+    () =>
+      PLAN.rooms.map((room) => {
+        const inner = interior(room.rect);
+        return new Matrix4()
+          .makeScale(0.45, 0.12, 0.45)
+          .setPosition(inner.x + 0.5, 1.5, inner.y + 0.5);
+      }),
+    [],
+  );
   const color = useMemo(() => new Color(), []);
+  const dim = useMemo(() => new Color("#9CA3AF"), []);
 
   useFrame((_, dt) => {
     const m = mesh.current;
-    if (!m) return;
+    const l = lamps.current;
+    if (!m || !l) return;
     const fast = runtime.getState().fast;
     PLAN.rooms.forEach((room, i) => {
       const goal = lit.has(room.id) ? 1 : OFF;
@@ -54,9 +70,13 @@ export function RoomLights({
       level.current[i] = next;
       m.setMatrixAt(i, matrices[i]!);
       m.setColorAt(i, color.copy(palette.floor(room.id)).lerp(palette.room(room.id), next));
+      l.setMatrixAt(i, lampAt[i]!);
+      l.setColorAt(i, color.copy(dim).lerp(palette.room(room.id), next));
     });
-    m.instanceMatrix.needsUpdate = true;
-    if (m.instanceColor) m.instanceColor.needsUpdate = true;
+    for (const x of [m, l]) {
+      x.instanceMatrix.needsUpdate = true;
+      if (x.instanceColor) x.instanceColor.needsUpdate = true;
+    }
   });
 
   const hover = (event: ThreeEvent<PointerEvent>) => {
@@ -80,17 +100,25 @@ export function RoomLights({
   };
 
   return (
-    <instancedMesh
-      ref={mesh}
-      args={[GEOMETRY.box, material, PLAN.rooms.length]}
-      onPointerMove={hover}
-      onPointerOut={() => runtime.getState().setHover(null)}
-      onClick={(event) => {
-        event.stopPropagation();
-        if (event.delta > 4) return; // a drag that pans the view
-        const room = PLAN.rooms[event.instanceId ?? -1];
-        if (room) onRoomClick(room.id);
-      }}
-    />
+    <group>
+      <instancedMesh
+        ref={mesh}
+        args={[GEOMETRY.box, material, PLAN.rooms.length]}
+        raycast={() => null}
+      />
+      <instancedMesh
+        ref={lamps}
+        args={[GEOMETRY.box, lampMaterial, PLAN.rooms.length]}
+        frustumCulled={false}
+        onPointerMove={hover}
+        onPointerOut={() => runtime.getState().setHover(null)}
+        onClick={(event) => {
+          event.stopPropagation();
+          if (event.delta > 4) return; // a drag that pans the view
+          const room = PLAN.rooms[event.instanceId ?? -1];
+          if (room) onRoomClick(room.id);
+        }}
+      />
+    </group>
   );
 }

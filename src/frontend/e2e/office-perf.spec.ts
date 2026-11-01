@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Frame-time check of the 3D office with 12 avatars (NFR-P3): a generated replay clip (12
-// agents walking between rooms, working, using tools) is opened from the replay bar and
+// Frame-time check of the 3D office with 12 and 25 avatars (NFR-P3): a generated replay clip
+// (agents walking between rooms, working, using tools) is opened from the replay bar and
 // played at 1×; the scene's own frame stats (`window.__dhOffice`) are read back.
 // Numbers are printed; the assertion is loose because CI renders on SwiftShader (no GPU).
 import { type Page, expect, test } from "@playwright/test";
 
 /** Frame stats the scene keeps on `window.__dhOffice` (PerfMonitor). */
-type Stats = { __dhOffice?: { frameMs: number[] } };
+type Stats = { __dhOffice?: { frameMs: number[]; calls: number; triangles: number } };
 
 const USER = process.env.E2E_USER ?? "admin";
 const PASSWORD = process.env.E2E_PASSWORD ?? "";
@@ -93,47 +93,62 @@ async function login(page: Page) {
   await expect(page.getByRole("heading", { name: "Projects" })).toBeVisible();
 }
 
-test("office frame time with 12 avatars", async ({ page }) => {
-  test.skip(!PASSWORD, "E2E_PASSWORD is not set");
-  await page.setViewportSize({ width: 1440, height: 900 });
-  await login(page);
-  const csrf = (await page.context().cookies()).find((c) => c.name === "csrftoken")?.value ?? "";
-  const created = await page.request.post("/api/v1/projects", {
-    headers: { "X-CSRFToken": csrf },
-    data: {
-      name: `Bench ${Date.now()}`,
-      brief: "Frame-time benchmark of the office.",
-      execution_mode: "supervised",
-      budget: "1",
-    },
-  });
-  expect(created.ok()).toBeTruthy();
-  const { id } = (await created.json()) as { id: string };
+for (const agents of [12, 25]) {
+  test(`office frame time with ${agents} avatars`, async ({ page }) => {
+    test.skip(!PASSWORD, "E2E_PASSWORD is not set");
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await login(page);
+    const csrf = (await page.context().cookies()).find((c) => c.name === "csrftoken")?.value ?? "";
+    const created = await page.request.post("/api/v1/projects", {
+      headers: { "X-CSRFToken": csrf },
+      data: {
+        name: `Bench ${Date.now()}`,
+        brief: "Frame-time benchmark of the office.",
+        execution_mode: "supervised",
+        budget: "1",
+      },
+    });
+    expect(created.ok()).toBeTruthy();
+    const { id } = (await created.json()) as { id: string };
 
-  await page.goto(`/projects/${id}/office`);
-  await expect(page.locator("[data-testid=office-canvas] canvas")).toBeVisible();
-  await page.getByRole("button", { name: "Replay", exact: true }).click();
-  await page.locator("input[type=file]").setInputFiles({
-    name: "bench.json",
-    mimeType: "application/json",
-    buffer: Buffer.from(JSON.stringify(clip(id))),
+    await page.goto(`/projects/${id}/office`);
+    await expect(page.locator("[data-testid=office-canvas] canvas")).toBeVisible();
+    await page.getByRole("button", { name: "Replay", exact: true }).click();
+    await page.locator("input[type=file]").setInputFiles({
+      name: "bench.json",
+      mimeType: "application/json",
+      buffer: Buffer.from(JSON.stringify(clip(id, agents))),
+    });
+    await expect(page.getByRole("slider", { name: "Replay position" })).toBeVisible();
+    await page.getByRole("button", { name: "Play", exact: true }).click();
+    // Worst case: the overview, with the whole plan and every avatar on screen.
+    await page.keyboard.press("-");
+    await page.keyboard.press("-");
+    await page.waitForTimeout(4_000);
+    await page.evaluate(() => {
+      const stats = (globalThis as unknown as Stats).__dhOffice;
+      if (stats) stats.frameMs = [];
+    });
+    await page.waitForTimeout(10_000);
+    const stats = await page.evaluate(() => {
+      const ms = [...((globalThis as unknown as Stats).__dhOffice?.frameMs ?? [])].sort(
+        (a, b) => a - b,
+      );
+      const pick = (q: number) => ms[Math.min(ms.length - 1, Math.floor(q * ms.length))] ?? NaN;
+      const { calls = 0, triangles = 0 } = (globalThis as unknown as Stats).__dhOffice ?? {};
+      return {
+        frames: ms.length,
+        p50: pick(0.5),
+        p95: pick(0.95),
+        fps: ms.length / 10,
+        calls,
+        triangles,
+      };
+    });
+    console.log(`[office-perf] ${agents} avatars: ${JSON.stringify(stats)}`);
+    expect(stats.frames).toBeGreaterThan(20);
+    expect(stats.p50).toBeLessThan(250);
+    expect(stats.calls).toBeLessThanOrEqual(150);
+    expect(stats.triangles).toBeLessThanOrEqual(400_000);
   });
-  await expect(page.getByRole("slider", { name: "Replay position" })).toBeVisible();
-  await page.getByRole("button", { name: "Play" }).click();
-  await page.waitForTimeout(4_000);
-  await page.evaluate(() => {
-    const stats = (globalThis as unknown as Stats).__dhOffice;
-    if (stats) stats.frameMs = [];
-  });
-  await page.waitForTimeout(10_000);
-  const stats = await page.evaluate(() => {
-    const ms = [...((globalThis as unknown as Stats).__dhOffice?.frameMs ?? [])].sort(
-      (a, b) => a - b,
-    );
-    const pick = (q: number) => ms[Math.min(ms.length - 1, Math.floor(q * ms.length))] ?? NaN;
-    return { frames: ms.length, p50: pick(0.5), p95: pick(0.95), fps: ms.length / 10 };
-  });
-  console.log(`[office-perf] 12 avatars: ${JSON.stringify(stats)}`);
-  expect(stats.frames).toBeGreaterThan(20);
-  expect(stats.p50).toBeLessThan(250);
-});
+}

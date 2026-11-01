@@ -127,6 +127,35 @@ describe("project page", () => {
   });
 });
 
+describe("office tab", () => {
+  it("falls back to the 2D team view without WebGL 2 and keeps the scene description", async () => {
+    mockApi({
+      "GET /api/v1/auth/me": ADMIN,
+      "GET /api/v1/projects/p-1/snapshot": snapshot(),
+      "GET /api/v1/projects/p-1/events": PAGE,
+    });
+    renderProject("/projects/p-1/office");
+    expect(await screen.findByText(/no WebGL 2/)).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /agents/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Try the 3D again" })).toBeInTheDocument();
+    expect(screen.getByRole("tabpanel")).toHaveAttribute("id", "project-panel-office");
+  });
+
+  it("links every Log row to the replay at its time", async () => {
+    mockApi({
+      "GET /api/v1/auth/me": ADMIN,
+      "GET /api/v1/projects/p-1/snapshot": snapshot(),
+      "GET /api/v1/projects/p-1/events": {
+        ...PAGE,
+        results: [event("phase.started", { phase_id: "analysis", room: "meeting_room" })],
+      },
+    });
+    renderProject("/projects/p-1/log");
+    const link = await screen.findByRole("link", { name: "Replay in the 3D office" });
+    expect(link.getAttribute("href")).toMatch(/^\/projects\/p-1\/office\?replay=2026/);
+  });
+});
+
 describe("gate panel", () => {
   it("requires a comment to reject and reports a decision taken by someone else", async () => {
     const { calls } = mockApi({
