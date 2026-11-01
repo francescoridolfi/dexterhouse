@@ -2,3 +2,5 @@
 coverage/
 *.tsbuildinfo
 *.local
+playwright-report/
+test-results/
