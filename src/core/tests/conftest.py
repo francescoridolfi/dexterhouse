@@ -79,3 +79,27 @@ def _reset_gateway_state():
 def no_packages(settings, tmp_path) -> None:
     """No agent package at all: every role is hired as a placeholder."""
     settings.AGENTS_PACKAGE_DIRS = [str(tmp_path / "no-packages")]
+
+
+@pytest.fixture
+def builtin_runtime(settings, organization, monkeypatch):
+    """`AgentsTurnRunner` + the built-in agent packages + the demo responder (no LLM).
+
+    For transactional tests: the stdio MCP servers read the test database through the
+    environment; `run_step` is not sent anywhere, `drain` runs the steps.
+    """
+    from django.db import connection
+
+    from dexterhouse.apps.workflows import tasks
+    from tests.workflows.agents_runtime import use_fake_profiles
+
+    db = connection.settings_dict
+    monkeypatch.setenv(
+        "DATABASE_URL", f"postgres://{db['USER']}@{db['HOST']}:{db['PORT']}/{db['NAME']}"
+    )
+    monkeypatch.setenv("DJANGO_SETTINGS_MODULE", "dexterhouse.settings.test")
+    monkeypatch.setattr(tasks.run_step, "delay", lambda step_id: None)
+    settings.WORKFLOWS_TURN_RUNNER = "dexterhouse.apps.workflows.runners.agents.AgentsTurnRunner"
+    settings.GATEWAY_FAKE_RESPONDER = "dexterhouse.apps.agents.demo.respond"
+    settings.AGENTS_DEMO_SCRIPT = {}
+    use_fake_profiles(organization)

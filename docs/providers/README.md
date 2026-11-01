@@ -32,3 +32,11 @@ Every call is recorded as an `LLMCall` with tokens, cost in EUR (prices in
 `prices.yaml`, USD converted with `FX_EUR_PER_USD`) and latency. Failing providers are
 retried (2, 4, 8 s; `retry-after` on 429) and a circuit breaker stops calling a provider for
 two minutes after five failures in a minute.
+
+## Demo without an LLM
+
+The `fake` provider never calls the network. With
+`GATEWAY_FAKE_RESPONDER=dexterhouse.apps.agents.demo.respond` in `.env` and every profile of
+the organization mapped to provider `fake` (model `fake-model`, `embed` model `hash-1024`),
+the built-in agents answer deterministically: a whole project runs through every phase and
+gate, with artifacts that follow the real templates and say they come from the demo.
