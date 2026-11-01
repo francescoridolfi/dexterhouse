@@ -131,6 +131,8 @@ def test_destroy_find_managed_exec_archive():
     network.remove.assert_called_once()
     client.volumes.get.return_value.remove.assert_called_once()
     assert docker.managed() == {"w1": "running"}
+    filters = client.containers.list.call_args.kwargs["filters"]["label"]
+    assert f"dexterhouse.installation={docker.installation()}" in filters
     client.containers.get.return_value = container
     container.exec_run.return_value = mock.Mock(exit_code=0, output=(b"out", None))
     assert docker.exec("w1", ["true"]) == (0, "out", "")
@@ -158,3 +160,16 @@ def test_proxy_by_compose_label():
     docker._attach_proxy(network)
     client.containers.list.return_value = []
     docker._attach_proxy(network)  # no proxy: only a warning
+
+
+def test_installation_scopes_the_reconciled_workspaces():
+    docker, client = manager()
+    own = mock.MagicMock(labels={"com.docker.compose.project": "dh-prod"})
+    client.containers.get.return_value = own
+    assert docker.installation() == "dh-prod"
+    assert docker.labels("w", "p", "workspace")["dexterhouse.installation"] == "dh-prod"
+    staging = SETTINGS.model_copy(update={"RUNNER_INSTALLATION": "staging"})
+    assert DockerManager(staging, client=mock.MagicMock()).installation() == "staging"
+    alone, alone_client = manager()
+    alone_client.containers.get.side_effect = NotFound("not a container")
+    assert alone.installation() == "default"

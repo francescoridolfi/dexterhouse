@@ -5,7 +5,8 @@ Names (state_machines/workspace.md, infra/workspace_images.md, CD-022): containe
 `<prefix>-<id>`, sidecars `<prefix>-<id>-<service>`, network `dh_sandbox_<id>` (internal: no
 route out, only the proxy is attached to it as `proxy`). Every resource carries the labels
 `dexterhouse.workspace`, `dexterhouse.project`, `dexterhouse.owner`, `dexterhouse.role` so
-the runner can reconcile after a restart and the tests can clean up by label.
+the runner can reconcile after a restart and the tests can clean up by label, and
+`dexterhouse.installation`, so it only reconciles the workspaces of its own stack.
 """
 
 import secrets
@@ -83,7 +84,12 @@ class DockerManager:
             "dexterhouse.owner": self.settings.RUNNER_ID,
             "dexterhouse.role": role,
             "dexterhouse.prefix": self.settings.WORKSPACE_PREFIX,
+            "dexterhouse.installation": self.installation(),
         }
+
+    def installation(self) -> str:
+        """RUNNER_INSTALLATION, else this runner's compose project, else `default`."""
+        return self.settings.RUNNER_INSTALLATION or self._compose_project() or "default"
 
     # Images -------------------------------------------------------------------------------
 
@@ -284,13 +290,14 @@ class DockerManager:
             pass
 
     def managed(self) -> dict[str, str]:
-        """Workspaces of this runner's prefix: {workspace_id: container status}."""
+        """Workspaces of this installation and prefix: {workspace_id: container status}."""
         found = self.client.containers.list(
             all=True,
             filters={
                 "label": [
                     "dexterhouse.role=workspace",
                     f"dexterhouse.prefix={self.settings.WORKSPACE_PREFIX}",
+                    f"dexterhouse.installation={self.installation()}",
                 ]
             },
         )
