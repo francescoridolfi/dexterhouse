@@ -9,7 +9,7 @@ services:
     networks: [internal, public]
   # Mailpit catches the gate notification emails (E-06): UI on http://localhost:8025.
   mailpit:
-    image: axllent/mailpit:v1.21
+    image: axllent/mailpit:v1.32
     ports: ["127.0.0.1:${MAILPIT_UI_PORT:-8025}:8025"]
     networks: [internal, public]
     restart: unless-stopped
