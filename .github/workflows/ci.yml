@@ -166,6 +166,12 @@ jobs:
       - uses: docker/setup-buildx-action@v4
       - name: Build the workspace image
         run: docker buildx build --load -f docker/Dockerfile.workspace-python -t ghcr.io/francescoridolfi/dexterhouse-workspace:python .
+      - name: Pull the pinned sidecar images
+        # The runner starts sidecars by digest (`SIDECAR_IMAGES`) and never pulls in CI;
+        # the `redis` service above is pulled by tag, and a tag moves.
+        run: |
+          uv run python -c "from dexterhouse_runner.config import SIDECAR_IMAGES; print('\n'.join(SIDECAR_IMAGES.values()))" \
+            | xargs -n1 docker pull --quiet
       - name: Security suite
         run: uv run pytest -m security --no-cov -v --junitxml=reports/security.xml
       - uses: actions/upload-artifact@v7
