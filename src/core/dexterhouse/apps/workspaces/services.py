@@ -36,6 +36,7 @@ from dexterhouse.apps.workspaces.models import (
 from dexterhouse_schema.runner import (
     Heartbeat,
     Limits,
+    Message,
     WorkspaceChanged,
     WorkspaceCreate,
     WorkspaceDestroy,
@@ -44,6 +45,15 @@ from dexterhouse_schema.runner import (
 logger = structlog.get_logger(__name__)
 
 MAX_ATTEMPTS = 3
+
+
+def _send(task: str, message: Message) -> None:
+    """Send to the runner; with no runner (`LocalRunnerClient`) its reply arrives at once."""
+    changed = get_client().send(task, message)
+    if changed is not None:
+        apply_changed(changed, resume=False)
+
+
 #: Transitions a callback may make (callbacks can arrive out of order).
 _FROM = {
     WorkspaceStatus.CREATING: {WorkspaceStatus.REQUESTED},
@@ -114,7 +124,7 @@ def _send_create(project: Project, workspace: Workspace) -> None:
             },
         },
     )
-    get_client().send(
+    _send(
         "runner.workspace.create",
         WorkspaceCreate(
             project_id=project.id, workspace_id=workspace.id, stack=stack, limits=limits()
@@ -203,7 +213,7 @@ def _failed(project: Project, workspace: Workspace, detail: str) -> None:
     if workspace.attempts < MAX_ATTEMPTS and workspace.status in PENDING_STATUSES:
         workspace.status = WorkspaceStatus.REQUESTED
         workspace.save()
-        get_client().send(
+        _send(
             "runner.workspace.create",
             WorkspaceCreate(
                 project_id=project.id,
@@ -262,9 +272,7 @@ def destroy(workspace: Workspace, reason: str) -> None:
     workspace.status = WorkspaceStatus.DESTROYING
     workspace.destroy_reason = reason
     workspace.save(update_fields=["status", "destroy_reason", "updated_at"])
-    get_client().send(
-        "runner.workspace.destroy", WorkspaceDestroy(workspace_id=workspace.id, reason=reason)
-    )
+    _send("runner.workspace.destroy", WorkspaceDestroy(workspace_id=workspace.id, reason=reason))
 
 
 def cleanup(now: Any = None) -> dict[str, int]:
@@ -319,6 +327,4 @@ def apply_heartbeat(message: Heartbeat) -> None:
     )
     for orphan in set(message.workspaces) - known:
         logger.warning("workspaces.orphan", workspace_id=str(orphan), runner_id=message.runner_id)
-        get_client().send(
-            "runner.workspace.destroy", WorkspaceDestroy(workspace_id=orphan, reason="orphan")
-        )
+        _send("runner.workspace.destroy", WorkspaceDestroy(workspace_id=orphan, reason="orphan"))

@@ -9,10 +9,10 @@ short tasks of `default` (`reconcile`, events, memory indexing).
 from celery import shared_task
 
 from dexterhouse.apps.workflows import reminders
-from dexterhouse.apps.workflows.engine import steps
+from dexterhouse.apps.workflows.engine import common, steps
 
 
-@shared_task(name="dexterhouse.apps.workflows.tasks.run_step", acks_late=True)
+@shared_task(name=common.RUN_STEP_TASK, acks_late=True)
 def run_step(step_run_id: str) -> None:
     steps.run_step(step_run_id)
 

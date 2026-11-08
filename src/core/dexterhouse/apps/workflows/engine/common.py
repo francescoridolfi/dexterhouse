@@ -29,6 +29,7 @@ from dexterhouse.apps.workflows.models import (
     TaskStatus,
 )
 from dexterhouse.apps.workflows.roles import role_room
+from dexterhouse.celery import app as celery_app
 from dexterhouse_schema import Process
 from dexterhouse_schema.process import Phase, Step
 
@@ -141,12 +142,19 @@ def _task_agent(task: Task | None, role: str) -> AgentInstance | None:
     return agent if agent.role == role and agent.status != "released" else None
 
 
+#: Name of the Celery task that runs a step (`workflows/tasks.py`); routed by name in settings.
+RUN_STEP_TASK = "dexterhouse.apps.workflows.tasks.run_step"
+
+
+def enqueue_step(step_id: str) -> None:
+    """The one place that touches the queue: the engine never imports `tasks.py` (no cycle)."""
+    celery_app.send_task(RUN_STEP_TASK, args=[step_id])
+
+
 def dispatch(step_run: StepRun) -> None:
     """Send `run_step` after commit; the worker refuses it while the project is not running."""
-    from dexterhouse.apps.workflows import tasks
-
     step_id = str(step_run.id)
-    transaction.on_commit(lambda: tasks.run_step.delay(step_id))
+    transaction.on_commit(lambda: enqueue_step(step_id))
 
 
 def dispatch_pending(project: Project) -> int:

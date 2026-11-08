@@ -46,7 +46,9 @@ class RunnerClient(Protocol):
 
     def call(self, task: str, message: Message, timeout_s: float | None = None) -> ToolResult: ...
 
-    def send(self, task: str, message: Message) -> None: ...
+    def send(self, task: str, message: Message) -> WorkspaceChanged | None:
+        """Fire and forget; a client with no runner returns the reply it would have sent."""
+        ...
 
 
 def _redis() -> redis.Redis:
@@ -94,6 +96,7 @@ class CeleryRunnerClient:
         transaction.on_commit(
             lambda: celery_app.send_task(task, args=args, queue=RUNNER_QUEUE), robust=True
         )
+        return None
 
 
 def _fake_commit(*parts: object) -> str:
@@ -133,25 +136,19 @@ class LocalRunnerClient:
             ok=True, exit_code=0 if task == "runner.system.exit_check" else None, data=data
         )
 
-    def send(self, task: str, message: Message) -> None:
-        from dexterhouse.apps.workspaces import services
-
+    def send(self, task: str, message: Message) -> WorkspaceChanged | None:
+        """The reply a runner would send back; the caller applies it (`services.apply_changed`)."""
         if task == "runner.workspace.create":
-            services.apply_changed(
-                WorkspaceChanged(
-                    workspace_id=message.workspace_id,  # type: ignore[attr-defined]
-                    status="ready",
-                    image=str(message.stack.get("workspace_image", "")),  # type: ignore[attr-defined]
-                    digest="sha256:" + "0" * 64,
-                    services=[str(s) for s in message.stack.get("services") or []],  # type: ignore[attr-defined]
-                ),
-                resume=False,
+            return WorkspaceChanged(
+                workspace_id=message.workspace_id,  # type: ignore[attr-defined]
+                status="ready",
+                image=str(message.stack.get("workspace_image", "")),  # type: ignore[attr-defined]
+                digest="sha256:" + "0" * 64,
+                services=[str(s) for s in message.stack.get("services") or []],  # type: ignore[attr-defined]
             )
-        elif task == "runner.workspace.destroy":
-            services.apply_changed(
-                WorkspaceChanged(workspace_id=message.workspace_id, status="destroyed"),  # type: ignore[attr-defined]
-                resume=False,
-            )
+        if task == "runner.workspace.destroy":
+            return WorkspaceChanged(workspace_id=message.workspace_id, status="destroyed")  # type: ignore[attr-defined]
+        return None
 
 
 def get_client() -> RunnerClient:
