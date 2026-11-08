@@ -14,7 +14,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 #: Images of the sidecars a stack may declare (`stack.services`), pinned by digest.
 SIDECAR_IMAGES = {
     "postgres": "pgvector/pgvector:pg16@sha256:0dd3149a06e4579a0d70d8fef9945636cd514005e7237deb27f9b67886f8dc4f",  # noqa: E501
-    "redis": "redis:7.4-alpine@sha256:8da19c7399dca900c6822a1cf30f9d2285585e2c4b457ff4095b0f4500054d3f",  # noqa: E501
+    "redis": "redis:7.4-alpine@sha256:c5d34a98396a4775e223c74e929162c35c5a2182901ba26b50ade939941ce14b",  # noqa: E501
     "mailpit": "axllent/mailpit:v1.27@sha256:e22dce5b36f93c77082e204a3942fb6b283b7896e057458400a4c88344c3df68",  # noqa: E501
 }
 
