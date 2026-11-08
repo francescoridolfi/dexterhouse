@@ -121,9 +121,9 @@ def test_read_skill_of_the_package_or_builtin(ctx, settings, tmp_path):
 @pytest.fixture
 def committed_ctx(ctx, monkeypatch) -> tools.ToolContext:
     """For transactional tests: steps are drained, never sent to Celery."""
-    from dexterhouse.apps.workflows import tasks
+    from dexterhouse.apps.workflows.engine import common
 
-    monkeypatch.setattr(tasks.run_step, "delay", lambda step_id: None)
+    monkeypatch.setattr(common, "enqueue_step", lambda step_id: None)
     return ctx()
 
 

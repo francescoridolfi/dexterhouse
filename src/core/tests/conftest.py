@@ -173,7 +173,7 @@ def builtin_runtime(settings, organization, monkeypatch):
     """
     from django.db import connection
 
-    from dexterhouse.apps.workflows import tasks
+    from dexterhouse.apps.workflows.engine import common
     from tests.workflows.agents_runtime import use_fake_profiles
 
     db = connection.settings_dict
@@ -181,7 +181,7 @@ def builtin_runtime(settings, organization, monkeypatch):
         "DATABASE_URL", f"postgres://{db['USER']}@{db['HOST']}:{db['PORT']}/{db['NAME']}"
     )
     monkeypatch.setenv("DJANGO_SETTINGS_MODULE", "dexterhouse.settings.test")
-    monkeypatch.setattr(tasks.run_step, "delay", lambda step_id: None)
+    monkeypatch.setattr(common, "enqueue_step", lambda step_id: None)
     settings.WORKFLOWS_TURN_RUNNER = "dexterhouse.apps.workflows.runners.agents.AgentsTurnRunner"
     settings.GATEWAY_FAKE_RESPONDER = "dexterhouse.apps.agents.demo.respond"
     settings.AGENTS_DEMO_SCRIPT = {}

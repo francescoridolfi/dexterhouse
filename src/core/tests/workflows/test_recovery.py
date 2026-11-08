@@ -20,15 +20,14 @@ from dexterhouse.apps.agents.models import AgentTurn
 from dexterhouse.apps.events.models import Event
 from dexterhouse.apps.gateway.models import LLMCall
 from dexterhouse.apps.projects.models import Artifact
-from dexterhouse.apps.workflows import tasks
-from dexterhouse.apps.workflows.engine import steps
+from dexterhouse.apps.workflows.engine import common, steps
 from dexterhouse.apps.workflows.models import StepRun, StepRunStatus
 from dexterhouse.apps.workflows.runners.fake import FakeTurnRunner
 from tests.conftest import TEAM_PACKAGES, install_test_packages
 from tests.workflows.agents_runtime import use_fake_profiles
 from tests.workflows.conftest import DyingRunner, KilledError, drain
 
-RUN_STEP = "dexterhouse.apps.workflows.tasks.run_step"
+RUN_STEP = common.RUN_STEP_TASK
 
 
 def assert_each_turn_applied_once(project) -> None:
@@ -135,8 +134,8 @@ def test_killing_a_real_worker_mid_phase_loses_and_duplicates_nothing(
     sender = Celery(broker=broker)
     sender.connection_for_write().default_channel.client.flushdb()
     monkeypatch.setattr(
-        tasks.run_step,
-        "delay",
+        common,
+        "enqueue_step",
         lambda step_id: sender.send_task(RUN_STEP, args=[step_id], queue="agents"),
     )
     db = connection.settings_dict
