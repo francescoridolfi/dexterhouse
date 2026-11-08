@@ -16,7 +16,6 @@ const common = {
   error: { title: "Something went wrong", unknown: "Unknown error" },
   notFound: { title: "Page not found." },
   forbidden: { title: "You do not have access to this page." },
-  theme: { light: "Switch to light mode", dark: "Switch to dark mode" },
   nav: {
     label: "Main navigation",
     toggle: "Toggle navigation",
@@ -26,6 +25,33 @@ const common = {
     settings: "Settings",
     inboxCount_one: "Inbox: {{count}} decision waiting",
     inboxCount_other: "Inbox: {{count}} decisions waiting",
+  },
+  code: { copy: "Copy code", copied: "Copied" },
+  os: {
+    desktop: "Desktop",
+    dock: "Dock",
+    systemMenu: "DexterHouse menu",
+    logoutAs: "Log out {{name}}…",
+    app: { project: "Project", system: "DexterHouse" },
+    window: {
+      menu: "Window",
+      close: "Close window",
+      minimize: "Minimize",
+      zoom: "Zoom",
+      closeAll: "Close all windows",
+      none: "No open windows",
+    },
+    greeting: {
+      morning: "Good morning, {{name}}",
+      afternoon: "Good afternoon, {{name}}",
+      evening: "Good evening, {{name}}",
+    },
+    widget: {
+      decisions: "Decisions waiting",
+      none: "Nothing is waiting for you.",
+      openInbox: "Open inbox",
+    },
+    booting: "Starting DexterHouse…",
   },
   login: {
     subtitle: "Sign in to your software house.",
@@ -127,7 +153,7 @@ const common = {
     file: "File",
   },
   process: {
-    "software-house-default": "Software house (analysis → release)",
+    "software-house-default": "Software house",
     "code-review-only": "Code review only",
   },
   delivery: { pull_request: "Pull request", push_main: "Push to main" },
@@ -140,6 +166,9 @@ const common = {
     workspace: "the workspace",
   },
   budget: {
+    decrease: "Decrease budget by €1",
+    increase: "Increase budget by €1",
+    belowSpent: "Below the {{spent}} already spent: the team stops as soon as you save.",
     meter: "Budget used",
     of: "{{spent}} of {{budget}}",
     edit: "Edit budget",
@@ -168,6 +197,29 @@ const projects = {
     openGates_other: "{{count}} open gates",
   },
   newProject: {
+    modeHelp: {
+      supervised: "The team stops at every gate and waits for your decision.",
+      autonomous:
+        "Gates approve themselves, except the ones always required; escalations still wait for you.",
+    },
+    briefView: "Brief view",
+    namePlaceholder: "Untitled project",
+    subtitle:
+      "Describe the idea: the analyst reads the brief and comes back with questions before any code is written.",
+    write: "Write",
+    preview: "Preview",
+    previewEmpty: "Nothing to preview yet.",
+    briefPlaceholder:
+      "# What to build\n\nWho it is for, what they must be able to do, constraints and anything you already know.",
+    markdownHint: "Markdown: headings, lists, tables and code blocks.",
+    teamGroup: "How the team works",
+    phases_one: "{{count}} phase: {{list}}",
+    phases_other: "{{count}} phases: {{list}}",
+    budgetGroup: "Budget",
+    budgetHelp: "The project pauses when it reaches its budget; you can raise it at any time.",
+    optional: "optional",
+    advancedHelp:
+      "Without a repository the code stays in the project workspace and can be downloaded.",
     title: "New project",
     name: "Name",
     brief: "Brief (Markdown)",
@@ -271,6 +323,9 @@ const projects = {
     cancelled: "cancelled",
   },
   artifacts: {
+    preview: "Preview",
+    source: "Source",
+    view: "Artifact view",
     title: "Artifacts",
     viewer: "Viewer",
     search: "Search artifacts",
@@ -502,6 +557,47 @@ const packages = {
 
 const settings = {
   settings: {
+    ownerOnly: "Only the owner can rename the organization.",
+    slugLabel: "Slug",
+    slugHelp: "Used in URLs and in the CLI; it cannot change.",
+    yourRole: "Your role",
+    membersCount_one: "{{count}} member",
+    membersCount_other: "{{count}} members",
+    you: "you",
+    memberSince: "Member since {{date}}",
+    invite: "Invite member",
+    configured: "Configured",
+    notConfigured: "Not configured",
+    keyPresent: "Key set",
+    keyAbsent: "Key missing",
+    keyHelp: "Name of the environment variable: keys never reach the database.",
+    baseUrlDefault: "provider default",
+    providersHelp:
+      "Providers come from the installation; keys are read from the environment of the core.",
+    limitHelp:
+      "When the monthly limit is reached, no agent of the organization can run until next month or a higher limit.",
+    unlimitedLabel: "No monthly limit",
+    unlimitedHelp: "Projects still stop at their own budget.",
+    monthlyLimit: "Monthly limit",
+    decrease: "Decrease the limit by €10",
+    increase: "Increase the limit by €10",
+    byDay: "By day",
+    tokensDetail:
+      "Personal tokens to drive DexterHouse from the CLI, CI pipelines and other tools.",
+    profileHelp: {
+      strong: "For reasoning-heavy steps: architecture, review.",
+      balanced: "The default for most agent turns.",
+      fast: "Short, cheap calls: classification, summaries.",
+      embed: "Embeddings for project memory search.",
+    },
+    help: {
+      organization: "Name and identity of your software house.",
+      members: "People who can see and run the projects of this organization.",
+      profiles: "Which model each kind of work uses. Agents ask for a profile, never for a model.",
+      providers: "LLM providers available to this installation and whether they are ready.",
+      budget: "A monthly spending cap for the whole organization and where the money goes.",
+      tokens: "Access for scripts and integrations.",
+    },
     title: "Settings",
     section: {
       organization: "Organization",

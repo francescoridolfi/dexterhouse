@@ -9,7 +9,6 @@ import "./index.css";
 
 applyTheme();
 document.documentElement.lang = i18n.language;
-window.matchMedia?.("(prefers-color-scheme: dark)").addEventListener("change", () => applyTheme());
 
 const container = document.getElementById("root");
 if (container === null) {

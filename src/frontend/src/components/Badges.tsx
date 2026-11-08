@@ -45,14 +45,29 @@ export function StatusBadge({ status, label }: { status: string; label?: string 
   );
 }
 
-export function ModeBadge({ mode, onClick }: { mode: ExecutionMode; onClick?: () => void }) {
+export function ModeBadge({
+  mode,
+  onClick,
+  tinted = false,
+}: {
+  mode: ExecutionMode;
+  onClick?: () => void;
+  /** Quiet capsule for toolbars: tinted fill instead of the outlined badge. */
+  tinted?: boolean;
+}) {
   const { t } = useTranslation();
   const color =
     mode === "supervised"
       ? "border-supervised text-supervised"
       : "border-autonomous text-autonomous";
   const content = t(`mode.${mode}`).toUpperCase();
-  const classes = `inline-flex min-h-7 items-center rounded-full border-2 px-2.5 text-xs font-bold tracking-wider ${color}`;
+  const quiet =
+    mode === "supervised"
+      ? "bg-supervised/15 text-supervised hover:bg-supervised/25"
+      : "bg-autonomous/15 text-autonomous hover:bg-autonomous/25";
+  const classes = tinted
+    ? `inline-flex h-5 items-center rounded-full px-2 text-[10.5px] font-semibold tracking-wide transition-colors ${quiet}`
+    : `inline-flex min-h-7 items-center rounded-full border-2 px-2.5 text-xs font-bold tracking-wider ${color}`;
   if (!onClick) return <span className={classes}>{content}</span>;
   return (
     <button

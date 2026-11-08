@@ -17,7 +17,7 @@ export function OverviewTab({
   return (
     <div className="space-y-4">
       <Pipeline onOpenGate={onOpenGate} />
-      <div className="grid gap-4 lg:grid-cols-[minmax(16rem,1fr)_2fr]">
+      <div className="grid gap-4 @5xl:grid-cols-[minmax(16rem,1fr)_2fr]">
         <TeamNow />
         <LiveLog socket={socket} />
       </div>

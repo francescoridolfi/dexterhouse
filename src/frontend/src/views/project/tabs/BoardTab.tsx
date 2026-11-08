@@ -55,7 +55,7 @@ export function BoardTab() {
   if (Object.keys(state.tasks).length === 0) return <EmptyState title={t("board.empty")} />;
   return (
     <>
-      <div className="grid gap-3 md:auto-cols-[minmax(13rem,1fr)] md:grid-flow-col md:overflow-x-auto">
+      <div className="grid gap-3 @3xl:auto-cols-[minmax(13rem,1fr)] @3xl:grid-flow-col @3xl:overflow-x-auto">
         {BOARD_COLUMNS.map((column) => (
           <section
             key={column.id}

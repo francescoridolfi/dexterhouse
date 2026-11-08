@@ -60,7 +60,7 @@ export function Pipeline({ onOpenGate }: { onOpenGate: (id: string) => void }) {
         </ol>
       )}
       {detail ? (
-        <dl className="grid grid-cols-2 gap-x-4 gap-y-1 border-t border-line p-4 text-sm md:grid-cols-4">
+        <dl className="grid grid-cols-2 gap-x-4 gap-y-1 border-t border-line p-4 text-sm @3xl:grid-cols-4">
           <dt className="text-muted">{t("pipeline.status")}</dt>
           <dd>{t(`phaseStatus.${detail.status}`)}</dd>
           <dt className="text-muted">{t("pipeline.room")}</dt>

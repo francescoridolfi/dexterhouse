@@ -15,7 +15,6 @@ const common = {
   error: { title: "Qualcosa è andato storto", unknown: "Errore sconosciuto" },
   notFound: { title: "Pagina non trovata." },
   forbidden: { title: "Non hai accesso a questa pagina." },
-  theme: { light: "Passa al tema chiaro", dark: "Passa al tema scuro" },
   nav: {
     label: "Navigazione principale",
     toggle: "Apri o chiudi la navigazione",
@@ -25,6 +24,33 @@ const common = {
     settings: "Impostazioni",
     inboxCount_one: "Inbox: {{count}} decisione in attesa",
     inboxCount_other: "Inbox: {{count}} decisioni in attesa",
+  },
+  code: { copy: "Copia codice", copied: "Copiato" },
+  os: {
+    desktop: "Scrivania",
+    dock: "Dock",
+    systemMenu: "Menu DexterHouse",
+    logoutAs: "Esci da {{name}}…",
+    app: { project: "Progetto", system: "DexterHouse" },
+    window: {
+      menu: "Finestra",
+      close: "Chiudi finestra",
+      minimize: "Riduci a icona",
+      zoom: "Ingrandisci",
+      closeAll: "Chiudi tutte le finestre",
+      none: "Nessuna finestra aperta",
+    },
+    greeting: {
+      morning: "Buongiorno, {{name}}",
+      afternoon: "Buon pomeriggio, {{name}}",
+      evening: "Buonasera, {{name}}",
+    },
+    widget: {
+      decisions: "Decisioni in attesa",
+      none: "Nessuna decisione in attesa.",
+      openInbox: "Apri l'inbox",
+    },
+    booting: "Avvio di DexterHouse…",
   },
   login: {
     subtitle: "Accedi alla tua software house.",
@@ -131,7 +157,7 @@ const common = {
     file: "File",
   },
   process: {
-    "software-house-default": "Software house (analisi → rilascio)",
+    "software-house-default": "Software house",
     "code-review-only": "Solo revisione del codice",
   },
   delivery: { pull_request: "Pull request", push_main: "Push su main" },
@@ -144,6 +170,9 @@ const common = {
     workspace: "il workspace",
   },
   budget: {
+    decrease: "Riduci il budget di 1 €",
+    increase: "Aumenta il budget di 1 €",
+    belowSpent: "Sotto i {{spent}} già spesi: il team si ferma appena salvi.",
     meter: "Budget usato",
     of: "{{spent}} su {{budget}}",
     edit: "Modifica budget",
@@ -172,6 +201,29 @@ const projects = {
     openGates_other: "{{count}} gate aperti",
   },
   newProject: {
+    modeHelp: {
+      supervised: "Il team si ferma a ogni gate e aspetta la tua decisione.",
+      autonomous:
+        "I gate si approvano da soli, tranne quelli sempre obbligatori; le escalation aspettano comunque te.",
+    },
+    briefView: "Vista del brief",
+    namePlaceholder: "Progetto senza titolo",
+    subtitle:
+      "Descrivi l'idea: l'analista legge il brief e torna con delle domande prima di scrivere codice.",
+    write: "Scrivi",
+    preview: "Anteprima",
+    previewEmpty: "Ancora niente da mostrare.",
+    briefPlaceholder:
+      "# Cosa costruire\n\nPer chi è, cosa deve poter fare, vincoli e tutto quello che sai già.",
+    markdownHint: "Markdown: titoli, elenchi, tabelle e blocchi di codice.",
+    teamGroup: "Come lavora il team",
+    phases_one: "{{count}} fase: {{list}}",
+    phases_other: "{{count}} fasi: {{list}}",
+    budgetGroup: "Budget",
+    budgetHelp:
+      "Il progetto si mette in pausa quando raggiunge il budget; puoi aumentarlo in qualsiasi momento.",
+    optional: "facoltativo",
+    advancedHelp: "Senza repository il codice resta nel workspace del progetto e si può scaricare.",
     title: "Nuovo progetto",
     name: "Nome",
     brief: "Brief (Markdown)",
@@ -275,6 +327,9 @@ const projects = {
     cancelled: "annullato",
   },
   artifacts: {
+    preview: "Anteprima",
+    source: "Sorgente",
+    view: "Vista artefatto",
     title: "Artefatti",
     viewer: "Visualizzatore",
     search: "Cerca negli artefatti",
@@ -506,6 +561,48 @@ const packages = {
 
 const settings = {
   settings: {
+    ownerOnly: "Solo il proprietario può rinominare l'organizzazione.",
+    slugLabel: "Slug",
+    slugHelp: "Usato negli URL e nella CLI; non si può cambiare.",
+    yourRole: "Il tuo ruolo",
+    membersCount_one: "{{count}} membro",
+    membersCount_other: "{{count}} membri",
+    you: "tu",
+    memberSince: "Membro dal {{date}}",
+    invite: "Invita un membro",
+    configured: "Configurato",
+    notConfigured: "Non configurato",
+    keyPresent: "Chiave impostata",
+    keyAbsent: "Chiave mancante",
+    keyHelp: "Nome della variabile d'ambiente: le chiavi non finiscono mai nel database.",
+    baseUrlDefault: "predefinito del provider",
+    providersHelp:
+      "I provider dipendono dall'installazione; le chiavi si leggono dall'ambiente del core.",
+    limitHelp:
+      "Raggiunto il limite mensile, nessun agente dell'organizzazione può lavorare fino al mese successivo o a un limite più alto.",
+    unlimitedLabel: "Nessun limite mensile",
+    unlimitedHelp: "I progetti si fermano comunque al proprio budget.",
+    monthlyLimit: "Limite mensile",
+    decrease: "Riduci il limite di 10 €",
+    increase: "Aumenta il limite di 10 €",
+    byDay: "Per giorno",
+    tokensDetail:
+      "Token personali per usare DexterHouse dalla CLI, dalle pipeline di CI e da altri strumenti.",
+    profileHelp: {
+      strong: "Per i passi che richiedono ragionamento: architettura, revisione.",
+      balanced: "Il profilo predefinito per la maggior parte dei turni.",
+      fast: "Chiamate brevi ed economiche: classificazione, riassunti.",
+      embed: "Embedding per la ricerca nella memoria del progetto.",
+    },
+    help: {
+      organization: "Nome e identità della tua software house.",
+      members: "Le persone che possono vedere e avviare i progetti di questa organizzazione.",
+      profiles:
+        "Quale modello usa ogni tipo di lavoro. Gli agenti chiedono un profilo, mai un modello.",
+      providers: "I provider LLM disponibili in questa installazione e se sono pronti.",
+      budget: "Un tetto di spesa mensile per tutta l'organizzazione e dove vanno i soldi.",
+      tokens: "Accesso per script e integrazioni.",
+    },
     title: "Impostazioni",
     section: {
       organization: "Organizzazione",

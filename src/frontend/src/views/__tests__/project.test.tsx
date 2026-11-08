@@ -190,7 +190,7 @@ describe("gate panel", () => {
     });
     renderWith(<GatePanel gateId="g-1" onClose={() => undefined} />);
     const user = userEvent.setup();
-    expect(await screen.findByText("# Requirements")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Requirements" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Reject" }));
     const send = screen.getAllByRole("button", { name: "Reject" }).at(-1)!;
     expect(send).toBeDisabled();
