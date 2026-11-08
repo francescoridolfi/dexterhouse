@@ -4,10 +4,12 @@ import { createRoot } from "react-dom/client";
 
 import App from "./App.tsx";
 import i18n from "./i18n/index.ts";
+import { applyGlassMode } from "./utils/glass.ts";
 import { applyTheme } from "./utils/theme.ts";
 import "./index.css";
 
 applyTheme();
+applyGlassMode();
 document.documentElement.lang = i18n.language;
 
 const container = document.getElementById("root");

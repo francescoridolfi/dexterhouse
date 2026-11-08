@@ -278,7 +278,8 @@ body {
   }
 }
 
-/* Wallpaper: slow drifting aurora on near-black, plus film grain. */
+/* Wallpaper: aurora on near-black, plus film grain. Static: an animated full-screen
+   gradient repaints the whole screen and every glass layer on each frame. */
 .os-wallpaper {
   background:
     radial-gradient(60% 50% at 18% 22%, rgb(64 72 255 / 0.55), transparent 70%),
@@ -287,7 +288,7 @@ body {
     radial-gradient(40% 40% at 25% 85%, rgb(168 85 247 / 0.4), transparent 70%),
     linear-gradient(180deg, #0b0b1a 0%, #07070c 100%);
   background-size: 140% 140%;
-  animation: os-drift 40s ease-in-out infinite alternate;
+  background-position: 30% 20%;
 }
 .os-wallpaper::after {
   content: "";
@@ -297,14 +298,24 @@ body {
   mix-blend-mode: overlay;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
-@keyframes os-drift {
-  0% {
-    background-position: 0% 0%;
-  }
-  100% {
-    background-position: 100% 100%;
-  }
+/* Reduced transparency (utils/glass.ts): opaque panels, no backdrop blur anywhere. */
+:root[data-glass="reduced"] * {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
+:root[data-glass="reduced"] .glass {
+  background:
+    linear-gradient(160deg, rgb(255 255 255 / 0.06), rgb(255 255 255 / 0.02)), rgb(32 32 40);
+}
+:root[data-glass="reduced"] .glass-strong {
+  background:
+    linear-gradient(160deg, rgb(255 255 255 / 0.05), rgb(255 255 255 / 0.015)), rgb(26 26 33);
+}
+:root[data-glass="reduced"] .os-liquid-thumb > span {
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 0.2), rgb(255 255 255 / 0.1)), rgb(58 58 68);
+}
+
 @keyframes os-window-in {
   from {
     opacity: 0;
