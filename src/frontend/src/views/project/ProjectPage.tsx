@@ -32,23 +32,29 @@ function GateBanner({ onOpen }: { onOpen: (id: string) => void }) {
   return (
     <div aria-live="assertive" className="space-y-2">
       {gate ? (
-        <div className="flex flex-wrap items-center gap-3 rounded-card border-2 border-blocked bg-blocked/10 p-3">
-          <BellRing aria-hidden className="size-5 text-blocked" />
-          <p className="flex-1 text-sm">
-            <strong className="mr-1 uppercase">{t("gate.openBanner")}:</strong>
-            {t(`gate.type.${gate.type}`)} — {gate.title}
+        <div className="os-pop flex flex-wrap items-center gap-3 rounded-[16px] bg-blocked/10 py-2.5 pr-2.5 pl-3 shadow-[inset_0_0_0_0.5px_rgb(251_191_36/0.35)]">
+          <span className="grid size-8 shrink-0 place-items-center rounded-full bg-blocked/20">
+            <BellRing aria-hidden className="size-4 text-blocked" />
+          </span>
+          <p className="min-w-0 flex-1 text-sm">
+            <span className="block text-[11px] font-semibold tracking-wide text-blocked uppercase">
+              {t("gate.openBanner")}
+            </span>
+            <span className="block truncate">
+              {t(`gate.type.${gate.type}`)} — {gate.title}
+            </span>
           </p>
           <button
             type="button"
             onClick={() => onOpen(gate.id)}
-            className="min-h-11 rounded-card bg-blocked px-4 font-medium text-black"
+            className="os-pressable min-h-8 rounded-full bg-blocked px-3.5 text-[13px] font-semibold text-black shadow-[inset_0_1px_0_rgb(255_255_255/0.4)] hover:brightness-105"
           >
             {t("gate.openPanel")}
           </button>
         </div>
       ) : null}
       {budget.warning && !budget.exceeded ? (
-        <p role="status" className="rounded-card bg-budget-warn/15 p-2 text-sm">
+        <p role="status" className="rounded-[14px] bg-budget-warn/12 px-3 py-2 text-sm">
           {t("budget.warningBanner")}
         </p>
       ) : null}
@@ -93,20 +99,22 @@ export function ProjectPage() {
   if (!loaded) return <LoadingBlock rows={6} />;
 
   return (
-    <div className="mx-auto max-w-7xl space-y-4">
+    <div className="mx-auto max-w-7xl space-y-4 pt-1">
       <ProjectHeader />
       <GateBanner onOpen={setGateId} />
-      <Tabs
-        label={t("project.tabs")}
-        tabs={TABS.map((id) => ({
-          id,
-          label: t(`project.tab.${id}`),
-          hidden: id === "office" && typeof window !== "undefined" && window.innerWidth < 768,
-        }))}
-        active={active}
-        onChange={go}
-        idPrefix="project"
-      />
+      <div className="flex justify-center">
+        <Tabs
+          label={t("project.tabs")}
+          tabs={TABS.map((id) => ({
+            id,
+            label: t(`project.tab.${id}`),
+            hidden: id === "office" && typeof window !== "undefined" && window.innerWidth < 768,
+          }))}
+          active={active}
+          onChange={go}
+          idPrefix="project"
+        />
+      </div>
       {active !== "office" ? (
         <div role="tabpanel" id={`project-panel-${active}`} aria-labelledby={`project-${active}`}>
           {active === "overview" ? <OverviewTab socket={socket} onOpenGate={setGateId} /> : null}

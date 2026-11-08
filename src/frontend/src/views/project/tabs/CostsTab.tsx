@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { Pencil } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -87,8 +88,8 @@ export function CostsTab() {
     return <EmptyState title={t("costs.empty", { estimate })} />;
   }
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
-      <Card title={t("costs.total")} className="lg:col-span-2">
+    <div className="grid gap-4 @5xl:grid-cols-2">
+      <Card title={t("costs.total")} className="@5xl:col-span-2">
         <div className="flex flex-wrap items-center gap-4 p-4">
           <BudgetBar spent={c.spent} budget={c.budget} />
           <span className="text-sm text-muted">
@@ -103,7 +104,12 @@ export function CostsTab() {
             editing ? (
               <BudgetEditor onDone={() => setEditing(false)} />
             ) : (
-              <Button size="sm" onClick={() => setEditing(true)}>
+              <Button
+                size="sm"
+                className="rounded-full px-3"
+                icon={<Pencil aria-hidden className="size-3.5" />}
+                onClick={() => setEditing(true)}
+              >
                 {t("budget.edit")}
               </Button>
             )
@@ -207,7 +213,7 @@ export function CostsTab() {
           </tbody>
         </table>
       </Card>
-      <Card title={t("costs.calls")} className="lg:col-span-2">
+      <Card title={t("costs.calls")} className="@5xl:col-span-2">
         <CallsTable projectId={projectId} />
       </Card>
     </div>

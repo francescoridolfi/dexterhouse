@@ -62,18 +62,15 @@ export function TeamTab() {
                   <td className="px-3 py-2">
                     <span className="flex items-center gap-2">
                       <AgentAvatar role={agent.role} color={now?.color} name={agent.display_name} />
-                      <span>
-                        <button
-                          type="button"
-                          onClick={() => setOpen(agent.id)}
-                          className="block font-medium text-accent hover:underline"
-                        >
-                          {agent.display_name}
-                        </button>
-                        <span className="text-xs text-muted">
-                          {t(`role.${agent.role}`, { defaultValue: agent.role })}
-                        </span>
-                      </span>
+                      {/* The role is already in the package column: only a tooltip here. */}
+                      <button
+                        type="button"
+                        onClick={() => setOpen(agent.id)}
+                        title={t(`role.${agent.role}`, { defaultValue: agent.role })}
+                        className="text-left font-medium whitespace-nowrap text-accent hover:underline"
+                      >
+                        {agent.display_name}
+                      </button>
                     </span>
                   </td>
                   <td className="px-3 py-2 font-mono text-xs">

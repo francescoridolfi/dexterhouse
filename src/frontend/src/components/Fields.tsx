@@ -8,7 +8,7 @@ import {
 } from "react";
 
 const CONTROL =
-  "w-full rounded-card border border-line bg-surface px-3 py-2 text-fg placeholder:text-muted focus:border-accent min-h-11";
+  "w-full rounded-[10px] border border-white/10 bg-black/20 px-3 py-2 text-fg shadow-[inset_0_1px_2px_rgb(0_0_0/0.25)] placeholder:text-muted focus:border-accent focus:ring-3 focus:ring-accent/30 focus:outline-none min-h-11";
 
 function Wrapper({
   label,

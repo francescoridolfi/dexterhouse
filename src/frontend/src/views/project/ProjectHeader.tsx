@@ -1,17 +1,20 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Pause, Pencil, Play, RotateCcw } from "lucide-react";
-import { type FormEvent, useState } from "react";
+import { Check, ChevronLeft, Loader2, Pause, Pencil, Play, RotateCcw, X } from "lucide-react";
+import { type FormEvent, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 
 import { api } from "../../api/endpoints.ts";
 import { useMe } from "../../api/queries.ts";
-import { BudgetBar, ModeBadge, StatusBadge } from "../../components/Badges.tsx";
+import { AmountField } from "../../components/AmountField.tsx";
+import { BudgetBar, ModeBadge, StatusDot } from "../../components/Badges.tsx";
 import { Button } from "../../components/Button.tsx";
 import { ConfirmDialog } from "../../components/Overlay.tsx";
 import { toastError, toastSuccess } from "../../components/toastStore.ts";
 import { can } from "../../utils/auth.ts";
+import { formatAmount, parseAmount } from "../../utils/amount.ts";
+import { eur } from "../../utils/format.ts";
 import { useProjectStore } from "../../store/projectStore.ts";
 
 function ConnectionIndicator() {
@@ -19,23 +22,28 @@ function ConnectionIndicator() {
   const connection = useProjectStore((s) => s.connection);
   const live = connection === "live";
   return (
-    <span className="inline-flex items-center gap-1 text-xs text-muted" role="status">
+    <span className="inline-flex items-center gap-1.5 text-xs text-muted" role="status">
       <span
         aria-hidden
-        className={`size-2 rounded-full ${live ? "bg-done" : "animate-pulse bg-blocked"}`}
+        className={`size-1.5 rounded-full ${live ? "bg-done shadow-[0_0_6px] shadow-done" : "animate-pulse bg-blocked"}`}
       />
       {t(`connection.${connection}`)}
     </span>
   );
 }
 
+/** Inline budget editor: one recessed capsule (− € amount +), confirm and cancel. */
 export function BudgetEditor({ onDone }: { onDone: () => void }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const project = useProjectStore((s) => s.project);
-  const [value, setValue] = useState(project?.budget ? String(Number(project.budget)) : "");
+  const spent = Number(useProjectStore((s) => s.budget.spent) ?? 0);
+  const initial = project?.budget ? Number(project.budget) : 0;
+  const [value, setValue] = useState(project?.budget ? formatAmount(initial, i18n.language) : "");
+  const amount = parseAmount(value);
+  const warningId = useId();
   const client = useQueryClient();
   const save = useMutation({
-    mutationFn: () => api.updateProject(project?.id ?? "", { budget: value }),
+    mutationFn: () => api.updateProject(project?.id ?? "", { budget: String(amount ?? 0) }),
     onSuccess: () => {
       toastSuccess(t("budget.saved"));
       void client.invalidateQueries({ queryKey: ["projects"] });
@@ -43,31 +51,63 @@ export function BudgetEditor({ onDone }: { onDone: () => void }) {
     },
     onError: (error) => toastError(t("budget.saveFailed"), error),
   });
+  const valid = amount !== null;
+  const changed = valid && amount !== initial;
+  const below = valid && amount < spent;
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    save.mutate();
+    if (changed) save.mutate();
+    else onDone();
   };
+  const round =
+    "grid size-7 shrink-0 place-items-center rounded-full transition-colors disabled:opacity-40";
   return (
-    <form onSubmit={submit} className="flex items-center gap-1">
-      <label htmlFor="budget-input" className="sr-only">
-        {t("budget.new")}
-      </label>
-      <input
-        id="budget-input"
-        type="number"
-        min="0"
-        step="0.5"
-        autoFocus
+    <form
+      onSubmit={submit}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") {
+          e.stopPropagation();
+          onDone();
+        }
+      }}
+      className="os-pop flex flex-wrap items-center gap-1.5"
+    >
+      <AmountField
+        label={t("budget.new")}
         value={value}
-        onChange={(e) => setValue(e.target.value)}
-        className="min-h-9 w-24 rounded-card border border-line bg-surface px-2 text-sm"
+        onChange={setValue}
+        describedBy={below ? warningId : undefined}
+        decreaseLabel={t("budget.decrease")}
+        increaseLabel={t("budget.increase")}
+        inputProps={{ autoFocus: true }}
       />
-      <Button type="submit" size="sm" variant="primary" busy={save.isPending}>
-        {t("save")}
-      </Button>
-      <Button size="sm" onClick={onDone}>
-        {t("cancel")}
-      </Button>
+      <button
+        type="submit"
+        aria-label={t("save")}
+        title={t("save")}
+        disabled={!valid || save.isPending}
+        className={`${round} os-pressable bg-gradient-to-b from-[#3d9bff] to-accent text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.3),0_4px_10px_-4px_rgb(10_132_255/0.7)] hover:brightness-110`}
+      >
+        {save.isPending ? (
+          <Loader2 aria-hidden className="size-3.5 animate-spin" />
+        ) : (
+          <Check aria-hidden className="size-3.5" strokeWidth={3} />
+        )}
+      </button>
+      <button
+        type="button"
+        aria-label={t("cancel")}
+        title={t("cancel")}
+        onClick={onDone}
+        className={`${round} os-pressable bg-white/8 text-muted hover:bg-white/14 hover:text-fg`}
+      >
+        <X aria-hidden className="size-3.5" strokeWidth={2.5} />
+      </button>
+      {below ? (
+        <p id={warningId} role="status" className="basis-full pl-3 text-xs text-budget-warn">
+          {t("budget.belowSpent", { spent: eur(spent) })}
+        </p>
+      ) : null}
     </form>
   );
 }
@@ -97,36 +137,59 @@ export function ProjectHeader() {
       : project.status;
 
   return (
-    <header className="flex flex-wrap items-center gap-x-3 gap-y-2">
-      <Link to="/projects" className="text-sm text-muted hover:text-fg">
-        ← {t("nav.projects")}
+    <header className="flex flex-wrap items-center gap-x-3 gap-y-3">
+      <Link
+        to="/projects"
+        aria-label={t("nav.projects")}
+        title={t("nav.projects")}
+        className="os-pressable grid size-8 shrink-0 place-items-center rounded-full bg-white/8 text-muted shadow-[inset_0_1px_0_rgb(255_255_255/0.1)] hover:bg-white/14 hover:text-fg"
+      >
+        <ChevronLeft aria-hidden className="size-4.5" strokeWidth={2.5} />
       </Link>
-      <h1 className="text-xl font-semibold">{project.name}</h1>
-      <ModeBadge mode={project.execution_mode} onClick={() => setExplainMode(!explainMode)} />
-      <StatusBadge
-        status={project.status}
-        label={t(`status.${status}`, { defaultValue: project.status })}
-      />
-      <div className="flex items-center gap-1">
-        <BudgetBar spent={budget.spent} budget={budget.budget} />
+      <div className="min-w-0 flex-1">
+        <h1 className="truncate text-[22px] leading-tight font-semibold tracking-tight">
+          {project.name}
+        </h1>
+        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
+          <ModeBadge
+            tinted
+            mode={project.execution_mode}
+            onClick={() => setExplainMode(!explainMode)}
+          />
+          <span className="inline-flex items-center gap-1.5">
+            <StatusDot status={project.status} className="size-2" />
+            {t(`status.${status}`, { defaultValue: project.status })}
+          </span>
+          <span aria-hidden>·</span>
+          <ConnectionIndicator />
+        </div>
+      </div>
+      <div className="order-last flex basis-full items-center gap-1 rounded-full bg-black/20 py-1 pr-1 pl-3.5 shadow-[inset_0_1px_2px_rgb(0_0_0/0.25)] @2xl:order-none @2xl:basis-auto">
+        {editing ? null : (
+          <div className="min-w-0 flex-1 [&>div]:min-w-40">
+            <BudgetBar spent={budget.spent} budget={budget.budget} />
+          </div>
+        )}
         {member && !editing ? (
           <button
             type="button"
             aria-label={t("budget.edit")}
+            title={t("budget.edit")}
             onClick={() => setEditing(true)}
-            className="grid size-9 place-items-center rounded-card hover:bg-bg"
+            className="grid size-7 place-items-center rounded-full text-muted hover:bg-white/10 hover:text-fg"
           >
-            <Pencil aria-hidden className="size-4" />
+            <Pencil aria-hidden className="size-3.5" />
           </button>
         ) : null}
         {editing ? <BudgetEditor onDone={() => setEditing(false)} /> : null}
       </div>
-      <div className="ml-auto flex items-center gap-2">
-        <ConnectionIndicator />
+      <div className="flex items-center gap-2">
         {member && project.status === "draft" ? (
           <Button
+            size="sm"
             variant="primary"
-            icon={<Play aria-hidden className="size-4" />}
+            className="rounded-full px-3.5"
+            icon={<Play aria-hidden className="size-3.5" />}
             busy={action.isPending}
             onClick={() => action.mutate("start")}
           >
@@ -135,7 +198,9 @@ export function ProjectHeader() {
         ) : null}
         {member && (project.status === "running" || project.status === "waiting") ? (
           <Button
-            icon={<Pause aria-hidden className="size-4" />}
+            size="sm"
+            className="rounded-full px-3.5"
+            icon={<Pause aria-hidden className="size-3.5" />}
             onClick={() => setConfirmPause(true)}
           >
             {t("project.pause")}
@@ -143,8 +208,10 @@ export function ProjectHeader() {
         ) : null}
         {member && project.status === "paused" ? (
           <Button
+            size="sm"
             variant="primary"
-            icon={<Play aria-hidden className="size-4" />}
+            className="rounded-full px-3.5"
+            icon={<Play aria-hidden className="size-3.5" />}
             busy={action.isPending}
             onClick={() => action.mutate("resume")}
           >
@@ -153,7 +220,9 @@ export function ProjectHeader() {
         ) : null}
         {can(me.data, "admin") && project.status === "failed" ? (
           <Button
-            icon={<RotateCcw aria-hidden className="size-4" />}
+            size="sm"
+            className="rounded-full px-3.5"
+            icon={<RotateCcw aria-hidden className="size-3.5" />}
             busy={action.isPending}
             onClick={() => action.mutate("retry")}
           >
@@ -162,7 +231,7 @@ export function ProjectHeader() {
         ) : null}
       </div>
       {explainMode ? (
-        <p role="note" className="w-full rounded-card border border-line bg-surface p-3 text-sm">
+        <p role="note" className="os-pop w-full rounded-[14px] bg-white/6 px-4 py-3 text-sm">
           {t(`mode.${project.execution_mode}Help`)} {t("mode.changeOnlyDraft")}
         </p>
       ) : null}

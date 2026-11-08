@@ -83,7 +83,7 @@ export function ArtifactViewer({ artifactId }: { artifactId: string }) {
           <DiffView diff={diff.data.diff} />
         ) : null
       ) : (
-        <ArtifactContent content={a.content} data={a.data} />
+        <ArtifactContent content={a.content} data={a.data} name={a.name} />
       )}
     </div>
   );

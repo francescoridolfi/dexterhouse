@@ -43,16 +43,23 @@ test("create a project, follow it live and decide its gates", async ({ page }) =
   await expect(page.getByText(/Similar projects:/)).toBeVisible();
   await page.getByRole("button", { name: "Start", exact: true }).click();
 
-  // Project page: mode badge and budget always visible, live connection.
-  await expect(page.getByRole("heading", { name })).toBeVisible();
-  await expect(page.getByRole("button", { name: /SUPERVISED mode/ })).toBeVisible();
-  await expect(page.getByRole("meter", { name: "Budget used" })).toBeVisible();
-  await expect(page.getByText("live", { exact: true })).toBeVisible();
+  // Project page: mode badge and budget always visible, live connection. DexterOS keeps the
+  // Projects window open behind the project one, so assertions target the focused window.
+  const win = page.locator("section[data-focused]");
+  await expect(win).toHaveAttribute("data-app", "project");
+  await expect(win.getByRole("heading", { name })).toBeVisible();
+  await expect(win.getByRole("button", { name: /SUPERVISED mode/ })).toBeVisible();
+  await expect(win.getByRole("meter", { name: "Budget used" })).toBeVisible();
+  await expect(win.getByText("live", { exact: true })).toBeVisible();
 
-  // Back to the list: the project is there; open it again from the list.
-  await expect(page.getByText(/Open gate/i)).toBeVisible({ timeout: 90_000 });
-  await page.getByRole("link", { name: "Projects" }).first().click();
-  const row = page.getByRole("link", { name: new RegExp(name) });
+  // Back to the list (from the dock): the project is there; open it again from the list.
+  await expect(win.getByText(/Open gate/i)).toBeVisible({ timeout: 90_000 });
+  await page
+    .getByRole("navigation", { name: "Dock" })
+    .getByRole("link", { name: "Projects" })
+    .click();
+  await expect(win).toHaveAttribute("data-app", "projects");
+  const row = win.getByRole("link", { name: new RegExp(name) });
   await expect(row).toBeVisible();
   await row.click();
 

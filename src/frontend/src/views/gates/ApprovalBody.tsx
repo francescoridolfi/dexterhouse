@@ -47,7 +47,7 @@ function ArtifactTab({ artifact }: { artifact: Artifact }) {
           <DiffView diff={diff.data?.diff ?? ""} />
         )
       ) : (
-        <ArtifactContent content={artifact.content} data={artifact.data} />
+        <ArtifactContent content={artifact.content} data={artifact.data} name={artifact.name} />
       )}
     </div>
   );

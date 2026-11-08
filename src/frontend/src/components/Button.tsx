@@ -6,10 +6,13 @@ import { Spinner } from "./Feedback.tsx";
 type Variant = "primary" | "secondary" | "danger" | "ghost";
 
 const VARIANTS: Record<Variant, string> = {
-  primary: "bg-accent text-white hover:brightness-110",
-  secondary: "border border-line bg-surface text-fg hover:bg-bg",
-  danger: "bg-failed text-white hover:brightness-110",
-  ghost: "text-fg hover:bg-bg",
+  primary:
+    "bg-gradient-to-b from-[#3d9bff] to-accent text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.3),0_4px_12px_-4px_rgb(10_132_255/0.6)] hover:brightness-110",
+  secondary:
+    "border border-white/10 bg-white/8 text-fg shadow-[inset_0_1px_0_rgb(255_255_255/0.08)] hover:bg-white/14",
+  danger:
+    "bg-gradient-to-b from-[#ff6b61] to-[#e5352b] text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.25)] hover:brightness-110",
+  ghost: "text-fg hover:bg-white/10",
 };
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -37,7 +40,7 @@ export function Button({
       type={type}
       disabled={disabled || busy}
       aria-busy={busy || undefined}
-      className={`inline-flex items-center justify-center gap-2 rounded-card font-medium transition-[filter,background] duration-150 disabled:cursor-not-allowed disabled:opacity-50 ${height} ${VARIANTS[variant]} ${className}`}
+      className={`os-pressable inline-flex items-center justify-center gap-2 rounded-[10px] font-medium transition-[filter,background] duration-150 disabled:cursor-not-allowed disabled:opacity-50 ${height} ${VARIANTS[variant]} ${className}`}
       {...rest}
     >
       {busy ? <Spinner /> : icon}
