@@ -168,7 +168,7 @@ export function Window({ win, z, focused, onFocus, onClose, onMinimize, onZoom, 
     >
       <div
         aria-hidden
-        className={`glass-strong glass-rim absolute inset-0 rounded-[inherit] transition-opacity duration-300 ${focused ? "" : "opacity-80"}`}
+        className={`glass-strong glass-rim absolute inset-0 rounded-[inherit] ${focused ? "" : "glass-inactive"}`}
       />
       <header
         className="relative flex h-11 shrink-0 cursor-default items-center px-4 select-none"
