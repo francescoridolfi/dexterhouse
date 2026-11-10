@@ -91,6 +91,7 @@ export function Dock() {
 
   return (
     <nav
+      data-dock
       aria-label={t("os.dock")}
       onMouseMove={onMove}
       ref={nav}

@@ -10,6 +10,7 @@ import { useProjectStore } from "../store/projectStore.ts";
 import { APPS } from "./apps.ts";
 import { WindowBoundary } from "./WindowBoundary.tsx";
 import { WindowRoutes } from "./WindowRoutes.tsx";
+import { useWindowMotion } from "./useWindowMotion.ts";
 import { type Rect, type Win, DOCK_RESERVE, MENUBAR_H, clampRect } from "./windowStore.ts";
 
 type Mode = "move" | "e" | "s" | "se" | "w" | "sw";
@@ -80,6 +81,7 @@ export function Window({ win, z, focused, onFocus, onClose, onMinimize, onZoom, 
   const app = APPS[win.app];
   const Icon = app.icon;
   const content = useMemo(() => <Content path={win.path} />, [win.path]);
+  useWindowMotion(ref, win.app, win.maximized, win.minimized);
 
   const start = (event: PointerEvent, mode: Mode) => {
     if (event.button !== 0 || !ref.current) return;
@@ -160,10 +162,8 @@ export function Window({ win, z, focused, onFocus, onClose, onMinimize, onZoom, 
       data-focused={focused || undefined}
       onPointerDownCapture={focused ? undefined : onFocus}
       style={{ ...geometry, zIndex: z }}
-      className={`os-window-in absolute flex flex-col rounded-[18px] transition-[opacity,transform,visibility] duration-300 ease-(--ease-dh) max-md:inset-x-0! max-md:top-8! max-md:bottom-[88px]! max-md:h-auto! max-md:w-auto! max-md:rounded-none ${
-        win.minimized
-          ? "pointer-events-none invisible translate-y-[45vh] scale-[0.2] opacity-0"
-          : "visible"
+      className={`os-window-in absolute flex flex-col rounded-[18px] max-md:inset-x-0! max-md:top-8! max-md:bottom-[88px]! max-md:h-auto! max-md:w-auto! max-md:rounded-none ${
+        win.minimized ? "pointer-events-none invisible" : "visible"
       }`}
     >
       <div
