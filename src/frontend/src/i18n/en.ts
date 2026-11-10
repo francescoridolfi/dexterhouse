@@ -219,7 +219,7 @@ const projects = {
     budgetHelp: "The project pauses when it reaches its budget; you can raise it at any time.",
     optional: "optional",
     advancedHelp:
-      "Without a repository the code stays in the project workspace and can be downloaded.",
+      "Without a repository the code stays in the project workspace, which is removed 24 hours after the project completes.",
     title: "New project",
     name: "Name",
     brief: "Brief (Markdown)",
@@ -557,6 +557,7 @@ const packages = {
 
 const settings = {
   settings: {
+    cliAccept: "I accept my Claude plan terms for automated use",
     ownerOnly: "Only the owner can rename the organization.",
     slugLabel: "Slug",
     slugHelp: "Used in URLs and in the CLI; it cannot change.",
