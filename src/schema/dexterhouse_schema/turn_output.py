@@ -145,9 +145,19 @@ class TurnOutput(StrictModel):
         size = sum(_artifact_bytes(a) for a in self.artifacts)
         if size > MAX_CONTENT_BYTES:
             raise ValueError(f"artifacts total {size} bytes, limit {MAX_CONTENT_BYTES}")
+        ctx = turn_context(info)
+        # Kinds first: an artifact the agent may not produce must be reported as such, not
+        # through a verdict mismatch it cannot fix (e.g. a developer's test_report).
+        self._check_allowed_kinds(ctx)
         self._check_artifact_verdicts()
-        self._check_context(turn_context(info))
+        self._check_context(ctx)
         return self
+
+    def _check_allowed_kinds(self, ctx: TurnContext) -> None:
+        if ctx.allowed_kinds is not None:
+            bad = sorted({a.kind for a in self.artifacts} - ctx.allowed_kinds)
+            if bad:
+                raise ValueError(f"artifact kind(s) not in output_contract: {', '.join(bad)}")
 
     def _check_artifact_verdicts(self) -> None:
         for artifact in self.artifacts:
@@ -165,10 +175,6 @@ class TurnOutput(StrictModel):
                     self.verdict = report.verdict
 
     def _check_context(self, ctx: TurnContext) -> None:
-        if ctx.allowed_kinds is not None:
-            bad = sorted({a.kind for a in self.artifacts} - ctx.allowed_kinds)
-            if bad:
-                raise ValueError(f"artifact kind(s) not in output_contract: {', '.join(bad)}")
         if ctx.verdict == "none" and self.verdict is not None:
             raise ValueError("verdict is only allowed for reviewer and tester steps")
         if ctx.verdict in _VERDICTS and self.verdict not in _VERDICTS[ctx.verdict]:

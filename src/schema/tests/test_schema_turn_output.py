@@ -125,6 +125,13 @@ def test_context_allowed_kinds() -> None:
     validate_turn_output(EXAMPLE, ok)
 
 
+def test_disallowed_kind_is_reported_before_artifact_verdicts() -> None:
+    # A developer attaching a test_report (not in its contract, no verdict on its step) must
+    # be told the kind is not allowed, not to change a verdict it may not set.
+    developer = TurnContext(allowed_kinds=frozenset({"dev_notes"}), verdict="none")
+    invalid(report_turn(TEST_REPORT, None), "not in output_contract: test_report", developer)
+
+
 def test_context_verdict_rules() -> None:
     reviewer = TurnContext(verdict="review")
     validate_turn_output(review_turn(), reviewer)
