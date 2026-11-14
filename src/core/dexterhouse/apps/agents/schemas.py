@@ -59,6 +59,9 @@ class TurnInputs(_Model):
     artifacts: list[ArtifactInput] = Field(default_factory=list, description="Phase order.")
     notes: list[NoteInput] = Field(default_factory=list, description="Most recent first.")
     workspace_tree: str | None = None
+    code_graph_summary: str | None = Field(
+        default=None, description="workspace.graph summary; preferred over workspace_tree."
+    )
     memory_query: str | None = None
     room: str | None = None
     mode: Literal["supervised", "autonomous"] = "supervised"

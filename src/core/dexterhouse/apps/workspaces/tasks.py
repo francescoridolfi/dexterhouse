@@ -47,3 +47,13 @@ def deliver(project_id: str, phase_run_id: str) -> str:
     from dexterhouse.apps.workspaces import delivery
 
     return delivery.deliver(project_id, phase_run_id)
+
+
+@shared_task(name="dexterhouse.apps.workspaces.tasks.refresh_code_graph")
+def refresh_code_graph(project_id: str, turn_id: str | None = None, role: str = "") -> str | None:
+    import uuid
+
+    from dexterhouse.apps.workspaces import code_graph
+
+    artifact = code_graph.refresh(project_id, uuid.UUID(turn_id) if turn_id else None, role)
+    return str(artifact.id) if artifact else None

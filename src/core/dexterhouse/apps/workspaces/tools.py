@@ -5,7 +5,8 @@ The worker never reaches a workspace itself: it sends `runner.tool.list` / `runn
 to the runner, which talks MCP with the server inside the workspace (infra/runner_protocol.md).
 Without a live workspace the tools are unavailable for the turn (`workspace_not_ready`).
 Results are JSON for the agent; an output past 64 KB is saved as an artifact and the result
-carries its id; `git.commit` and `workspace.run_tests` also emit their catalogue events.
+carries its id; `git.commit` and `workspace.run_tests` also emit their catalogue events, and a
+commit queues a new version of the `code_graph` artifact.
 """
 
 import json
@@ -21,7 +22,7 @@ from dexterhouse.apps.agents.services.mcp_client import (
     interpolate,
 )
 from dexterhouse.apps.agents.services.packages import ToolBinding
-from dexterhouse.apps.workspaces import events, services
+from dexterhouse.apps.workspaces import code_graph, events, services
 from dexterhouse.apps.workspaces.client import get_client
 from dexterhouse_schema.runner import ServerSpec, ToolInvoke, ToolList, ToolResult
 
@@ -135,6 +136,9 @@ class RunnerTools:
             body["error"] = result.error.model_dump()
         elif tool == "git_commit":
             events.commit_created(self.turn, result)
+            code_graph.schedule_refresh(
+                self.turn.project_id, self.turn.id, self.turn.agent_instance.role
+            )
         return ToolOutcome(
             content=json.dumps(body, ensure_ascii=False, default=str),
             is_error=not result.ok,

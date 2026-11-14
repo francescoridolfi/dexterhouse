@@ -37,6 +37,7 @@ TIMEOUTS_S = {
     "runner.system.deliver": 180,
     "runner.system.commit_log": 30,
     "runner.system.tree": 30,
+    "runner.system.code_graph": 120,
 }
 GRACE_S = 15
 
@@ -130,7 +131,12 @@ class LocalRunnerClient:
             }
         elif task == "runner.system.commit_log":
             data = {"commits": []}
-        elif task in ("runner.tool.invoke", "runner.tool.list", "runner.system.tree"):
+        elif task in (
+            "runner.tool.invoke",
+            "runner.tool.list",
+            "runner.system.tree",
+            "runner.system.code_graph",
+        ):
             return ToolResult.failure("workspace_not_ready", "no runner in this setup")
         return ToolResult(
             ok=True, exit_code=0 if task == "runner.system.exit_check" else None, data=data
