@@ -39,6 +39,7 @@ STRUCTURED_KINDS: tuple[str, ...] = (
     "assumptions",
     "review",
     "test_report",
+    "code_graph",
 )
 #: Text artifact kinds: Markdown `content` following `agents/artifact_templates.md`.
 TEXT_KINDS: tuple[str, ...] = (

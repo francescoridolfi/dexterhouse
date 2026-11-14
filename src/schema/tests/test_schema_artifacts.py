@@ -271,3 +271,28 @@ def test_integration_command_must_match_stack() -> None:
     )
     other = TurnContext(stack_test_command="uv run pytest -q")
     invalid("test_report", {"scope": "integration"}, "stack.test_command", other)
+
+
+@pytest.mark.parametrize(
+    ("changes", "match"),
+    [
+        ({"schema": 2}, "schema"),
+        ({"commit": "HEAD"}, "pattern"),
+        ({"stats": {"files": 0, "symbols": 0, "edges": 0}}, "stats do not match"),
+        (
+            {"edges": [{"source": "file:nowhere.py", "target": "ext:x", "kind": "imports"}]},
+            "unknown nodes",
+        ),
+        ({"edges": [{"source": "a", "target": "b", "kind": "uses"}]}, "kind"),
+    ],
+)
+def test_code_graph_invariants(changes: dict[str, Any], match: str) -> None:
+    invalid("code_graph", changes, match)
+
+
+def test_code_graph_keeps_the_contract_keys() -> None:
+    data = validate_artifact("code_graph", EXAMPLES["code_graph"]).model_dump(mode="json")
+    assert data == EXAMPLES["code_graph"]
+    nodes = data["nodes"]
+    assert len({n["id"] for n in nodes}) == len(nodes)
+    assert {n["kind"] for n in nodes} == {"file", "module", "symbol", "external"}
