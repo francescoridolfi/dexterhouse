@@ -214,10 +214,18 @@ function ProfileGroup({
     api_key_env: profile.configured ? (profile.api_key_env ?? "") : "",
   };
   const [form, setForm] = useState(initial);
+  const initialTerms = profile.options.acknowledge_cli_terms === true;
+  const [terms, setTerms] = useState(initialTerms);
+  const cli = form.provider === "anthropic-cli";
   const [errors, setErrors] = useState<Record<string, string>>({});
   const save = useMutation({
+    // The PUT replaces the options: keep the ones already set (temperature, max_tokens…).
     mutationFn: () =>
-      api.saveModelProfile(profile.profile, { ...form, is_local: form.provider === "ollama" }),
+      api.saveModelProfile(profile.profile, {
+        ...form,
+        is_local: form.provider === "ollama",
+        options: { ...profile.options, ...(cli ? { acknowledge_cli_terms: terms } : {}) },
+      }),
     onSuccess: () => {
       setErrors({});
       toastSuccess(t("settings.saved"));
@@ -228,9 +236,9 @@ function ProfileGroup({
       toastError(t("settings.saveFailed"), error);
     },
   });
-  const dirty = (Object.keys(initial) as (keyof typeof initial)[]).some(
-    (k) => form[k] !== initial[k],
-  );
+  const dirty =
+    (Object.keys(initial) as (keyof typeof initial)[]).some((k) => form[k] !== initial[k]) ||
+    (cli && terms !== initialTerms);
   const status = profileTone(profile);
   const strongMissing = profile.profile === "strong" && status.tone === "error";
   const set = (key: keyof typeof initial) => (e: { target: { value: string } }) =>
@@ -287,6 +295,16 @@ function ProfileGroup({
             ))}
           </InlineSelect>
         </Row>
+        {cli ? (
+          <Row label={t("settings.cliAccept")} description={t("settings.cliTerms")}>
+            <Switch
+              checked={terms}
+              disabled={!admin}
+              label={t("settings.cliAccept")}
+              onChange={setTerms}
+            />
+          </Row>
+        ) : null}
         <Row
           label={t("settings.model")}
           htmlFor={`${id}-model`}
@@ -347,8 +365,11 @@ function ProfileGroup({
         <SaveBar
           dirty={dirty}
           busy={save.isPending}
-          disabled={!form.provider || !form.model}
-          onDiscard={() => setForm(initial)}
+          disabled={!form.provider || !form.model || (cli && !terms)}
+          onDiscard={() => {
+            setForm(initial);
+            setTerms(initialTerms);
+          }}
         />
       ) : null}
     </form>
