@@ -14,17 +14,18 @@ updates:
   - package-ecosystem: npm
     directory: /src/frontend
     schedule: { interval: weekly, day: monday }
-    # Minor/patch grouped; other majors arrive one per pull request, except
-    # coupled majors (peer ranges) that must move together. First match wins.
+    # Minor/patch grouped; other majors arrive one per pull request. Packages coupled by
+    # peer ranges get their own group (every update type) and are excluded from `frontend`:
+    # a group claims its packages even for update types it filters out.
     groups:
       react:
         patterns: ["react", "react-dom", "@types/react", "@types/react-dom", "@react-three/*"]
-        update-types: [major]
       i18n:
         patterns: ["i18next", "react-i18next"]
-        update-types: [major]
       frontend:
         patterns: ["*"]
+        exclude-patterns:
+          ["react", "react-dom", "@types/react", "@types/react-dom", "@react-three/*", "i18next", "react-i18next"]
         update-types: [minor, patch]
     # TypeScript 7 is blocked by typescript-eslint 8 (typescript <6.1): drop when it is supported.
     ignore:
