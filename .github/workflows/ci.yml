@@ -48,7 +48,7 @@ jobs:
           --health-cmd "pg_isready -U dexterhouse" --health-interval 5s
           --health-timeout 5s --health-retries 20
       redis:
-        image: redis:7.4-alpine
+        image: redis:8.0-alpine@sha256:5f61955be8ab2ccee9372b84ae4d4da2e2b156f87281e3f218544055e7ee04d4
         ports: ["6379:6379"]
         options: >-
           --health-cmd "redis-cli ping" --health-interval 5s
@@ -110,7 +110,7 @@ jobs:
           --health-cmd "pg_isready -U dexterhouse" --health-interval 5s
           --health-timeout 5s --health-retries 20
       redis:
-        image: redis:7.4-alpine
+        image: redis:8.0-alpine@sha256:5f61955be8ab2ccee9372b84ae4d4da2e2b156f87281e3f218544055e7ee04d4
         ports: ["6379:6379"]
         options: >-
           --health-cmd "redis-cli ping" --health-interval 5s
@@ -149,7 +149,7 @@ jobs:
           --health-cmd "pg_isready -U dexterhouse" --health-interval 5s
           --health-timeout 5s --health-retries 20
       redis:
-        image: redis:7.4-alpine
+        image: redis:8.0-alpine@sha256:5f61955be8ab2ccee9372b84ae4d4da2e2b156f87281e3f218544055e7ee04d4
         ports: ["6379:6379"]
         options: >-
           --health-cmd "redis-cli ping" --health-interval 5s
