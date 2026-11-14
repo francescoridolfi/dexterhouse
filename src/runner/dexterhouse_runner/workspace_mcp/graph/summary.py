@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""The short map of the graph: size, entry points, main modules, god nodes, communities.
+"""The short map: size, how to query, entry points, modules, god nodes, communities.
 
 Lines are added in that order while they fit `max_chars`, so a smaller budget keeps the
 most useful part; the context builder gives it its `tree` budget.
@@ -77,6 +77,7 @@ def render_summary(index: "GraphIndex", max_chars: int = 6000) -> str:
     )[:TOP]
     sections: list[list[str]] = [
         [head],
+        [HINT],
         ["Entry points: " + ", ".join(_where(index, e) for e in index.entry_points[:8])]
         if index.entry_points
         else [],
@@ -90,7 +91,6 @@ def render_summary(index: "GraphIndex", max_chars: int = 6000) -> str:
         ]
         if externals
         else [],
-        [HINT],
     ]
     out: list[str] = []
     used = 0
