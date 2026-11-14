@@ -93,6 +93,16 @@ decisions without reading every document. Without an embedder the memory is off 
 read artifacts directly. After changing the `embed` model run
 `docker compose exec web dexterhouse-manage memory reindex --project <project_id>` (or `--all`).
 
+## Code graph
+
+Inside the workspace, agents read a dependency graph of the code before opening files: the
+`workspace.graph` tool (developer, reviewer, tester, architect) answers with a map of the
+project (main modules, most connected files and symbols, entry points), the neighbours of a
+file or symbol, the path between two, and the file and line of a name. It is built from the
+code itself, without any model: Python through its syntax tree, JS/TS, Go and Java through
+their imports and declarations. Each agent commit saves it as the `code_graph` artifact
+(`code_graph.json`), and its summary opens the context of every turn in the workspace.
+
 ## Data residency
 
 A project with `data_residency: local` may only use providers marked local (Ollama, or an
