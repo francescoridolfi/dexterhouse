@@ -10,7 +10,7 @@ The runner never imports the core: both sides validate these payloads. Queues: `
 import uuid
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field, StringConstraints
 
 PROTOCOL_SCHEMA = 1
 RUNNER_QUEUE = "runner"
@@ -39,6 +39,33 @@ WorkspaceStatus = Literal[
 ]
 DeliveryMode = Literal["push_main", "pull_request"]
 Branch = Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,119}$")]
+
+
+def _ref(value: str) -> str:
+    if ".." in value:
+        raise ValueError("a ref, not a range")
+    return value
+
+
+def _repo_path(value: str) -> str:
+    parts = value.split("/")
+    if value.startswith("/") or any(p in ("", ".", "..") for p in parts):
+        raise ValueError("a relative path inside the repository")
+    return value
+
+
+#: A branch, tag, `HEAD` or commit id; never an option (`-…`) or a range (`a..b`).
+Ref = Annotated[
+    str,
+    StringConstraints(pattern=r"^[A-Za-z0-9][A-Za-z0-9._/-]{0,119}$"),
+    AfterValidator(_ref),
+]
+#: A path inside the repository: relative, no empty, `.` or `..` segment, no control chars.
+RepoPath = Annotated[
+    str, StringConstraints(pattern=r"^[^\x00-\x1f]{1,1024}$"), AfterValidator(_repo_path)
+]
+#: Largest file `runner.system.read_file` returns (the UI is a viewer, not a download).
+READ_FILE_MAX = 1024 * 1024
 
 
 class Message(BaseModel):
@@ -161,6 +188,23 @@ class CodeGraph(Message):
     summary_chars: Annotated[int, Field(ge=500, le=60_000)] = 6000
 
 
+class LsTree(Message):
+    """Every file of the repository at `ref` (read-only: no turn, no checkout)."""
+
+    workspace_id: uuid.UUID
+    ref: Ref = "HEAD"
+    max_entries: int = Field(default=20_000, ge=1, le=50_000)
+
+
+class ReadFile(Message):
+    """One file at `ref`; binaries and files past `max_bytes` come back without content."""
+
+    workspace_id: uuid.UUID
+    path: RepoPath
+    ref: Ref = "HEAD"
+    max_bytes: int = Field(default=512 * 1024, ge=1, le=READ_FILE_MAX)
+
+
 # runner -> core (results and callbacks) ---------------------------------------------------
 
 
@@ -226,6 +270,8 @@ RUNNER_TASKS: dict[str, type[Message]] = {
     "runner.system.commit_log": CommitLog,
     "runner.system.tree": Tree,
     "runner.system.code_graph": CodeGraph,
+    "runner.system.ls_tree": LsTree,
+    "runner.system.read_file": ReadFile,
 }
 CALLBACK_TASKS: dict[str, type[Message]] = {
     "core.runner.workspace_changed": WorkspaceChanged,

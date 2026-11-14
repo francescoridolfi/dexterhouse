@@ -13,6 +13,7 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("", include("dexterhouse.apps.workspaces.urls")),
     path("api/v1/", include("dexterhouse.apps.projects.urls")),
+    path("api/v1/", include("dexterhouse.apps.workspaces.api_urls")),
     path("api/v1/", include("dexterhouse.apps.workflows.urls")),
     path("api/v1/", include("dexterhouse.apps.accounts.urls")),
     path("api/v1/", include("dexterhouse.apps.events.urls")),

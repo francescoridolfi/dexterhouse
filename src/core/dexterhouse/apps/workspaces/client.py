@@ -38,6 +38,8 @@ TIMEOUTS_S = {
     "runner.system.commit_log": 30,
     "runner.system.tree": 30,
     "runner.system.code_graph": 120,
+    "runner.system.ls_tree": 20,
+    "runner.system.read_file": 20,
 }
 GRACE_S = 15
 
@@ -136,6 +138,8 @@ class LocalRunnerClient:
             "runner.tool.list",
             "runner.system.tree",
             "runner.system.code_graph",
+            "runner.system.ls_tree",
+            "runner.system.read_file",
         ):
             return ToolResult.failure("workspace_not_ready", "no runner in this setup")
         return ToolResult(

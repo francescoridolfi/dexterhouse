@@ -84,6 +84,7 @@ def deliver(project_id: str | uuid.UUID, phase_run_id: str | uuid.UUID) -> str:
                 "remote_url": project.remote_repo_url,
                 "commit": str(data.get("commit", "")),
                 "pr_url": data.get("pr_url"),
+                "branch": data.get("branch") or message.branch_name or message.base,
             },
         )
         logger.info(

@@ -96,6 +96,7 @@ class FakeDocker(DockerManager):
             env={**__import__("os").environ, **(env or {})},
             capture_output=True,
             text=True,
+            errors="replace",  # like DockerManager.exec
             check=False,
         )
         return done.returncode, done.stdout, done.stderr

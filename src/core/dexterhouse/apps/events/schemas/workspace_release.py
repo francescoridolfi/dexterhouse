@@ -157,6 +157,7 @@ class ReleaseDelivered(EventPayload):
     remote_url: str
     commit: str
     pr_url: str | None = None
+    branch: str | None = None
 
 
 class ReleaseFailed(EventPayload):

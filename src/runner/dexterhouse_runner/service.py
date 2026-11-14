@@ -18,7 +18,7 @@ from typing import Any
 import structlog
 from docker.errors import DockerException
 
-from dexterhouse_runner import __version__, metrics
+from dexterhouse_runner import __version__, metrics, repo_read
 from dexterhouse_runner.callbacks import Callbacks
 from dexterhouse_runner.config import RunnerSettings
 from dexterhouse_runner.delivery import Delivery
@@ -33,7 +33,9 @@ from dexterhouse_schema.runner import (
     Deliver,
     ExitCheck,
     Heartbeat,
+    LsTree,
     Merge,
+    ReadFile,
     SecretsBlocked,
     ServerSpec,
     ToolError,
@@ -111,6 +113,8 @@ TASK_METHODS = {
     "runner.system.commit_log": "commit_log",
     "runner.system.tree": "tree",
     "runner.system.code_graph": "code_graph",
+    "runner.system.ls_tree": "ls_tree",
+    "runner.system.read_file": "read_file",
 }
 
 
@@ -526,7 +530,15 @@ class RunnerService:
             for line in out.splitlines():
                 sha, author, date, subject = [*line.split("\x1f"), "", "", ""][:4]
                 commits.append({"commit": sha, "author": author, "date": date, "message": subject})
-            return ToolResult(ok=True, data={"commits": commits})
+            return ToolResult(
+                ok=True,
+                data={
+                    "commits": commits,
+                    "branch": repo_read.current_branch(
+                        lambda argv: self.docker.exec(msg.workspace_id, argv, env=GIT_ENV)
+                    ),
+                },
+            )
 
         return self._system("commit_log", run)
 
@@ -552,6 +564,31 @@ class RunnerService:
             return ToolResult(ok=True, data=data)
 
         return self._system("code_graph", run)
+
+    def _reader(self, ws: uuid.UUID) -> repo_read.Exec:
+        self.docker.running(ws)
+        return lambda argv: self.docker.exec(ws, argv, env=GIT_ENV)
+
+    def ls_tree(self, msg: LsTree) -> ToolResult:
+        """The UI's file tree: read-only plumbing, not a tool call (no turn, no MCP)."""
+        return self._system(
+            "ls_tree",
+            lambda: ToolResult(
+                ok=True,
+                data=repo_read.ls_tree(self._reader(msg.workspace_id), msg.ref, msg.max_entries),
+            ),
+        )
+
+    def read_file(self, msg: ReadFile) -> ToolResult:
+        return self._system(
+            "read_file",
+            lambda: ToolResult(
+                ok=True,
+                data=repo_read.read_file(
+                    self._reader(msg.workspace_id), msg.ref, msg.path, msg.max_bytes
+                ),
+            ),
+        )
 
     def deliver(self, msg: Deliver) -> ToolResult:
         def run() -> ToolResult:

@@ -35,6 +35,7 @@ curl -H "Authorization: Bearer $DH_TOKEN" http://localhost/api/v1/projects
 |---|---|
 | Projects | `GET/POST /projects`, `GET/PATCH/DELETE /projects/{id}`, `POST /projects/{id}/start\|pause\|resume\|retry`, `GET /projects/{id}/snapshot` |
 | Artifacts, notes | `GET/POST /projects/{id}/artifacts`, `GET /artifacts/{id}`, `/versions`, `/diff`; `GET/POST /projects/{id}/notes`, `DELETE /notes/{id}` |
+| Code (read-only) | `GET /projects/{id}/code/tree?ref=`, `/code/file?path=&ref=`, `/code/log?ref=&limit=`, `/code/location` |
 | Workflow | `GET /projects/{id}/phases`, `GET /phases/{id}`, `POST /phases/{id}/skip`, `GET /projects/{id}/tasks`, `GET /tasks/{id}`, `POST /tasks/{id}/cancel` |
 | Gates | `GET /gates?status=open` (inbox), `GET /projects/{id}/gates`, `GET /gates/{id}`, `POST /gates/{id}/decide` |
 | Agents | `GET /projects/{id}/agents`, `/projects/{id}/turns`, `GET /agents/{id}`, `/agents/{id}/turns`, `GET /turns/{id}` |
@@ -56,6 +57,12 @@ curl -X POST -H "Authorization: Bearer $DH_TOKEN" -H 'Content-Type: application/
 Approvals take `approve`, `approve_with_comments` or `reject` (a comment is required except
 for `approve`); questions take `{"answers": [{"question_id", "answer"}]}`; escalations take
 `retry`, `accept` or `drop`. Deciding twice is a `409`.
+
+The code endpoints read the project's workspace through the runner with read-only git
+plumbing (no agent turn, no checkout). `ref` is a branch, a tag, `HEAD` (default) or a commit
+id; files over 512 KB and binaries come back without `content`. Without a live workspace
+they answer `503 workspace-unavailable`; `/code/location` still lists the delivered releases
+(branch, pull request) from the `release.delivered` events.
 
 ## Conventions
 
