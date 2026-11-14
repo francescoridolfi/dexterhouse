@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Window manager state. One store per <Desktop> (tests mount many). The URL always mirrors
-// the focused window: `visit(path)` is called on every location change.
+// the focused window: `visit(path)` is called on every location change. Windows are keyed
+// by `windowKey(path)`: the app, or `app:instance` for apps with one window per project.
 import { createStore } from "zustand/vanilla";
 
-import { APPS, type AppId, appFor } from "./apps.ts";
+import { APPS, type AppId, appFor, windowKey } from "./apps.ts";
 
 export interface Rect {
   x: number;
@@ -13,26 +14,31 @@ export interface Rect {
 }
 
 export interface Win {
+  id: string;
   app: AppId;
   path: string;
   rect: Rect;
   minimized: boolean;
   maximized: boolean;
+  /** Closed when the focus moves to another window (wizards, pickers). */
+  transient: boolean;
 }
 
 export interface WindowState {
-  windows: Partial<Record<AppId, Win>>;
-  /** Stacking order, bottom → top. */
-  order: AppId[];
-  focused: AppId | null;
+  windows: Partial<Record<string, Win>>;
+  /** Stacking order (window ids), bottom → top. */
+  order: string[];
+  focused: string | null;
   visit: (path: string) => void;
-  focus: (app: AppId) => void;
-  close: (app: AppId) => void;
-  minimize: (app: AppId) => void;
-  toggleMaximize: (app: AppId) => void;
-  setRect: (app: AppId, rect: Rect, persist?: boolean) => void;
+  focus: (id: string) => void;
+  close: (id: string) => void;
+  minimize: (id: string) => void;
+  toggleMaximize: (id: string) => void;
+  setRect: (id: string, rect: Rect, persist?: boolean) => void;
   /** The window that should get the focus next (topmost visible), if any. */
-  topmost: (except?: AppId) => Win | null;
+  topmost: (except?: string) => Win | null;
+  /** The most recently raised window of `app`. */
+  latest: (app: AppId) => Win | null;
 }
 
 export const MENUBAR_H = 32;
@@ -40,6 +46,7 @@ export const DOCK_RESERVE = 92;
 export const MIN_W = 380;
 export const MIN_H = 260;
 const KEY = "dh.os.geometry";
+const CASCADE = 28;
 
 function loadGeometry(): Partial<Record<AppId, Rect>> {
   try {
@@ -76,15 +83,17 @@ export function clampRect(rect: Rect): Rect {
   };
 }
 
-function initialRect(app: AppId, cascade: number): Rect {
+/** `siblings`: open windows of the same app, so a second project window does not cover the first. */
+function initialRect(app: AppId, cascade: number, siblings: number): Rect {
   const saved = loadGeometry()[app];
-  if (saved) return clampRect(saved);
+  const shift = siblings * CASCADE;
+  if (saved) return clampRect({ ...saved, x: saved.x + shift, y: saved.y + shift });
   const vp = viewport();
   const { size } = APPS[app];
   const avail = vp.h - MENUBAR_H - DOCK_RESERVE;
   const w = Math.min(size.w, vp.w - 48);
   const h = Math.min(size.h, avail - 24);
-  const step = (cascade % 6) * 28;
+  const step = (cascade % 6) * CASCADE + shift;
   return clampRect({
     w,
     h,
@@ -100,81 +109,94 @@ export function createWindowStore(path: string) {
     focused: null,
 
     visit: (next) => {
-      const app = appFor(next);
+      const id = windowKey(next);
       const { windows, order, focused } = get();
       const rest = { ...windows };
       let stack = order;
-      if (focused && focused !== app && APPS[focused].transient) {
+      if (focused && focused !== id && rest[focused]?.transient) {
         delete rest[focused];
-        stack = stack.filter((id) => id !== focused);
+        stack = stack.filter((key) => key !== focused);
       }
-      if (app === null) {
+      if (id === null) {
         set({ windows: rest, order: stack, focused: null });
         return;
       }
-      const current = rest[app];
-      rest[app] = current
+      const app = appFor(next) as AppId;
+      const current = rest[id];
+      const siblings = stack.filter((key) => rest[key]?.app === app).length;
+      rest[id] = current
         ? { ...current, path: next, minimized: false }
         : {
+            id,
             app,
             path: next,
-            rect: initialRect(app, stack.length),
+            rect: initialRect(app, stack.length, siblings),
             minimized: false,
             maximized: false,
+            transient: Boolean(APPS[app].transient) || (!!APPS[app].instance && id === app),
           };
-      set({ windows: rest, order: [...stack.filter((id) => id !== app), app], focused: app });
+      set({ windows: rest, order: [...stack.filter((key) => key !== id), id], focused: id });
     },
 
-    focus: (app) =>
+    focus: (id) =>
       set(({ order, windows }) => {
-        const win = windows[app];
+        const win = windows[id];
         if (!win) return {};
         return {
-          order: [...order.filter((id) => id !== app), app],
-          focused: app,
-          windows: { ...windows, [app]: { ...win, minimized: false } },
+          order: [...order.filter((key) => key !== id), id],
+          focused: id,
+          windows: { ...windows, [id]: { ...win, minimized: false } },
         };
       }),
 
-    close: (app) =>
+    close: (id) =>
       set(({ windows, order, focused }) => {
         const rest = { ...windows };
-        delete rest[app];
+        delete rest[id];
         return {
           windows: rest,
-          order: order.filter((id) => id !== app),
-          focused: focused === app ? null : focused,
+          order: order.filter((key) => key !== id),
+          focused: focused === id ? null : focused,
         };
       }),
 
-    minimize: (app) =>
+    minimize: (id) =>
       set(({ windows, focused }) => {
-        const win = windows[app];
+        const win = windows[id];
         if (!win) return {};
         return {
-          windows: { ...windows, [app]: { ...win, minimized: true } },
-          focused: focused === app ? null : focused,
+          windows: { ...windows, [id]: { ...win, minimized: true } },
+          focused: focused === id ? null : focused,
         };
       }),
 
-    toggleMaximize: (app) =>
+    toggleMaximize: (id) =>
       set(({ windows }) => {
-        const win = windows[app];
-        return win ? { windows: { ...windows, [app]: { ...win, maximized: !win.maximized } } } : {};
+        const win = windows[id];
+        return win ? { windows: { ...windows, [id]: { ...win, maximized: !win.maximized } } } : {};
       }),
 
-    setRect: (app, rect, persist = false) => {
-      const win = get().windows[app];
+    setRect: (id, rect, persist = false) => {
+      const win = get().windows[id];
       if (!win) return;
-      set({ windows: { ...get().windows, [app]: { ...win, rect, maximized: false } } });
-      if (persist) saveGeometry(app, rect);
+      set({ windows: { ...get().windows, [id]: { ...win, rect, maximized: false } } });
+      if (persist) saveGeometry(win.app, rect);
     },
 
     topmost: (except) => {
       const { order, windows } = get();
       for (let i = order.length - 1; i >= 0; i -= 1) {
         const win = windows[order[i]!];
-        if (win && !win.minimized && win.app !== except) return win;
+        if (win && !win.minimized && win.id !== except) return win;
+      }
+      return null;
+    },
+
+    latest: (app) => {
+      const { order, windows } = get();
+      for (let i = order.length - 1; i >= 0; i -= 1) {
+        const win = windows[order[i]!];
+        if (win?.app === app) return win;
       }
       return null;
     },

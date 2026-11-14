@@ -1,15 +1,19 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Artifact viewer with version diff (Artifacts tab, 3D documents and test report).
 import { useQuery } from "@tanstack/react-query";
-import { Download } from "lucide-react";
+import { AppWindow, Download } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Link } from "react-router-dom";
 
 import { api } from "../../../api/endpoints.ts";
 import { keys } from "../../../api/queries.ts";
 import type { Artifact } from "../../../api/types.ts";
 import { ErrorState, LoadingBlock } from "../../../components/Feedback.tsx";
 import { dateTime } from "../../../utils/format.ts";
+import { graphHref } from "../../code/links.ts";
+import { CodeGraphView } from "../../graph/CodeGraphView.tsx";
+import { CODE_GRAPH_KIND, parseCodeGraph } from "../../graph/graphModel.ts";
 import { ArtifactContent, DiffView } from "../../shared/DiffView.tsx";
 
 function downloadHref(artifact: Artifact): string {
@@ -38,6 +42,7 @@ export function ArtifactViewer({ artifactId }: { artifactId: string }) {
     return <ErrorState error={artifact.error} onRetry={() => void artifact.refetch()} />;
   const a = artifact.data;
   const older = (versions.data?.results ?? []).filter((v) => v.version < a.version);
+  const graph = a.kind === CODE_GRAPH_KIND ? parseCodeGraph(a.data) : null;
   return (
     <div className="space-y-3 p-4">
       <div className="flex flex-wrap items-center gap-2">
@@ -50,10 +55,19 @@ export function ArtifactViewer({ artifactId }: { artifactId: string }) {
             date: dateTime(a.created_at),
           })}
         </span>
+        {graph ? (
+          <Link
+            to={graphHref(a.id)}
+            className="ml-auto inline-flex min-h-9 items-center gap-1 text-sm text-accent"
+          >
+            <AppWindow aria-hidden className="size-4" />
+            {t("graph.openWindow")}
+          </Link>
+        ) : null}
         <a
           href={downloadHref(a)}
           download={a.name.split("/").pop()}
-          className="ml-auto inline-flex min-h-9 items-center gap-1 text-sm text-accent"
+          className={`${graph ? "" : "ml-auto"} inline-flex min-h-9 items-center gap-1 text-sm text-accent`}
         >
           <Download aria-hidden className="size-4" />
           {t("artifacts.download")}
@@ -82,6 +96,8 @@ export function ArtifactViewer({ artifactId }: { artifactId: string }) {
         ) : diff.data ? (
           <DiffView diff={diff.data.diff} />
         ) : null
+      ) : graph ? (
+        <CodeGraphView graph={graph} projectId={a.project} />
       ) : (
         <ArtifactContent content={a.content} data={a.data} name={a.name} />
       )}

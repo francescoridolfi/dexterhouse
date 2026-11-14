@@ -3,6 +3,8 @@
 // `useParams`/`useLocation` inside a page read the window path, not the browser URL.
 import { Route, Routes } from "react-router-dom";
 
+import { CodePage } from "../views/code/CodePage.tsx";
+import { GraphPage } from "../views/graph/GraphPage.tsx";
 import { InboxPage } from "../views/inbox/InboxPage.tsx";
 import { MarketplacePage, PackagesPage } from "../views/packages/PackagesPage.tsx";
 import { ProjectPage } from "../views/project/ProjectPage.tsx";
@@ -18,6 +20,9 @@ export function WindowRoutes({ location }: { location: string }) {
       <Route path="/projects/new" element={<NewProjectPage />} />
       <Route path="/projects/:projectId" element={<ProjectPage />} />
       <Route path="/projects/:projectId/:tab" element={<ProjectPage />} />
+      <Route path="/code" element={<CodePage />} />
+      <Route path="/code/:projectId" element={<CodePage />} />
+      <Route path="/graph/:artifactId" element={<GraphPage />} />
       <Route path="/inbox" element={<InboxPage />} />
       <Route path="/packages" element={<PackagesPage />} />
       <Route path="/packages/marketplace" element={<MarketplacePage />} />

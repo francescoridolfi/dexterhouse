@@ -10,12 +10,14 @@ import { useNow } from "../utils/useNow.ts";
 import { APPS, type AppId } from "./apps.ts";
 import { useWindows } from "./context.ts";
 import { Menu, type MenuEntry } from "./Menu.tsx";
+import { useWindowLabel } from "./titles.ts";
 
 export interface DesktopActions {
   open: (app: AppId) => void;
-  close: (app: AppId) => void;
-  minimize: (app: AppId) => void;
-  zoom: (app: AppId) => void;
+  focus: (id: string) => void;
+  close: (id: string) => void;
+  minimize: (id: string) => void;
+  zoom: (id: string) => void;
   closeAll: () => void;
   logout: () => void;
 }
@@ -45,6 +47,8 @@ export function MenuBar({ actions }: { actions: DesktopActions }) {
   const focused = useWindows((s) => s.focused);
   const order = useWindows((s) => s.order);
   const windows = useWindows((s) => s.windows);
+  const label = useWindowLabel();
+  const focusedWin = focused ? windows[focused] : undefined;
   const language = i18n.language === "it" ? "it" : "en";
 
   const system: MenuEntry[] = [
@@ -86,12 +90,19 @@ export function MenuBar({ actions }: { actions: DesktopActions }) {
     "separator",
     ...(order.length === 0
       ? [{ heading: t("os.window.none") }]
-      : order.map((id) => ({
-          label: t(APPS[id].title),
-          checked: id === focused,
-          hint: windows[id]?.minimized ? "—" : undefined,
-          onSelect: () => actions.open(id),
-        }))),
+      : order.flatMap((id) => {
+          const win = windows[id];
+          return win
+            ? [
+                {
+                  label: label(win),
+                  checked: id === focused,
+                  hint: win.minimized ? "—" : undefined,
+                  onSelect: () => actions.focus(id),
+                },
+              ]
+            : [];
+        })),
   ];
 
   return (
@@ -101,7 +112,9 @@ export function MenuBar({ actions }: { actions: DesktopActions }) {
         entries={system}
         trigger={<img src="/favicon.svg" alt="" className="size-4" />}
       />
-      <span className="px-2 font-semibold">{focused ? t(APPS[focused].title) : "DexterHouse"}</span>
+      <span className="px-2 font-semibold">
+        {focusedWin ? t(APPS[focusedWin.app].title) : "DexterHouse"}
+      </span>
       <Menu label={t("os.window.menu")} entries={windowMenu} trigger={t("os.window.menu")} />
       <div className="ml-auto flex items-center gap-0.5">
         <Link

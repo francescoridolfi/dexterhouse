@@ -17,6 +17,11 @@ export const keys = {
   artifact: (id: string) => ["artifact", id] as const,
   versions: (id: string) => ["artifact", id, "versions"] as const,
   diff: (id: string, against: number) => ["artifact", id, "diff", against] as const,
+  codeTree: (id: string, ref: string) => ["project", id, "code", "tree", ref] as const,
+  codeFile: (id: string, ref: string, path: string) =>
+    ["project", id, "code", "file", ref, path] as const,
+  codeLog: (id: string, ref: string) => ["project", id, "code", "log", ref] as const,
+  codeLocation: (id: string) => ["project", id, "code", "location"] as const,
   notes: (id: string) => ["project", id, "notes"] as const,
   agents: (id: string) => ["project", id, "agents"] as const,
   turns: (id: string) => ["project", id, "turns"] as const,

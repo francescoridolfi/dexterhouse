@@ -3,8 +3,10 @@
 import {
   Bell,
   Briefcase,
+  CodeXml,
   FolderKanban,
   type LucideIcon,
+  Network,
   Package,
   Plus,
   Settings,
@@ -12,7 +14,15 @@ import {
 } from "lucide-react";
 
 export type AppId =
-  "projects" | "newProject" | "project" | "inbox" | "packages" | "settings" | "system";
+  | "projects"
+  | "newProject"
+  | "project"
+  | "code"
+  | "graph"
+  | "inbox"
+  | "packages"
+  | "settings"
+  | "system";
 
 export interface AppDef {
   id: AppId;
@@ -27,7 +37,15 @@ export interface AppDef {
   transient?: boolean;
   /** Shown in the dock even when closed. */
   pinned?: boolean;
+  /**
+   * One window per instance (a project, an artifact) instead of one per app: the instance
+   * read from the path. A path without one (a picker) gets a transient window.
+   */
+  instance?: (pathname: string) => string | null;
 }
+
+/** `/code/<id>/…` -> `<id>`. */
+const secondSegment = (pathname: string) => pathname.split("/")[2] || null;
 
 export const APPS: Record<AppId, AppDef> = {
   projects: {
@@ -55,6 +73,25 @@ export const APPS: Record<AppId, AppDef> = {
     tint: ["#c08cff", "#7039e0"],
     defaultPath: "/projects",
     size: { w: 1240, h: 820 },
+  },
+  code: {
+    id: "code",
+    title: "os.app.code",
+    icon: CodeXml,
+    tint: ["#64d2ff", "#0a6cd6"],
+    defaultPath: "/code",
+    size: { w: 1180, h: 760 },
+    pinned: true,
+    instance: secondSegment,
+  },
+  graph: {
+    id: "graph",
+    title: "os.app.graph",
+    icon: Network,
+    tint: ["#5ee0c0", "#11806a"],
+    defaultPath: "/projects",
+    size: { w: 1120, h: 760 },
+    instance: secondSegment,
   },
   inbox: {
     id: "inbox",
@@ -93,7 +130,7 @@ export const APPS: Record<AppId, AppDef> = {
   },
 };
 
-export const DOCK: AppId[] = ["projects", "inbox", "packages", "settings"];
+export const DOCK: AppId[] = ["projects", "code", "inbox", "packages", "settings"];
 
 /** The app that owns a path; `null` is the bare desktop. */
 export function appFor(path: string): AppId | null {
@@ -102,8 +139,19 @@ export function appFor(path: string): AppId | null {
   if (pathname === "/projects") return "projects";
   if (pathname === "/projects/new") return "newProject";
   if (pathname.startsWith("/projects/")) return "project";
+  if (pathname === "/code" || pathname.startsWith("/code/")) return "code";
+  if (pathname.startsWith("/graph/")) return "graph";
   if (pathname === "/inbox") return "inbox";
   if (pathname === "/packages" || pathname.startsWith("/packages/")) return "packages";
   if (pathname === "/settings" || pathname.startsWith("/settings/")) return "settings";
   return "system";
+}
+
+/** Key of the window that shows `path`: the app, or `app:instance`; `null` is the desktop. */
+export function windowKey(path: string): string | null {
+  const app = appFor(path);
+  if (app === null) return null;
+  const pathname = path.split(/[?#]/)[0]?.replace(/\/+$/, "") ?? "";
+  const instance = APPS[app].instance?.(pathname);
+  return instance ? `${app}:${instance}` : app;
 }

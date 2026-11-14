@@ -64,6 +64,12 @@ and what the agents are saying), **Costs**, **Team** (agents, their package and 
 agent's turn shows its inputs, tool calls, tokens and cost, and what it knew
 (`context_manifest`).
 
+The **Code** app (in the dock, or **Code** in the project header) shows the files the agents
+wrote, with syntax highlighting, and where they are: the workspace branch and last commit,
+the delivered release branch and pull request, and a `git clone` command to copy. Links like
+`/code/<project>?path=src/app.py&line=12` open a file at a line. A `code_graph` artifact is
+drawn as an interactive dependency graph; double-click a file or symbol to open it in Code.
+
 Projects can be paused, resumed and retried from the header. The page reconnects by itself
 and resynchronises after a network drop.
 

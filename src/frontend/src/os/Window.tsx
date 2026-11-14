@@ -6,8 +6,8 @@ import { Minus, Plus, X } from "lucide-react";
 import { type PointerEvent, memo, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
 
-import { useProjectStore } from "../store/projectStore.ts";
 import { APPS } from "./apps.ts";
+import { useWindowTitle } from "./titles.ts";
 import { WindowBoundary } from "./WindowBoundary.tsx";
 import { WindowRoutes } from "./WindowRoutes.tsx";
 import { useWindowMotion } from "./useWindowMotion.ts";
@@ -33,13 +33,6 @@ const Content = memo(function Content({ path }: { path: string }) {
     </WindowBoundary>
   );
 });
-
-function useTitle(win: Win): string {
-  const { t } = useTranslation();
-  const projectName = useProjectStore((s) => s.project?.name);
-  if (win.app === "project" && projectName) return projectName;
-  return t(APPS[win.app].title);
-}
 
 function Light({
   color,
@@ -77,7 +70,7 @@ export function Window({ win, z, focused, onFocus, onClose, onMinimize, onZoom, 
   const drag = useRef<{ x: number; y: number; rect: Rect; mode: Mode; moved: boolean } | null>(
     null,
   );
-  const title = useTitle(win);
+  const title = useWindowTitle(win);
   const app = APPS[win.app];
   const Icon = app.icon;
   const content = useMemo(() => <Content path={win.path} />, [win.path]);
@@ -159,6 +152,7 @@ export function Window({ win, z, focused, onFocus, onClose, onMinimize, onZoom, 
       ref={ref}
       aria-label={title}
       data-app={win.app}
+      data-window={win.id}
       data-focused={focused || undefined}
       onPointerDownCapture={focused ? undefined : onFocus}
       style={{ ...geometry, zIndex: z }}

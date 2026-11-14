@@ -16,7 +16,7 @@ import { Widgets } from "./Widgets.tsx";
 import { Window } from "./Window.tsx";
 import { DOCK_RESERVE, MENUBAR_H, createWindowStore } from "./windowStore.ts";
 
-function Windows({ actions }: { actions: DesktopActions & { focus: (app: AppId) => void } }) {
+function Windows({ actions }: { actions: DesktopActions }) {
   const order = useWindows((s) => s.order);
   const windows = useWindows((s) => s.windows);
   const focused = useWindows((s) => s.focused);
@@ -60,26 +60,26 @@ export function Desktop() {
 
   const actions = useMemo(() => {
     const state = store.getState;
-    const goTop = (except?: AppId) => void navigate(state().topmost(except)?.path ?? "/");
+    const goTop = (except?: string) => void navigate(state().topmost(except)?.path ?? "/");
     return {
-      focus: (app: AppId) => {
-        const win = state().windows[app];
+      focus: (id: string) => {
+        const win = state().windows[id];
         if (win) void navigate(win.path);
       },
-      open: (app: AppId) => void navigate(state().windows[app]?.path ?? APPS[app].defaultPath),
-      close: (app: AppId) => {
-        const wasFocused = state().focused === app;
-        state().close(app);
+      open: (app: AppId) => void navigate(state().latest(app)?.path ?? APPS[app].defaultPath),
+      close: (id: string) => {
+        const wasFocused = state().focused === id;
+        state().close(id);
         if (wasFocused) goTop();
       },
-      minimize: (app: AppId) => {
-        const wasFocused = state().focused === app;
-        state().minimize(app);
-        if (wasFocused) goTop(app);
+      minimize: (id: string) => {
+        const wasFocused = state().focused === id;
+        state().minimize(id);
+        if (wasFocused) goTop(id);
       },
-      zoom: (app: AppId) => state().toggleMaximize(app),
+      zoom: (id: string) => state().toggleMaximize(id),
       closeAll: () => {
-        state().order.forEach((app) => state().close(app));
+        state().order.forEach((id) => state().close(id));
         void navigate("/");
       },
       logout: () => {

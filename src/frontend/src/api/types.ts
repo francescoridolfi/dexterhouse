@@ -472,3 +472,64 @@ export interface Problem {
   instance?: string;
   errors?: { field: string; message: string }[];
 }
+
+// Code app (`/projects/{id}/code/...`) -------------------------------------------------
+
+export interface CodeEntry {
+  path: string;
+  type: "file" | "submodule";
+  size: number | null;
+}
+
+export interface CodeTree {
+  ref: string;
+  commit: string;
+  branch: string | null;
+  entries: CodeEntry[];
+  truncated: boolean;
+}
+
+export interface CodeFile {
+  ref: string;
+  commit: string;
+  path: string;
+  size: number;
+  binary: boolean;
+  too_large: boolean;
+  content: string | null;
+}
+
+export interface CodeCommit {
+  commit: string;
+  author: string;
+  date: string;
+  message: string;
+}
+
+export interface CodeRelease {
+  number: number;
+  mode: "push_main" | "pull_request" | null;
+  branch: string;
+  commit: string | null;
+  pr_url: string | null;
+  remote_url: string | null;
+  delivered_at: string;
+}
+
+export interface CodeLocation {
+  workspace: {
+    id: string;
+    status: string;
+    path: string;
+    volume: string | null;
+    container_id: string | null;
+    image: string | null;
+  } | null;
+  branch: string | null;
+  head: CodeCommit | null;
+  unavailable: string | null;
+  remote_url: string | null;
+  web_url: string | null;
+  delivery_mode: "push_main" | "pull_request";
+  releases: CodeRelease[];
+}
