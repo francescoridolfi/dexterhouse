@@ -153,6 +153,14 @@ class Tree(Message):
     depth: int = 3
 
 
+class CodeGraph(Message):
+    """The `code_graph` artifact data and/or its summary (`workspace_graph_export`)."""
+
+    workspace_id: uuid.UUID
+    include_graph: bool = True
+    summary_chars: Annotated[int, Field(ge=500, le=60_000)] = 6000
+
+
 # runner -> core (results and callbacks) ---------------------------------------------------
 
 
@@ -217,6 +225,7 @@ RUNNER_TASKS: dict[str, type[Message]] = {
     "runner.system.exit_check": ExitCheck,
     "runner.system.commit_log": CommitLog,
     "runner.system.tree": Tree,
+    "runner.system.code_graph": CodeGraph,
 }
 CALLBACK_TASKS: dict[str, type[Message]] = {
     "core.runner.workspace_changed": WorkspaceChanged,

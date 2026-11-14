@@ -28,6 +28,7 @@ from dexterhouse_runner.sessions import BUILTIN, SessionError, SessionPool
 from dexterhouse_runner.workspace_mcp.shell import summarize
 from dexterhouse_schema.runner import (
     BranchCreate,
+    CodeGraph,
     CommitLog,
     Deliver,
     ExitCheck,
@@ -109,6 +110,7 @@ TASK_METHODS = {
     "runner.system.exit_check": "exit_check",
     "runner.system.commit_log": "commit_log",
     "runner.system.tree": "tree",
+    "runner.system.code_graph": "code_graph",
 }
 
 
@@ -539,6 +541,17 @@ class RunnerService:
             )
 
         return self._system("tree", run)
+
+    def code_graph(self, msg: CodeGraph) -> ToolResult:
+        def run() -> ToolResult:
+            self.docker.running(msg.workspace_id)
+            args = {"include_graph": msg.include_graph, "summary_chars": msg.summary_chars}
+            data = self._tool(msg.workspace_id, "workspace_graph_export", args, 120)
+            if "error" in data:
+                raise RunnerError(data["error"]["code"], data["error"]["detail"])
+            return ToolResult(ok=True, data=data)
+
+        return self._system("code_graph", run)
 
     def deliver(self, msg: Deliver) -> ToolResult:
         def run() -> ToolResult:

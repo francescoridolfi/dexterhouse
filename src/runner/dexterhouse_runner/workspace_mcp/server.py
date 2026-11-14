@@ -15,7 +15,7 @@ import anyio
 from mcp.server.mcpserver import MCPServer
 from pydantic import Field
 
-from dexterhouse_runner.workspace_mcp import files, gitops, shell
+from dexterhouse_runner.workspace_mcp import codegraph, files, gitops, shell
 from dexterhouse_runner.workspace_mcp.base import Config, ToolFailure
 
 
@@ -51,6 +51,25 @@ def build_server(cfg: Config) -> MCPServer:
         pattern: str, path: str = ".", glob: str | None = None, max_results: int = 100
     ) -> dict:
         return await _run(files.search, cfg, pattern, path, glob, max_results)
+
+    @tool(
+        name="workspace_graph",
+        description="Code dependency graph: summary, neighbors <node>, path <node> <target>, "
+        "find <name> (file and line).",
+    )
+    async def workspace_graph(
+        action: codegraph.Action = "summary",
+        node: str | None = None,
+        target: str | None = None,
+        name: str | None = None,
+        limit: int = 30,
+        max_chars: int = 6000,
+    ) -> dict:
+        return await _run(codegraph.graph, cfg, action, node, target, name, limit, max_chars)
+
+    @tool(name="workspace_graph_export", description="System: the full code_graph artifact.")
+    async def workspace_graph_export(include_graph: bool = True, summary_chars: int = 6000) -> dict:
+        return await _run(codegraph.export, cfg, include_graph, summary_chars)
 
     @tool(name="workspace_write", description="Create or overwrite a file.")
     async def workspace_write(path: str, content: str, create_dirs: bool = True) -> dict:

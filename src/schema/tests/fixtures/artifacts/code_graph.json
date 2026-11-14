@@ -1,0 +1,466 @@
+{
+  "schema": 1,
+  "commit": "0000000000000000000000000000000000000000",
+  "generated_at": "2026-11-14T12:00:00Z",
+  "stats": {
+    "files": 9,
+    "symbols": 11,
+    "edges": 31
+  },
+  "nodes": [
+    {
+      "id": "ext:axios",
+      "kind": "external",
+      "label": "axios",
+      "path": null,
+      "lang": null,
+      "line": null,
+      "symbol_kind": null,
+      "parent": null,
+      "community": null
+    },
+    {
+      "id": "ext:react",
+      "kind": "external",
+      "label": "react",
+      "path": null,
+      "lang": null,
+      "line": null,
+      "symbol_kind": null,
+      "parent": null,
+      "community": null
+    },
+    {
+      "id": "ext:requests",
+      "kind": "external",
+      "label": "requests",
+      "path": null,
+      "lang": null,
+      "line": null,
+      "symbol_kind": null,
+      "parent": null,
+      "community": null
+    },
+    {
+      "id": "file:app/__init__.py",
+      "kind": "file",
+      "label": "__init__.py",
+      "path": "app/__init__.py",
+      "lang": "python",
+      "line": null,
+      "symbol_kind": null,
+      "parent": "module:app",
+      "community": 0
+    },
+    {
+      "id": "file:app/cli.py",
+      "kind": "file",
+      "label": "cli.py",
+      "path": "app/cli.py",
+      "lang": "python",
+      "line": null,
+      "symbol_kind": null,
+      "parent": "module:app",
+      "community": 0
+    },
+    {
+      "id": "file:app/models.py",
+      "kind": "file",
+      "label": "models.py",
+      "path": "app/models.py",
+      "lang": "python",
+      "line": null,
+      "symbol_kind": null,
+      "parent": "module:app",
+      "community": 0
+    },
+    {
+      "id": "file:app/services.py",
+      "kind": "file",
+      "label": "services.py",
+      "path": "app/services.py",
+      "lang": "python",
+      "line": null,
+      "symbol_kind": null,
+      "parent": "module:app",
+      "community": 0
+    },
+    {
+      "id": "file:tests/test_services.py",
+      "kind": "file",
+      "label": "test_services.py",
+      "path": "tests/test_services.py",
+      "lang": "python",
+      "line": null,
+      "symbol_kind": null,
+      "parent": "module:tests",
+      "community": 0
+    },
+    {
+      "id": "file:web/src/App.test.tsx",
+      "kind": "file",
+      "label": "App.test.tsx",
+      "path": "web/src/App.test.tsx",
+      "lang": "typescript",
+      "line": null,
+      "symbol_kind": null,
+      "parent": "module:web/src",
+      "community": 1
+    },
+    {
+      "id": "file:web/src/App.tsx",
+      "kind": "file",
+      "label": "App.tsx",
+      "path": "web/src/App.tsx",
+      "lang": "typescript",
+      "line": null,
+      "symbol_kind": null,
+      "parent": "module:web/src",
+      "community": 1
+    },
+    {
+      "id": "file:web/src/api.ts",
+      "kind": "file",
+      "label": "api.ts",
+      "path": "web/src/api.ts",
+      "lang": "typescript",
+      "line": null,
+      "symbol_kind": null,
+      "parent": "module:web/src",
+      "community": 1
+    },
+    {
+      "id": "file:web/src/main.ts",
+      "kind": "file",
+      "label": "main.ts",
+      "path": "web/src/main.ts",
+      "lang": "typescript",
+      "line": null,
+      "symbol_kind": null,
+      "parent": "module:web/src",
+      "community": 1
+    },
+    {
+      "id": "module:app",
+      "kind": "module",
+      "label": "app",
+      "path": "app",
+      "lang": null,
+      "line": null,
+      "symbol_kind": null,
+      "parent": null,
+      "community": 0
+    },
+    {
+      "id": "module:tests",
+      "kind": "module",
+      "label": "tests",
+      "path": "tests",
+      "lang": null,
+      "line": null,
+      "symbol_kind": null,
+      "parent": null,
+      "community": 0
+    },
+    {
+      "id": "module:web",
+      "kind": "module",
+      "label": "web",
+      "path": "web",
+      "lang": null,
+      "line": null,
+      "symbol_kind": null,
+      "parent": null,
+      "community": null
+    },
+    {
+      "id": "module:web/src",
+      "kind": "module",
+      "label": "web/src",
+      "path": "web/src",
+      "lang": null,
+      "line": null,
+      "symbol_kind": null,
+      "parent": "module:web",
+      "community": 1
+    },
+    {
+      "id": "sym:app/models.py::Base",
+      "kind": "symbol",
+      "label": "Base",
+      "path": "app/models.py",
+      "lang": "python",
+      "line": 1,
+      "symbol_kind": "class",
+      "parent": "file:app/models.py",
+      "community": 0
+    },
+    {
+      "id": "sym:app/models.py::Base.validate",
+      "kind": "symbol",
+      "label": "Base.validate",
+      "path": "app/models.py",
+      "lang": "python",
+      "line": 2,
+      "symbol_kind": "method",
+      "parent": "sym:app/models.py::Base",
+      "community": 0
+    },
+    {
+      "id": "sym:app/models.py::Course",
+      "kind": "symbol",
+      "label": "Course",
+      "path": "app/models.py",
+      "lang": "python",
+      "line": 6,
+      "symbol_kind": "class",
+      "parent": "file:app/models.py",
+      "community": 0
+    },
+    {
+      "id": "sym:app/models.py::Course.save",
+      "kind": "symbol",
+      "label": "Course.save",
+      "path": "app/models.py",
+      "lang": "python",
+      "line": 7,
+      "symbol_kind": "method",
+      "parent": "sym:app/models.py::Course",
+      "community": 0
+    },
+    {
+      "id": "sym:app/services.py::enroll",
+      "kind": "symbol",
+      "label": "enroll",
+      "path": "app/services.py",
+      "lang": "python",
+      "line": 7,
+      "symbol_kind": "function",
+      "parent": "file:app/services.py",
+      "community": 0
+    },
+    {
+      "id": "sym:app/services.py::helper",
+      "kind": "symbol",
+      "label": "helper",
+      "path": "app/services.py",
+      "lang": "python",
+      "line": 13,
+      "symbol_kind": "function",
+      "parent": "file:app/services.py",
+      "community": 0
+    },
+    {
+      "id": "sym:tests/test_services.py::test_enroll",
+      "kind": "symbol",
+      "label": "test_enroll",
+      "path": "tests/test_services.py",
+      "lang": "python",
+      "line": 4,
+      "symbol_kind": "function",
+      "parent": "file:tests/test_services.py",
+      "community": 0
+    },
+    {
+      "id": "sym:web/src/App.tsx::App",
+      "kind": "symbol",
+      "label": "App",
+      "path": "web/src/App.tsx",
+      "lang": "typescript",
+      "line": 4,
+      "symbol_kind": "class",
+      "parent": "file:web/src/App.tsx",
+      "community": 1
+    },
+    {
+      "id": "sym:web/src/api.ts::Course",
+      "kind": "symbol",
+      "label": "Course",
+      "path": "web/src/api.ts",
+      "lang": "typescript",
+      "line": 3,
+      "symbol_kind": "interface",
+      "parent": "file:web/src/api.ts",
+      "community": 1
+    },
+    {
+      "id": "sym:web/src/api.ts::fetchCourses",
+      "kind": "symbol",
+      "label": "fetchCourses",
+      "path": "web/src/api.ts",
+      "lang": "typescript",
+      "line": 7,
+      "symbol_kind": "function",
+      "parent": "file:web/src/api.ts",
+      "community": 1
+    },
+    {
+      "id": "sym:web/src/api.ts::toLabel",
+      "kind": "symbol",
+      "label": "toLabel",
+      "path": "web/src/api.ts",
+      "lang": "typescript",
+      "line": 11,
+      "symbol_kind": "function",
+      "parent": "file:web/src/api.ts",
+      "community": 1
+    }
+  ],
+  "edges": [
+    {
+      "source": "file:app/cli.py",
+      "target": "sym:app/services.py::enroll",
+      "kind": "calls"
+    },
+    {
+      "source": "file:app/cli.py",
+      "target": "file:app/services.py",
+      "kind": "imports"
+    },
+    {
+      "source": "file:app/models.py",
+      "target": "sym:app/models.py::Base",
+      "kind": "defines"
+    },
+    {
+      "source": "file:app/models.py",
+      "target": "sym:app/models.py::Course",
+      "kind": "defines"
+    },
+    {
+      "source": "file:app/services.py",
+      "target": "sym:app/services.py::enroll",
+      "kind": "defines"
+    },
+    {
+      "source": "file:app/services.py",
+      "target": "sym:app/services.py::helper",
+      "kind": "defines"
+    },
+    {
+      "source": "file:app/services.py",
+      "target": "ext:requests",
+      "kind": "imports"
+    },
+    {
+      "source": "file:app/services.py",
+      "target": "file:app/models.py",
+      "kind": "imports"
+    },
+    {
+      "source": "file:tests/test_services.py",
+      "target": "sym:tests/test_services.py::test_enroll",
+      "kind": "defines"
+    },
+    {
+      "source": "file:tests/test_services.py",
+      "target": "file:app/services.py",
+      "kind": "imports"
+    },
+    {
+      "source": "file:tests/test_services.py",
+      "target": "file:app/services.py",
+      "kind": "tests"
+    },
+    {
+      "source": "file:web/src/App.test.tsx",
+      "target": "sym:web/src/App.tsx::App",
+      "kind": "calls"
+    },
+    {
+      "source": "file:web/src/App.test.tsx",
+      "target": "file:web/src/App.tsx",
+      "kind": "imports"
+    },
+    {
+      "source": "file:web/src/App.test.tsx",
+      "target": "file:web/src/App.tsx",
+      "kind": "tests"
+    },
+    {
+      "source": "file:web/src/App.tsx",
+      "target": "sym:web/src/api.ts::fetchCourses",
+      "kind": "calls"
+    },
+    {
+      "source": "file:web/src/App.tsx",
+      "target": "sym:web/src/App.tsx::App",
+      "kind": "defines"
+    },
+    {
+      "source": "file:web/src/App.tsx",
+      "target": "ext:react",
+      "kind": "imports"
+    },
+    {
+      "source": "file:web/src/App.tsx",
+      "target": "file:web/src/api.ts",
+      "kind": "imports"
+    },
+    {
+      "source": "file:web/src/api.ts",
+      "target": "sym:web/src/api.ts::Course",
+      "kind": "defines"
+    },
+    {
+      "source": "file:web/src/api.ts",
+      "target": "sym:web/src/api.ts::fetchCourses",
+      "kind": "defines"
+    },
+    {
+      "source": "file:web/src/api.ts",
+      "target": "sym:web/src/api.ts::toLabel",
+      "kind": "defines"
+    },
+    {
+      "source": "file:web/src/api.ts",
+      "target": "ext:axios",
+      "kind": "imports"
+    },
+    {
+      "source": "file:web/src/main.ts",
+      "target": "sym:web/src/App.tsx::App",
+      "kind": "calls"
+    },
+    {
+      "source": "file:web/src/main.ts",
+      "target": "file:web/src/App.tsx",
+      "kind": "imports"
+    },
+    {
+      "source": "sym:app/models.py::Base",
+      "target": "sym:app/models.py::Base.validate",
+      "kind": "defines"
+    },
+    {
+      "source": "sym:app/models.py::Course",
+      "target": "sym:app/models.py::Course.save",
+      "kind": "defines"
+    },
+    {
+      "source": "sym:app/models.py::Course",
+      "target": "sym:app/models.py::Base",
+      "kind": "inherits"
+    },
+    {
+      "source": "sym:app/models.py::Course.save",
+      "target": "sym:app/models.py::Base.validate",
+      "kind": "calls"
+    },
+    {
+      "source": "sym:app/services.py::enroll",
+      "target": "sym:app/models.py::Course",
+      "kind": "calls"
+    },
+    {
+      "source": "sym:app/services.py::enroll",
+      "target": "sym:app/services.py::helper",
+      "kind": "calls"
+    },
+    {
+      "source": "sym:tests/test_services.py::test_enroll",
+      "target": "sym:app/services.py::enroll",
+      "kind": "calls"
+    }
+  ]
+}
