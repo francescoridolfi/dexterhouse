@@ -4,6 +4,10 @@ import { getJson, patchJson, postJson, putJson, query, request } from "./client.
 import type {
   Agent,
   Artifact,
+  CodeCommit,
+  CodeFile,
+  CodeLocation,
+  CodeTree,
   Estimate,
   EventEnvelope,
   Gate,
@@ -82,6 +86,15 @@ export const api = {
   artifacts: (id: string, params: { kind?: string; q?: string } = {}) =>
     getJson<Page<Artifact>>(`${V1}/projects/${id}/artifacts${query({ ...params, limit: 200 })}`),
   artifact: (id: string) => getJson<Artifact>(`${V1}/artifacts/${id}`),
+  codeTree: (id: string, ref?: string) =>
+    getJson<CodeTree>(`${V1}/projects/${id}/code/tree${query({ ref })}`),
+  codeFile: (id: string, path: string, ref?: string) =>
+    getJson<CodeFile>(`${V1}/projects/${id}/code/file${query({ path, ref })}`),
+  codeLog: (id: string, ref?: string, limit = 50) =>
+    getJson<{ ref: string; branch: string | null; commits: CodeCommit[] }>(
+      `${V1}/projects/${id}/code/log${query({ ref, limit })}`,
+    ),
+  codeLocation: (id: string) => getJson<CodeLocation>(`${V1}/projects/${id}/code/location`),
   artifactVersions: (id: string) =>
     getJson<{ results: Artifact[] }>(`${V1}/artifacts/${id}/versions`),
   artifactDiff: (id: string, against: number) =>

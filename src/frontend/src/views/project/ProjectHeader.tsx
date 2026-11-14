@@ -1,6 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Check, ChevronLeft, Loader2, Pause, Pencil, Play, RotateCcw, X } from "lucide-react";
+import {
+  Check,
+  ChevronLeft,
+  CodeXml,
+  Loader2,
+  Pause,
+  Pencil,
+  Play,
+  RotateCcw,
+  X,
+} from "lucide-react";
 import { type FormEvent, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
@@ -10,6 +20,7 @@ import { useMe } from "../../api/queries.ts";
 import { AmountField } from "../../components/AmountField.tsx";
 import { BudgetBar, ModeBadge, StatusDot } from "../../components/Badges.tsx";
 import { Button } from "../../components/Button.tsx";
+import { codeHref } from "../code/links.ts";
 import { ConfirmDialog } from "../../components/Overlay.tsx";
 import { toastError, toastSuccess } from "../../components/toastStore.ts";
 import { can } from "../../utils/auth.ts";
@@ -184,6 +195,14 @@ export function ProjectHeader() {
         {editing ? <BudgetEditor onDone={() => setEditing(false)} /> : null}
       </div>
       <div className="flex items-center gap-2">
+        <Link
+          to={codeHref(project.id)}
+          title={t("codeApp.open")}
+          className="os-pressable inline-flex min-h-8 items-center gap-1.5 rounded-full border border-white/10 bg-white/8 px-3.5 text-sm font-medium shadow-[inset_0_1px_0_rgb(255_255_255/0.08)] hover:bg-white/14"
+        >
+          <CodeXml aria-hidden className="size-3.5" />
+          {t("codeApp.short")}
+        </Link>
         {member && project.status === "draft" ? (
           <Button
             size="sm"

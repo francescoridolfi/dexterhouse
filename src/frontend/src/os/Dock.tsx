@@ -25,7 +25,7 @@ function Tile({
   badge: number;
 }) {
   const { t } = useTranslation();
-  const path = useWindows((s) => s.windows[app]?.path) ?? APPS[app].defaultPath;
+  const path = useWindows((s) => s.latest(app)?.path) ?? APPS[app].defaultPath;
   const def = APPS[app];
   const Icon = def.icon;
   const size = BASE * scale;
@@ -75,9 +75,11 @@ export function Dock() {
   const nav = useRef<HTMLElement>(null);
   const [scales, setScales] = useState<Record<string, number>>({});
   const order = useWindows((s) => s.order);
+  const windows = useWindows((s) => s.windows);
+  const open = [...new Set(order.map((id) => windows[id]?.app).filter((a) => a !== undefined))];
   const gates = useOpenGates();
   const inbox = gates.data?.results.length ?? 0;
-  const extra = order.filter((id) => !DOCK.includes(id));
+  const extra = open.filter((app) => !DOCK.includes(app));
   const onMove = (event: MouseEvent) => {
     if (window.matchMedia?.("(hover: hover)").matches === false) return;
     const next: Record<string, number> = {};
@@ -103,7 +105,7 @@ export function Dock() {
           key={app}
           app={app}
           scale={scales[app]}
-          running={order.includes(app)}
+          running={open.includes(app)}
           badge={app === "inbox" ? inbox : 0}
         />
       ))}
@@ -111,7 +113,7 @@ export function Dock() {
       <Tile
         app="newProject"
         scale={scales.newProject}
-        running={order.includes("newProject")}
+        running={open.includes("newProject")}
         badge={0}
       />
       {extra
