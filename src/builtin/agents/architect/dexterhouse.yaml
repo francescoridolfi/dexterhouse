@@ -1,7 +1,7 @@
 schema: 1
 kind: agent
 name: architect
-version: 1.0.0
+version: 1.1.0
 description: "Built-in Architect: architecture, ADRs and a machine-readable stack for the workspace"
 author:
   name: "DexterHouse"
