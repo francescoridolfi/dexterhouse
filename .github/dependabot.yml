@@ -45,6 +45,10 @@ updates:
     schedule: { interval: weekly, day: monday }
     groups:
       images: { patterns: ["*"] }
+    # Node tracks .nvmrc and @types/node (22): bump all of them together.
+    ignore:
+      - dependency-name: node
+        update-types: ["version-update:semver-major"]
   # Postgres, Redis and Squid pinned in compose.yaml.
   - package-ecosystem: docker-compose
     directory: /
