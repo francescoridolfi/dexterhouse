@@ -186,7 +186,7 @@ def build_inputs(request: TurnRequest, step_run: StepRun) -> TurnInputs:
         installed_roles=_roles(project.id),
         task_ids=_task_ids(project.id),
         stack_test_command=stack.get("test_command"),
-        workspace_tree=workspace_tree(project.id),
+        **workspace_map(project.id),
     )
 
 
@@ -401,6 +401,16 @@ def workspace_tree(project_id: Any) -> str | None:
         return None
     data = _runner("runner.system.tree", Tree(workspace_id=workspace.id, depth=3))
     return str(data["tree"]) if data and data.get("tree") else None
+
+
+def workspace_map(project_id: Any) -> dict[str, str | None]:
+    """The code graph summary for the `tree` context section; the file tree if it fails."""
+    from dexterhouse.apps.workspaces import code_graph
+
+    summary = code_graph.summary(project_id)
+    if summary:
+        return {"code_graph_summary": summary, "workspace_tree": None}
+    return {"code_graph_summary": None, "workspace_tree": workspace_tree(project_id)}
 
 
 def commit_log(project_id: Any, limit: int = 60) -> list[dict[str, str]]:

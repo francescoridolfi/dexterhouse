@@ -3,6 +3,7 @@ role: architect
 display_name: "Architect"
 model_profile: strong
 tools:
+  - workspace.graph
   - memory.search
   - memory.recent
   - project.artifact

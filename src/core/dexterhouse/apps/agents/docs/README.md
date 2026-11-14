@@ -59,6 +59,7 @@ The workflow engine uses them through `AgentsTurnRunner`
 | `artifacts` (`ArtifactInput`: id, kind, name, version, `content` or `data`, untrusted) in phase order | 9 |
 | `notes` (`NoteInput`: id, text), most recent first | 11 |
 | `workspace_tree` (indented text, two spaces per level) | 12 |
+| `code_graph_summary` (`workspace.graph` summary, preferred over the tree; cut by whole lines to the profile's `tree` budget: 2000/1500/800 tokens) | 12 |
 | `memory_query` (default: task title + acceptance) | 10 |
 | `produces` (artifact kinds the step asks for) | step description, demo responder |
 | `room`, `mode`, `may_ask`, `data_residency` (`any`/`local`), `verdict_rule` (`review`/`test`/`none`) | behaviour and output rules |

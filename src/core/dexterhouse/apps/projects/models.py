@@ -59,6 +59,7 @@ class ArtifactKind(models.TextChoices):
     TEST_REPORT = "test_report"
     RELEASE_NOTES = "release_notes"
     RETROSPECTIVE = "retrospective"
+    CODE_GRAPH = "code_graph"
     FILE = "file"
 
 

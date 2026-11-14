@@ -74,7 +74,8 @@ def save_artifact(
     if kind == ArtifactKind.STACK:
         project.stack = clean
         project.save(update_fields=["stack", "updated_at"])
-    transaction.on_commit(lambda: index(artifact))
+    if kind != ArtifactKind.CODE_GRAPH:  # derived from the code: no memory chunks
+        transaction.on_commit(lambda: index(artifact))
     return artifact
 
 

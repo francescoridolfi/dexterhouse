@@ -20,3 +20,4 @@ This folder records the main architecture decisions of DexterHouse. Each ADR use
 | [ADR-0014](0014-agent-skills-format.md) | Skills in the Agent Skills format (SKILL.md) | accepted | 2026-10-31 |
 | [ADR-0015](0015-organization-as-root.md) | Organization as the root of every entity | accepted | 2026-10-31 |
 | [ADR-0016](0016-runner-without-secrets.md) | The runner holds no secrets and writes no events | accepted | 2026-10-31 |
+| [ADR-0017](0017-code-graph.md) | A code dependency graph for the agents | accepted | 2026-11-14 |

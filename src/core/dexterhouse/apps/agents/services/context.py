@@ -154,8 +154,16 @@ def build_context(request: ContextRequest) -> BuiltContext:
     notes = _take_lines([n.text for n in inputs.notes], budget.notes)
     note_ids = [str(n.id) for n in inputs.notes[: len(notes)]]
     tree = ""
-    if inputs.workspace_tree and any(t.startswith("workspace.") for t in request.allowed_tools):
-        tree = fit_tree(inputs.workspace_tree, budget.tree, truncations)
+    if any(t.startswith("workspace.") for t in request.allowed_tools):
+        if inputs.code_graph_summary:
+            tree = fit_graph_summary(
+                inputs.code_graph_summary,
+                budget.tree,
+                truncations,
+                queryable="workspace.graph" in request.allowed_tools,
+            )
+        elif inputs.workspace_tree:
+            tree = fit_tree(inputs.workspace_tree, budget.tree, truncations)
 
     def total() -> int:
         return (
@@ -397,6 +405,22 @@ def fit_tree(tree: str, budget: int, truncations: list[str]) -> str:
             return text
     truncations.append("tree cut")
     return text[: int(budget * CHARS_PER_TOKEN)]
+
+
+def fit_graph_summary(
+    summary: str, budget: int, truncations: list[str], *, queryable: bool = True
+) -> str:
+    """The code graph summary within `budget` tokens: whole lines, in their priority order
+    (size, entry points, modules, god nodes, communities, packages); the `workspace.graph`
+    hint only for agents that may call it."""
+    lines = [line for line in summary.splitlines() if queryable or "workspace.graph" not in line]
+    kept: list[str] = []
+    for line in lines:
+        if tokens("\n".join([*kept, line])) > budget:
+            truncations.append(f"code graph summary cut to {len(kept)}/{len(lines)} lines")
+            break
+        kept.append(line)
+    return "\n".join(kept)
 
 
 def render_user(

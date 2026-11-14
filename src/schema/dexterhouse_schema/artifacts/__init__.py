@@ -5,6 +5,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from dexterhouse_schema.artifacts.code_graph import CodeGraph
 from dexterhouse_schema.artifacts.questions import Assumptions, Questions
 from dexterhouse_schema.artifacts.review import Review
 from dexterhouse_schema.artifacts.stack import Stack
@@ -21,6 +22,7 @@ ARTIFACT_MODELS: dict[str, type[BaseModel]] = {
     "assumptions": Assumptions,
     "review": Review,
     "test_report": TestReport,
+    "code_graph": CodeGraph,
 }
 
 
@@ -38,6 +40,7 @@ def validate_artifact(kind: str, data: Any, context: TurnContext | None = None) 
 __all__ = [
     "ARTIFACT_MODELS",
     "Assumptions",
+    "CodeGraph",
     "Questions",
     "Review",
     "Stack",

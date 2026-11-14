@@ -274,3 +274,42 @@ def test_helpers():
     assert tokens("") == 0
     assert tokens("abcd") == 2
     assert [h for h, _ in split_sections("pre\n## A\nx\n## B\ny")] == ["(intro)", "A", "B"]
+
+
+GRAPH_SUMMARY = "\n".join(
+    [
+        "Code graph @abcdef12: 300 files (python 300), 2000 symbols, 9000 edges.",
+        "Ask workspace.graph before reading: neighbors <node>, path <a> <b>, find <name>; ...",
+        "Entry points: manage.py",
+        "Main modules:",
+        *(f"- app/module_{i}/ ({i} files, {i * 7} symbols)" for i in range(400)),
+    ]
+)
+
+
+@pytest.mark.parametrize("profile", ["strong", "balanced", "fast"])
+def test_code_graph_summary_fills_the_tree_within_budget(profile: str):
+    inputs = TurnInputs(
+        task=TaskInput(title="t"), code_graph_summary=GRAPH_SUMMARY, workspace_tree="a/\n  b.py"
+    )
+    allowed = frozenset({"memory.search", "workspace.graph"})
+    built = build_context(request(inputs, profile=profile, allowed=allowed))
+    used = built.manifest["sections"]["tree"]
+    assert 0 < used <= BUDGETS[profile].tree
+    text = built.messages[1].text()
+    tree = text.split("# Workspace tree\n\n", 1)[1]
+    assert tree.startswith("Code graph @abcdef12")
+    assert "Ask workspace.graph" in tree
+    assert "b.py" not in tree  # the summary replaces the file tree
+    assert any(t.startswith("code graph summary cut to") for t in built.manifest["truncations"])
+
+
+def test_code_graph_summary_hint_needs_the_tool_and_a_workspace_tool():
+    inputs = TurnInputs(task=TaskInput(title="t"), code_graph_summary=GRAPH_SUMMARY)
+    plain = build_context(request(inputs, allowed=frozenset({"memory.search", "workspace.read"})))
+    tree = plain.messages[1].text().split("# Workspace tree\n\n", 1)[1]
+    assert tree.startswith("Code graph @")
+    assert "workspace.graph" not in tree
+    none = build_context(request(inputs, allowed=frozenset({"memory.search"})))
+    assert none.manifest["sections"]["tree"] == 0
+    assert "# Workspace tree" not in none.messages[1].text()
