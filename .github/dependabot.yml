@@ -6,12 +6,23 @@ updates:
     schedule: { interval: weekly, day: monday }
     groups:
       python: { patterns: ["*"] }
+    # Django 6.1 is blocked by django-celery-beat (django<6.1): drop when it is supported.
+    ignore:
+      - dependency-name: django
+        update-types: ["version-update:semver-major"]
     open-pull-requests-limit: 5
   - package-ecosystem: npm
     directory: /src/frontend
     schedule: { interval: weekly, day: monday }
+    # Minor/patch grouped; majors (React, R3F, ...) arrive one per pull request.
     groups:
-      frontend: { patterns: ["*"] }
+      frontend:
+        patterns: ["*"]
+        update-types: [minor, patch]
+    # TypeScript 7 is blocked by typescript-eslint 8 (typescript <6.1): drop when it is supported.
+    ignore:
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
     open-pull-requests-limit: 5
   - package-ecosystem: github-actions
     directory: /
