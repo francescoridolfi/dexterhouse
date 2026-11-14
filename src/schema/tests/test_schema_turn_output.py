@@ -101,13 +101,13 @@ def test_limits_on_artifacts() -> None:
 
 def test_review_verdict_must_match() -> None:
     assert validate_turn_output(review_turn()).verdict == "request_changes"
-    invalid(review_turn(verdict="approve"), "differs from review verdict")
-    invalid(review_turn(verdict=None), "differs from review verdict")
+    invalid(review_turn(verdict="approve"), "differs from the review verdict")
+    invalid(review_turn(verdict=None), "differs from the review verdict")
 
 
 def test_test_report_verdict_must_match_and_is_corrected() -> None:
     assert validate_turn_output(report_turn(TEST_REPORT, "fail")).warnings == []
-    invalid(report_turn(TEST_REPORT, "approve"), "differs from test_report verdict")
+    invalid(report_turn(TEST_REPORT, "approve"), "differs from the test_report verdict")
     lying = patched(TEST_REPORT, {"verdict": "pass"})
     turn = validate_turn_output(report_turn(lying, "pass"))
     assert turn.verdict == "fail"
@@ -141,7 +141,19 @@ def test_context_verdict_rules() -> None:
     validate_turn_output(report_turn(TEST_REPORT, "fail"), tester)
     other = TurnContext(verdict="none")
     validate_turn_output(EXAMPLE, other)
-    invalid(review_turn(), "only allowed for reviewer and tester", other)
+    invalid(review_turn(), "cannot include review artifacts", other)
+    invalid({**EXAMPLE, "verdict": "pass"}, "only allowed for reviewer and tester", other)
+
+
+def test_no_verdict_step_with_a_test_report_says_how_to_fix() -> None:
+    # A tester on a no-verdict step: with or without a verdict the fix must be the same one.
+    tester_on_developer_step = TurnContext(allowed_kinds=frozenset({"test_report"}), verdict="none")
+    for verdict in (None, "fail"):
+        invalid(
+            report_turn(TEST_REPORT, verdict),
+            "cannot include test_report artifacts: remove them",
+            tester_on_developer_step,
+        )
 
 
 def test_context_waiting_answers_requires_ask() -> None:
