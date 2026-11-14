@@ -1,7 +1,7 @@
 schema: 1
 kind: agent
 name: developer
-version: 1.0.0
+version: 1.1.0
 description: "Built-in Developer: implements one task at a time in the workspace and commits"
 author:
   name: "DexterHouse"

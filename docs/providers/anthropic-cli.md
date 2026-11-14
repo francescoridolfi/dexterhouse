@@ -23,6 +23,12 @@ model provider, so a profile runs on the account the CLI is logged into instead 
 - The agent's tools reach the model through `dexterhouse-mcp-bridge`, a local MCP server
   started by the CLI with a 10-minute token. The bridge never runs a tool: DexterHouse does,
   with the same permission checks, logs and events as for every other provider.
+- The conversation so far goes in as one user message with one text block per message.
+  Earlier blocks never change and nothing follows the last one, so each call reads the
+  previous call's prefix from the prompt cache and writes only the new blocks.
+- The agent's `limits.max_output_tokens` is passed as `CLAUDE_CODE_MAX_OUTPUT_TOKENS`, and the
+  profile option `effort` (`low`...`max`) as `--effort`. The cache TTL is 5 minutes (calls
+  of a turn come seconds apart); set the option `cache_ttl: "1h"` to keep the CLI's default.
 - At most `CLI_MAX_CONCURRENT` (default 2) processes per worker; `CLI_TIMEOUT_S` (default 600)
   per call. The cost reported by the CLI is recorded with `price_version = "cli"`.
 

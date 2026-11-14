@@ -149,6 +149,7 @@ class TurnOutput(StrictModel):
         # Kinds first: an artifact the agent may not produce must be reported as such, not
         # through a verdict mismatch it cannot fix (e.g. a developer's test_report).
         self._check_allowed_kinds(ctx)
+        self._check_verdict_artifacts(ctx)
         self._check_artifact_verdicts()
         self._check_context(ctx)
         return self
@@ -159,14 +160,32 @@ class TurnOutput(StrictModel):
             if bad:
                 raise ValueError(f"artifact kind(s) not in output_contract: {', '.join(bad)}")
 
+    def _check_verdict_artifacts(self, ctx: TurnContext) -> None:
+        """A step without a verdict cannot carry a review or test_report (it has one)."""
+        if ctx.verdict != "none":
+            return
+        kinds = sorted({a.kind for a in self.artifacts if a.kind in {"review", "test_report"}})
+        if kinds:
+            raise ValueError(
+                f"this step gives no verdict, so it cannot include {' or '.join(kinds)} "
+                "artifacts: remove them and keep verdict null"
+            )
+
     def _check_artifact_verdicts(self) -> None:
         for artifact in self.artifacts:
             if isinstance(artifact, ReviewArtifact) and artifact.data.verdict != self.verdict:
-                raise ValueError(f"verdict {self.verdict!r} differs from review verdict")
+                raise ValueError(
+                    f"verdict {self.verdict!r} differs from the review verdict "
+                    f"{artifact.data.verdict!r}: set the top-level verdict to "
+                    f"{artifact.data.verdict!r}"
+                )
             if isinstance(artifact, TestReportArtifact):
                 report = artifact.data
                 if self.verdict not in {report.declared_verdict, report.verdict}:
-                    raise ValueError(f"verdict {self.verdict!r} differs from test_report verdict")
+                    raise ValueError(
+                        f"verdict {self.verdict!r} differs from the test_report verdict "
+                        f"{report.verdict!r}: set the top-level verdict to {report.verdict!r}"
+                    )
                 if report.verdict_corrected or self.verdict != report.verdict:
                     self._warnings.append(
                         f"test_report verdict recomputed as {report.verdict!r} "

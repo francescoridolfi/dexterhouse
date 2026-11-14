@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from dexterhouse.apps.agents.schemas import ArtifactInput, TurnInputs
+from dexterhouse.apps.agents.services.focus import focus_inputs
 from dexterhouse.apps.agents.services.packages import AgentPackage, SkillInfo, shared_skills
 from dexterhouse.apps.gateway.messages import (
     Message,
@@ -106,7 +107,7 @@ def build_context(request: ContextRequest) -> BuiltContext:
     budget = BUDGETS[request.profile]
     cap = int(budget.cap * request.cap_factor)
     truncations: list[str] = []
-    inputs = request.inputs
+    inputs = focus_inputs(request.inputs, truncations)
 
     # 1-5: stable prefix --------------------------------------------------------------
     core = (PROMPTS / ("core_short.md" if request.profile == "fast" else "core.md")).read_text(

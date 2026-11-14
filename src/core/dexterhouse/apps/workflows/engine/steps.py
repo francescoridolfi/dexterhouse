@@ -266,7 +266,11 @@ def record_failure(step_run_id: uuid.UUID, attempt: int | None, code: str, detai
         if locked is None:
             return
         _run, row, step_run = locked
-        step_run.error = f"{code}: {detail}" if detail else code
+        error = f"{code}: {detail}" if detail else code
+        # The turn already reprompted the model; the same contract error again means a new
+        # attempt would fail the same way at full price (e.g. a step it cannot satisfy).
+        repeated = code == "output_contract" and step_run.error == error
+        step_run.error = error
         step_run.lease_expires_at = None
         if code == "budget":
             # The project waits for a budget raise (F-012): the attempt does not count and
@@ -277,7 +281,7 @@ def record_failure(step_run_id: uuid.UUID, attempt: int | None, code: str, detai
                 update_fields=["error", "lease_expires_at", "status", "attempts", "updated_at"]
             )
             return
-        if step_run.attempts < settings.WORKFLOWS_STEP_MAX_ATTEMPTS:
+        if step_run.attempts < settings.WORKFLOWS_STEP_MAX_ATTEMPTS and not repeated:
             step_run.status = StepRunStatus.QUEUED
             step_run.save(update_fields=["error", "lease_expires_at", "status", "updated_at"])
             common.dispatch(step_run)
@@ -287,7 +291,9 @@ def record_failure(step_run_id: uuid.UUID, attempt: int | None, code: str, detai
         step_run.save(
             update_fields=["error", "lease_expires_at", "status", "finished_at", "updated_at"]
         )
-        logger.warning("workflows.step_failed", step_run_id=str(step_run_id), code=code)
+        logger.warning(
+            "workflows.step_failed", step_run_id=str(step_run_id), code=code, repeated=repeated
+        )
         escalations.open_escalation(
             row,
             "turn_failed",
