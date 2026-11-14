@@ -6,6 +6,7 @@ tools:
   - workspace.list
   - workspace.read
   - workspace.search
+  - workspace.graph
   - workspace.write
   - workspace.edit
   - workspace.exec

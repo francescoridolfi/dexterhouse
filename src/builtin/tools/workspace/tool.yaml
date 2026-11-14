@@ -20,6 +20,10 @@ permissions:
     mcp_tool: workspace_search
     description: "Regex search (pattern, path='.', glob?, max_results=100): file, line and context of each match."
     risk: low
+  - id: workspace.graph
+    mcp_tool: workspace_graph
+    description: "Code dependency graph (action summary|neighbors|path|find, node?, target?, name?, limit=30): main modules, most connected files and symbols, entry points; file and line of a symbol. Ask it before workspace.read/search."
+    risk: low
   - id: workspace.write
     mcp_tool: workspace_write
     description: "Create or overwrite a file (path, content, create_dirs=true); .git/ and paths outside the workspace are refused."
