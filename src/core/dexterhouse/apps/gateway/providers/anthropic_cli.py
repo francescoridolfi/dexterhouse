@@ -3,8 +3,11 @@
 
 One `claude -p --max-turns 1` process per gateway call. The CLI's native tools are disabled;
 our tools reach the model through `dexterhouse-mcp-bridge`, which intercepts every call, so
-the tool-use loop stays in the agents runtime. The conversation so far is sent as a single
-stream-json user message (a transcript): the CLI cannot be given prior assistant turns.
+the tool-use loop stays in the agents runtime. The conversation so far is sent as one
+stream-json user message (a transcript, one text block per message): the CLI cannot be given
+prior assistant turns. The blocks already sent never change and nothing variable follows them,
+so the CLI's breakpoint on the last block finds the previous call's prefix in the cache and
+only the new blocks are written (ADR-0017).
 Opt-in only: a profile must set `options.acknowledge_cli_terms: true` (provider_cli.md).
 """
 
@@ -32,6 +35,7 @@ from django.conf import settings
 from dexterhouse.apps.gateway.conf import get_gateway_env
 from dexterhouse.apps.gateway.messages import (
     CompletionRequest,
+    Message,
     Stop,
     StopReason,
     StreamEvent,
@@ -60,6 +64,12 @@ MCP_SERVER = "dexterhouse"
 TOOL_PREFIX = f"mcp__{MCP_SERVER}__"
 DISALLOWED_TOOLS = "Bash,Read,Write,Edit,MultiEdit,Glob,Grep,WebFetch,WebSearch,Task,NotebookEdit"
 KILL_GRACE_S = 10
+#: Appended to the system prompt (stable for the whole turn, so it stays in the cached prefix).
+TRANSCRIPT_NOTE = (
+    "The user message is the conversation so far, one block per message: `[assistant]` blocks "
+    "are your earlier replies and tool calls, `[tool]` blocks their results. Continue as the "
+    "assistant: call a tool if needed, otherwise give the final answer."
+)
 _VERSION_RE = re.compile(r"(\d+)\.(\d+)\.(\d+)")
 _AUTH_HINT = re.compile(
     r"/login|not (logged|authenticated)|invalid api key|authenticat|oauth", re.I
@@ -126,12 +136,12 @@ class AnthropicCliProvider:
                 {"type": "user", "message": {"role": "user", "content": transcript(request)}}
             )
             with cli_slot(self.env.CLI_MAX_CONCURRENT):
-                yield from self._run(argv, stdin, workdir)
+                yield from self._run(argv, stdin, workdir, request.max_tokens)
 
     def build_command(self, request: CompletionRequest, path: str, workdir: Path) -> list[str]:
         """Write `system.md` (and `mcp.json` when the turn has tools) and return the argv."""
         system = workdir / "system.md"
-        system.write_text(system_text(request), encoding="utf-8")
+        system.write_text(f"{system_text(request)}\n\n{TRANSCRIPT_NOTE}", encoding="utf-8")
         (workdir / "cwd").mkdir()
         argv = [
             path,
@@ -155,6 +165,8 @@ class AnthropicCliProvider:
             "--permission-mode",
             "dontAsk",
         ]
+        if self.config.options.get("effort"):
+            argv += ["--effort", str(self.config.options["effort"])]
         if request.tools:
             argv += ["--mcp-config", str(self._write_mcp_config(request, workdir))]
             argv += ["--allowedTools", f"{TOOL_PREFIX}*"]
@@ -196,15 +208,22 @@ class AnthropicCliProvider:
         path.chmod(0o600)
         return path
 
-    def _process_env(self) -> dict[str, str]:
+    def _process_env(self, max_tokens: int | None = None) -> dict[str, str]:
         env = {
             k: v for k, v in os.environ.items() if k not in {"ANTHROPIC_API_KEY", "DH_TURN_TOKEN"}
         }
         if self.env.CLAUDE_CLI_HOME:
             env["HOME"] = self.env.CLAUDE_CLI_HOME
+        if max_tokens:  # the package's `limits.max_output_tokens`: the CLI ignores it otherwise
+            env["CLAUDE_CODE_MAX_OUTPUT_TOKENS"] = str(max_tokens)
+        # Calls of a turn come seconds apart: the 5-minute TTL writes at 1.25x input instead
+        # of the 2x of the one-hour TTL the CLI picks on a subscription.
+        env["CLAUDE_CODE_PROMPT_CACHE_TTL"] = str(self.config.options.get("cache_ttl") or "5m")
         return env
 
-    def _run(self, argv: list[str], stdin: str, workdir: Path) -> Iterator[StreamEvent]:
+    def _run(
+        self, argv: list[str], stdin: str, workdir: Path, max_tokens: int | None = None
+    ) -> Iterator[StreamEvent]:
         timeout = int(self.config.options.get("timeout_s") or self.env.CLI_TIMEOUT_S)
         proc = subprocess.Popen(  # noqa: S603 # nosec B603: argv built by build_command, no shell
             argv,
@@ -212,7 +231,7 @@ class AnthropicCliProvider:
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             cwd=workdir / "cwd",
-            env=self._process_env(),
+            env=self._process_env(max_tokens),
             text=True,
         )
         expired = threading.Event()
@@ -252,27 +271,30 @@ def _terminate(proc: subprocess.Popen[str], expired: threading.Event | None) -> 
         proc.wait()
 
 
-def transcript(request: CompletionRequest) -> str:
-    """The non-system messages as one prompt; tool calls use the bridge's MCP names."""
+def transcript(request: CompletionRequest) -> list[dict[str, str]]:
+    """The non-system messages as text blocks, one per message, in a stable rendering.
+
+    Block `i` depends only on message `i`, so the next call repeats this call's blocks byte
+    for byte and appends; tool calls use the bridge's MCP names.
+    """
     turns = [m for m in request.messages if m.role != "system"]
-    if len(turns) == 1 and turns[0].role == "user":
-        return turns[0].text()
-    lines = ["<conversation>"]
-    for message in turns:
-        lines.append(f"[{message.role}]")
-        for part in message.parts:
-            if isinstance(part, ToolCallPart):
-                name = TOOL_PREFIX + wire_tool_name(part.name)
-                lines.append(f"[tool call {part.id}] {name} {json.dumps(part.args)}")
-            elif isinstance(part, ToolResultPart):
-                flag = " error" if part.is_error else ""
-                lines.append(f"[tool result {part.call_id}{flag}]\n{part.content}")
-            elif hasattr(part, "text"):
-                lines.append(part.text)
-    lines.append("</conversation>")
-    lines.append(
-        "Continue as the assistant: call a tool if needed, otherwise give the final answer."
-    )
+    return [
+        {"type": "text", "text": _render(m, header=i > 0 or m.role != "user")}
+        for i, m in enumerate(turns)
+    ]
+
+
+def _render(message: Message, header: bool) -> str:
+    lines = [f"[{message.role}]"] if header else []
+    for part in message.parts:
+        if isinstance(part, ToolCallPart):
+            name = TOOL_PREFIX + wire_tool_name(part.name)
+            lines.append(f"[tool call {part.id}] {name} {json.dumps(part.args, sort_keys=True)}")
+        elif isinstance(part, ToolResultPart):
+            flag = " error" if part.is_error else ""
+            lines.append(f"[tool result {part.call_id}{flag}]\n{part.content}")
+        elif hasattr(part, "text"):
+            lines.append(part.text)
     return "\n".join(lines)
 
 

@@ -17,7 +17,11 @@ from dexterhouse.apps.gateway.messages import (
 )
 from dexterhouse.apps.gateway.providers import ProviderConfig, ProviderError, collect, get_provider
 from dexterhouse.apps.gateway.providers.anthropic import FALLBACK_BETA, build_payload
-from dexterhouse.apps.gateway.providers.anthropic_cli import TOOL_PREFIX, transcript
+from dexterhouse.apps.gateway.providers.anthropic_cli import (
+    TOOL_PREFIX,
+    TRANSCRIPT_NOTE,
+    transcript,
+)
 from dexterhouse.apps.gateway.providers.base import (
     classify_http_error,
     internal_tool_name,
@@ -87,6 +91,22 @@ def test_anthropic_payload_caching_tools_and_results():
     assert result["is_error"] is True
     assert result["cache_control"] == {"type": "ephemeral"}  # conversation tail breakpoint
     assert payload["tools"][0]["name"] == "memory__search"
+
+
+def test_anthropic_tail_breakpoint_moves_forward():
+    """Step N's tail block reappears unchanged in step N+1, within the 20-block lookback."""
+
+    def strip(block):
+        return {k: v for k, v in block.items() if k != "cache_control"}
+
+    before = build_payload(make_request("claude-sonnet-5-5"))
+    after = build_payload(make_request("claude-sonnet-5-5", FOLLOW_UP))
+    old = [b for m in before["messages"] for b in m["content"]]
+    new = [b for m in after["messages"] for b in m["content"]]
+    assert "cache_control" in old[-1]
+    assert "cache_control" in new[-1]
+    assert [strip(b) for b in new[: len(old)]] == [strip(b) for b in old]
+    assert len(new) - len(old) < 20
 
 
 def test_anthropic_payload_limits_breakpoints_and_drops_foreign_parts():
@@ -284,7 +304,7 @@ def test_cli_command_bridge_and_transcript(build, settings):
     assert "--strict-mcp-config" in argv
     assert argv[argv.index("--tools") + 1] == ""  # no built-in tools
     assert "Bash" in argv[argv.index("--disallowedTools") + 1]
-    assert record["system"] == "You are the Analyst."
+    assert record["system"].startswith("You are the Analyst.")
     assert record["cwd"].endswith("cwd")
 
     server = record["mcp"]["mcpServers"]["dexterhouse"]
@@ -301,9 +321,10 @@ def test_cli_command_bridge_and_transcript(build, settings):
 
     message = json.loads(record["stdin"])
     assert message["type"] == "user"
-    text = message["message"]["content"]
+    text = "\n".join(b["text"] for b in message["message"]["content"])
     assert f"[tool call call_1] {TOOL_PREFIX}memory__search" in text
     assert "[tool result call_1 error]" in text
+    assert record["system"].endswith(TRANSCRIPT_NOTE)
 
 
 def test_cli_without_tools_has_no_mcp_config(build):
@@ -314,7 +335,8 @@ def test_cli_without_tools_has_no_mcp_config(build):
     argv = recorder.cli["argv"]
     assert "--mcp-config" not in argv
     assert "--strict-mcp-config" in argv  # no user MCP servers either
-    assert json.loads(recorder.cli["stdin"])["message"]["content"] == "Summarise the brief."
+    content = json.loads(recorder.cli["stdin"])["message"]["content"]
+    assert content == [{"type": "text", "text": "Summarise the brief."}]
 
 
 def test_cli_hides_api_key_and_uses_dedicated_home(build, monkeypatch, tmp_path):
@@ -361,4 +383,23 @@ def test_cli_timeout_kills_the_process(build, monkeypatch):
 
 
 def test_cli_transcript_single_user_message():
-    assert transcript(make_request("m")) == "Summarise the brief."
+    assert transcript(make_request("m")) == [{"type": "text", "text": "Summarise the brief."}]
+
+
+def test_cli_transcript_prefix_is_stable():
+    """Each call repeats the previous call's blocks unchanged: the CLI cache only grows."""
+    first = transcript(make_request("m"))
+    second = transcript(make_request("m", FOLLOW_UP))
+    assert second[: len(first)] == first
+    assert len(second) > len(first)
+    assert "Continue" not in second[-1]["text"]
+
+
+def test_cli_passes_output_limit_and_effort(build):
+    provider, recorder, cassette = build("anthropic-cli", "text", effort="medium")
+    list(provider.stream(make_request(cassette["model"])))
+    argv = recorder.cli["argv"]
+    assert argv[argv.index("--effort") + 1] == "medium"
+    env = provider._process_env(100)
+    assert env["CLAUDE_CODE_MAX_OUTPUT_TOKENS"] == "100"
+    assert env["CLAUDE_CODE_PROMPT_CACHE_TTL"] == "5m"
