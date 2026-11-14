@@ -14,8 +14,15 @@ updates:
   - package-ecosystem: npm
     directory: /src/frontend
     schedule: { interval: weekly, day: monday }
-    # Minor/patch grouped; majors (React, R3F, ...) arrive one per pull request.
+    # Minor/patch grouped; other majors arrive one per pull request, except
+    # coupled majors (peer ranges) that must move together. First match wins.
     groups:
+      react:
+        patterns: ["react", "react-dom", "@types/react", "@types/react-dom", "@react-three/*"]
+        update-types: [major]
+      i18n:
+        patterns: ["i18next", "react-i18next"]
+        update-types: [major]
       frontend:
         patterns: ["*"]
         update-types: [minor, patch]
