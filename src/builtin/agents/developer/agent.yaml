@@ -1,7 +1,7 @@
 schema: 1
 role: developer
 display_name: "Developer"
-model_profile: strong
+model_profile: balanced
 tools:
   - workspace.list
   - workspace.read

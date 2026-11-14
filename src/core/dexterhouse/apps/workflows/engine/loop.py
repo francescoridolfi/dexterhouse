@@ -36,6 +36,16 @@ def _status_for(index: int) -> str:
     return STEP_STATUS[min(index, len(STEP_STATUS) - 1)]
 
 
+def first_step(phase: Phase, task: Task) -> int:
+    """Where a task enters the loop: at its own role's step when the loop has one.
+
+    A `tester` task (acceptance tests) starts at the tester step, which gives a `test`
+    verdict; run as the first (`developer`) step it could not attach its test_report.
+    """
+    steps = phase.step_list()
+    return next((i for i, s in enumerate(steps) if i and s.agent == task.assigned_role), 0)
+
+
 def top_level(row: PhaseRun) -> list[Task]:
     return list(Task.objects.filter(phase_run=row, parent__isnull=True).order_by("order"))
 
@@ -159,9 +169,9 @@ def progress(phase: Phase, row: PhaseRun) -> Literal["queued", "blocked", "done"
 
 
 def _start(phase: Phase, row: PhaseRun, task: Task) -> None:
-    first = phase.step_list()[0]
-    task.status = TaskStatus.IN_PROGRESS
-    task.current_step = first.agent
+    index = first_step(phase, task)
+    task.status = _status_for(index)
+    task.current_step = phase.step_list()[index].agent
     task.started_at = task.started_at or timezone.now()
     new_branch = task.branch is None
     task.branch = task.branch or f"task/{task.external_id}"
@@ -242,8 +252,9 @@ def iterate(
         return
     _close_children(task, TaskStatus.DONE)
     task.iteration += 1
-    task.status = TaskStatus.IN_PROGRESS
-    task.current_step = phase.step_list()[0].agent
+    index = first_step(phase, task)
+    task.status = _status_for(index)
+    task.current_step = phase.step_list()[index].agent
     save(task, "iteration", "status", "current_step")
     fix = Task.objects.create(
         project=task.project,
@@ -259,7 +270,7 @@ def iterate(
         estimate=task.estimate,
         assigned_role=task.assigned_role,
         assigned_instance=task.assigned_instance,
-        status=TaskStatus.IN_PROGRESS,
+        status=task.status,
         branch=task.branch,
         order=task.order,
         current_step=task.current_step,

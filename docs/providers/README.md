@@ -24,7 +24,7 @@ API keys are read from the environment only: a profile may name another variable
 *API key env* (for example `OPENAI_KEY_TEAM_B`), never the key itself.
 
 Profile options: `temperature`, `max_tokens`, `allow_downgrade` (when the provider is down,
-`strong` falls back to `balanced`, then `fast`), `effort` (Anthropic), `tools: false` for
+`strong` falls back to `balanced`, then `fast`), `effort` (`anthropic` and `anthropic-cli`), `tools: false` for
 models without tool use, `refusal_fallback: false` to disable Anthropic's server-side
 fallback on refusals.
 

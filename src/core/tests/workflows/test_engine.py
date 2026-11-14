@@ -258,6 +258,20 @@ def test_on_exhausted_fail_fails_the_phase(started, settings):
     assert phase(project, "implementation").error_code == "loop_exhausted"
 
 
+def test_repeated_output_contract_error_escalates_without_a_third_attempt(started, settings):
+    settings.WORKFLOWS_FAKE_RUNNER = {
+        "ask_questions": False,
+        "fail": {"architect": 3},
+        "fail_code": "output_contract",
+    }
+    project = started(execution_mode="autonomous")
+    drain(project)
+    failed = StepRun.objects.get(project=project, status="failed")
+    assert (failed.role, failed.attempts) == ("architect", 2)
+    assert failed.error.startswith("output_contract")
+    assert open_gate(project).payload["reason"] == "turn_failed"
+
+
 def test_turn_failures_retry_then_escalate_and_retry_resumes(started, user, settings):
     """F-004: an error repeated 3 times opens a human escalation, even in autonomous mode."""
     settings.WORKFLOWS_FAKE_RUNNER = {"ask_questions": False, "fail": {"architect": 3}}

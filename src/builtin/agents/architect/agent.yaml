@@ -16,7 +16,7 @@ output_contract:
   schema: stack
 limits:
   max_tool_calls: 15
-  max_output_tokens: 12000
+  max_output_tokens: 16000
   turn_timeout_s: 600
 office:
   room: design_studio
