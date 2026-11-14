@@ -131,8 +131,9 @@ def test_prefix_sections_and_manifest():
 
 
 def test_large_artifact_enters_by_relevant_sections_only():
+    # Not `architecture`: that one is first focused on the task (test_focus.py).
     big = ArtifactInput(
-        id=uuid.uuid4(), kind="architecture", name="architecture.md", content=architecture(12, 450)
+        id=uuid.uuid4(), kind="requirements", name="requirements.md", content=architecture(12, 450)
     )
     inputs = TurnInputs(
         task=TaskInput(external_id="T-05", title="Bookings waitlist"), artifacts=[big]
