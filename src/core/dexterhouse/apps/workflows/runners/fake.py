@@ -9,7 +9,8 @@ Behaviour is scripted with `settings.WORKFLOWS_FAKE_RUNNER` (all keys optional):
 - `hire` (default False): the recruiter proposes one package, so `replan` runs;
 - `verdicts`: `{"reviewer:T-02": ["request_changes", "approve"], "tester:smoke": ["fail"]}`,
   indexed by task iteration (or attempt outside loops); missing entries are positive;
-- `fail`: `{"architect": 2}` raises `TurnFailedError` on the first N attempts of a role.
+- `fail`: `{"architect": 2}` raises `TurnFailedError` on the first N attempts of a role;
+- `fail_code` (default `provider_error`): the code of those failures.
 """
 
 import time
@@ -44,7 +45,8 @@ class FakeTurnRunner:
         if delay := float(self.script.get("delay_s", 0)):
             time.sleep(delay)
         if request.attempt <= int(self.script.get("fail", {}).get(request.role, 0)):
-            raise TurnFailedError("provider_error", f"scripted failure of {request.role}")
+            code = self.script.get("fail_code", "provider_error")
+            raise TurnFailedError(code, f"scripted failure of {request.role}")
         data = self._output(request)
         return validate_turn_output(data, request.turn_context())
 
