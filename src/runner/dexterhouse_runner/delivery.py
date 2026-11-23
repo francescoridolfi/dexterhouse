@@ -177,18 +177,22 @@ class Delivery:
             return result
 
     def _extract(self, root: Path) -> Path:
-        """Unpack the workspace's `.git` (a `get_archive` tar stream) under `root`."""
-        archive = root / "git.tar"
-        with archive.open("wb") as out:
-            for chunk in self.tar:
-                out.write(chunk)
-        with tarfile.open(archive) as tar:
-            tar.extractall(root, filter="data")
-        archive.unlink()
-        repo = root / ".git"
-        if not repo.is_dir():
-            raise RunnerError("internal", "the workspace has no git repository")
-        return repo
+        return extract_git_dir(self.tar, root)
+
+
+def extract_git_dir(stream: Any, root: Path) -> Path:
+    """Unpack the workspace's `.git` (a `get_archive` tar stream) under `root`."""
+    archive = root / "git.tar"
+    with archive.open("wb") as out:
+        for chunk in stream:
+            out.write(chunk)
+    with tarfile.open(archive) as tar:
+        tar.extractall(root, filter="data")
+    archive.unlink()
+    repo = root / ".git"
+    if not repo.is_dir():
+        raise RunnerError("internal", "the workspace has no git repository")
+    return repo
 
 
 def _username(remote_url: str) -> str:

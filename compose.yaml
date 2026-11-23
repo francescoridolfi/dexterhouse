@@ -99,6 +99,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - dh_secrets:/run/dh-secrets:ro
+      - snapshots:/data/snapshots
     depends_on:
       redis: { condition: service_healthy }
       proxy: { condition: service_healthy }
@@ -193,3 +194,4 @@ volumes:
   packages: {}
   context: {}
   dh_secrets: {}
+  snapshots: {}

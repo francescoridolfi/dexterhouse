@@ -50,6 +50,8 @@ class RunnerSettings(BaseSettings):
     DOCKER_CLI: str = "docker"
     WORKSPACE_MCP_COMMAND: str = "dexterhouse-workspace-mcp"
     DELIVERY_TIMEOUT_S: int = 150
+    # One `git bundle` per project, written at the end of each iteration (ADR-0018).
+    RUNNER_SNAPSHOT_DIR: str = "/data/snapshots"
 
     def runner_key(self) -> str:
         if self.RUNNER_KEY:
