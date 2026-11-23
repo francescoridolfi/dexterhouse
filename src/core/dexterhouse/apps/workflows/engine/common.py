@@ -358,6 +358,9 @@ def fail_phase(phase_run: PhaseRun, error_code: str, detail: str = "") -> None:
     if project.status != ProjectStatus.FAILED:
         transition(project, ProjectStatus.FAILED)
         emit(project, "project.failed", {"error_code": error_code, "phase_id": phase_run.phase_id})
+    from dexterhouse.apps.projects.services import iterations  # projects -> engine -> here
+
+    iterations.on_iteration_failed(project, run, error_code)
 
 
 def complete_process(run: ProcessRun) -> None:
@@ -378,6 +381,9 @@ def complete_process(run: ProcessRun) -> None:
             "iterations_total": sum(t.iteration for t in top),
         },
     )
+    from dexterhouse.apps.projects.services import iterations  # projects -> engine -> here
+
+    iterations.on_iteration_completed(project, run)
 
 
 def cancel_process(run: ProcessRun) -> None:

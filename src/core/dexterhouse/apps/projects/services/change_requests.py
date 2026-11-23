@@ -87,13 +87,17 @@ def update_change_request(cr: ChangeRequest, user: User, data: dict[str, Any]) -
 
 
 def queue_change_request(cr: ChangeRequest, user: User) -> ChangeRequest:
-    """admin: draft -> queued."""
+    """admin: draft -> queued; starts at once when the project is already `completed`."""
+    from dexterhouse.apps.projects.services import iterations
+
     with transaction.atomic():
         project, cr = _lock(cr)
         if project.status == ProjectStatus.ARCHIVED:
             raise InvalidTransitionError("the project is archived")
         set_status(cr, CR.QUEUED)
         emit(project, "change_request.queued", _payload(cr), actor=user_actor(user))
+        iterations.start_next_change_request(project, user)
+    cr.refresh_from_db()
     return cr
 
 

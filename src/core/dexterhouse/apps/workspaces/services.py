@@ -255,6 +255,15 @@ def resume_engine(project_id: uuid.UUID) -> None:
             phases.advance(run)
 
 
+def prepare_for_iteration(project: Project) -> None:
+    """A change request reopens `project` (caller holds the project lock).
+
+    Stub for E-13 task 14: reuse the live workspace or recreate it and restore the code
+    of the last iteration (snapshot, then remote) before the first workspace turn; a
+    failure opens the usual `workspace_error` escalation (ADR-0018).
+    """
+
+
 def touch(workspace: Workspace) -> None:
     """A tool call: activity now; an `idle` workspace is `ready` again (`workspace.resumed`)."""
     now = timezone.now()

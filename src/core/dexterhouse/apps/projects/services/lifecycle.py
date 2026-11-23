@@ -7,6 +7,7 @@ from dexterhouse.apps.accounts.models import User
 from dexterhouse.apps.observability.services import budget
 from dexterhouse.apps.observability.services.estimate import estimate_for_project
 from dexterhouse.apps.projects.models import Project, ProjectStatus
+from dexterhouse.apps.projects.services import iterations
 from dexterhouse.apps.projects.services.actors import emit, user_actor
 from dexterhouse.apps.projects.services.transitions import transition
 from dexterhouse.apps.projects.services.validation import validate_for_start
@@ -70,6 +71,7 @@ def retry_project(project_id, user: User) -> Project:
         transition(project, ProjectStatus.RUNNING)
         phase_id = start.retry_run(run)
         emit(project, "project.retried", {"from_phase_id": phase_id}, actor=user_actor(user))
+        iterations.on_iteration_retried(project, run, user)
     return project
 
 
