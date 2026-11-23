@@ -152,6 +152,43 @@ describe("new project", () => {
   });
 });
 
+describe("new project context documents", () => {
+  it("uploads the dropped files after creating the project and before starting it", async () => {
+    const { calls } = mockApi({
+      "GET /api/v1/auth/me": ME,
+      "GET /api/v1/gates": EMPTY_PAGE,
+      "GET /api/v1/meta": {
+        processes: [{ name: "software-house-default", version: "1", phases: [], requirements: {} }],
+        features: {},
+        providers: [],
+        version: "0",
+        "3d_enabled": false,
+      },
+      "GET /api/v1/estimate": { low: 8, high: 25, basis: "static", currency: "EUR" },
+      "POST /api/v1/projects": () => json(project({ status: "draft" }), 201),
+      "POST /api/v1/projects/p-1/context": () => json({ id: "d" }, 202),
+      "POST /api/v1/projects/p-1/start": () => json(project()),
+    });
+    renderWith(<AppRoutes />, { route: "/projects/new" });
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText("Name"), "GymBook");
+    await user.type(screen.getByLabelText("Brief (Markdown)"), "A gym app");
+    const file = new File(["# Analysis"], "analysis.md", { type: "text/markdown" });
+    await user.upload(screen.getByLabelText("Choose files…"), file);
+    expect(
+      within(screen.getByRole("list", { name: "Selected files" })).getByText("analysis.md"),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Start" }));
+    await waitFor(() => expect(calls.some((c) => c.path.endsWith("/start"))).toBe(true));
+    const posts = calls.filter((c) => c.method === "POST").map((c) => c.path);
+    expect(posts).toEqual([
+      "/api/v1/projects",
+      "/api/v1/projects/p-1/context",
+      "/api/v1/projects/p-1/start",
+    ]);
+  });
+});
+
 describe("BudgetBar", () => {
   it("exposes the spend as a meter and flags overspend", () => {
     renderWith(<BudgetBar spent="21" budget="20" />);

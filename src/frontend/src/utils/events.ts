@@ -144,12 +144,80 @@ export function describeEvent(
           reason: t(`waiting.${s(p.reason)}`, { defaultValue: s(p.reason) }),
         }),
       };
+    case "project.reopened":
+      return {
+        icon: "↻",
+        tone: "info",
+        text: t("events.reopened", { cr: crLabel(p), n: s(p.iteration) }),
+      };
     default:
+      if (event.type.startsWith("context.")) return describeContext(event.type, p, t);
+      if (event.type.startsWith("change_request.")) return describeChangeRequest(event.type, p, t);
       return {
         icon: "·",
         tone: "info",
         text: t(`eventType.${event.type}`, { defaultValue: event.type }),
       };
+  }
+}
+
+/** `change_request` in payloads: `{number, title}`, a bare number or an id (contract open). */
+function crLabel(p: Record<string, unknown>): string {
+  const cr = p.change_request;
+  const number =
+    cr && typeof cr === "object" ? (cr as { number?: unknown }).number : (p.number ?? cr);
+  return typeof number === "number" || /^\d+$/.test(s(number)) ? `CR-${s(number)}` : "CR";
+}
+
+function crTitle(p: Record<string, unknown>): string {
+  const cr = p.change_request;
+  if (cr && typeof cr === "object") return s((cr as { title?: unknown }).title);
+  return s(p.title);
+}
+
+const CR_TONE: Record<string, Tone> = {
+  completed: "ok",
+  failed: "error",
+  cancelled: "warn",
+  started: "info",
+  queued: "info",
+};
+
+function describeChangeRequest(type: string, p: Record<string, unknown>, t: TFunction): EventLine {
+  const action = type.slice("change_request.".length);
+  const title = crTitle(p);
+  return {
+    icon: action === "completed" ? "✓" : action === "failed" ? "✗" : "✎",
+    tone: CR_TONE[action] ?? "info",
+    text: t(`events.cr.${action}`, {
+      cr: crLabel(p),
+      title,
+      defaultValue: `${crLabel(p)} ${action}`,
+    }),
+  };
+}
+
+function describeContext(type: string, p: Record<string, unknown>, t: TFunction): EventLine {
+  const name = s(p.filename) || s((p.artifact as { name?: unknown } | undefined)?.name);
+  switch (type) {
+    case "context.added":
+      return { icon: "📄", tone: "info", text: t("events.contextAdded", { name }) };
+    case "context.processed":
+      return {
+        icon: "📄",
+        tone: "ok",
+        text: t("events.contextProcessed", { count: Number(p.chars) || 0 }),
+      };
+    case "context.failed":
+      return {
+        icon: "📄",
+        tone: "error",
+        text: t("events.contextFailed", {
+          reason: t(`context.reason.${s(p.reason)}`, { defaultValue: s(p.reason) }),
+        }),
+      };
+    default:
+      return { icon: "📄", tone: "warn", text: t("events.contextDeactivated") };
   }
 }
 

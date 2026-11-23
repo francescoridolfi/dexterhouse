@@ -51,3 +51,15 @@ export function relative(value: string, now: number = Date.now()): string {
   if (abs < 86_400) return rtf.format(Math.round(diff / 3600), "hour");
   return rtf.format(Math.round(diff / 86_400), "day");
 }
+
+export function bytes(value: number): string {
+  const units = ["B", "KB", "MB", "GB"];
+  let n = value;
+  let unit = 0;
+  while (n >= 1024 && unit < units.length - 1) {
+    n /= 1024;
+    unit += 1;
+  }
+  const digits = unit === 0 || n >= 10 ? 0 : 1;
+  return `${new Intl.NumberFormat(locale(), { maximumFractionDigits: digits }).format(n)} ${units[unit]}`;
+}

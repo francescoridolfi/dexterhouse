@@ -9,10 +9,12 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
 import { ApiError } from "../../api/client.ts";
+import { uploadContextFiles } from "../../api/e13.ts";
 import { api, type NewProject } from "../../api/endpoints.ts";
 import { keys, useMeta } from "../../api/queries.ts";
 import { AmountField } from "../../components/AmountField.tsx";
 import { Button } from "../../components/Button.tsx";
+import { FileDrop } from "../../components/FileDrop.tsx";
 import { Tabs } from "../../components/Tabs.tsx";
 import { toastError } from "../../components/toastStore.ts";
 import { parseAmount } from "../../utils/amount.ts";
@@ -58,6 +60,7 @@ export function NewProjectPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [advanced, setAdvanced] = useState(false);
   const [briefView, setBriefView] = useState<"write" | "preview">("write");
+  const [files, setFiles] = useState<File[]>([]);
   const estimate = useQuery({
     queryKey: keys.estimate(form.process ?? "", Math.round(form.brief.length / 500) * 500),
     queryFn: () => api.estimate(form.process ?? "software-house-default", form.brief.length),
@@ -74,6 +77,11 @@ export function NewProjectPage() {
         remote_token: form.remote_token || null,
       };
       const project = await api.createProject(body);
+      // Documents go in before the start, so the first analyst turn already reads them.
+      const failed = await uploadContextFiles(project.id, files);
+      for (const f of failed) {
+        toastError(t("context.uploadFailed", { name: f.name }), new Error(f.reason));
+      }
       if (start) {
         try {
           await api.projectAction(project.id, "start");
@@ -220,6 +228,20 @@ export function NewProjectPage() {
               <FieldError id={`${id}-brief-error`} message={errors.brief} />
             </p>
           ) : null}
+        </section>
+
+        {/* Context documents (optional): uploaded right after the project is created. */}
+        <section className="space-y-1.5">
+          <h2 className="flex items-baseline gap-1 px-3 text-[13px] font-semibold text-fg/85">
+            {t("context.title")}
+            <span className="ml-1 text-xs font-normal text-muted">{t("newProject.optional")}</span>
+          </h2>
+          <FileDrop
+            label={t("context.choose")}
+            files={files}
+            onChange={setFiles}
+            disabled={save.isPending}
+          />
         </section>
 
         {/* How the team works. */}

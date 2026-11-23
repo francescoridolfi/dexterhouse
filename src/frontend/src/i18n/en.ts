@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // English (default). One namespace; top-level sections follow ux_2d_states.md (projects,
 // gates, packages, settings, office). `it.ts` must have exactly the same keys (tested).
+import e13 from "./e13/en.ts";
+
 const common = {
   loading: "Loading…",
   retry: "Retry",
@@ -248,6 +250,7 @@ const projects = {
       board: "Board",
       team: "Team",
       artifacts: "Artifacts",
+      changes: "Changes",
       log: "Log",
       costs: "Costs",
       office: "Office 3D",
@@ -445,6 +448,21 @@ const projects = {
     tests: "tests: {{passed}} passed, {{failed}} failed",
     violation: "blocked {{tool}} ({{kind}})",
     waiting: "waiting for {{reason}}",
+    reopened: "project reopened for {{cr}} (iteration {{n}})",
+    contextAdded: "context document added: {{name}}",
+    contextProcessed_one: "context document ready ({{count}} character)",
+    contextProcessed_other: "context document ready ({{count}} characters)",
+    contextFailed: "context document failed: {{reason}}",
+    contextDeactivated: "context document deactivated",
+    cr: {
+      created: "{{cr}} created: {{title}}",
+      updated: "{{cr}} edited",
+      queued: "{{cr}} queued",
+      started: "{{cr}} started",
+      completed: "{{cr}} completed",
+      failed: "{{cr}} failed",
+      cancelled: "{{cr}} cancelled",
+    },
   },
   eventType: {},
 };
@@ -735,5 +753,14 @@ const code = {
 };
 
 export default {
-  common: { ...common, ...projects, ...gates, ...packages, ...settings, ...office, ...code },
+  common: {
+    ...common,
+    ...projects,
+    ...e13,
+    ...gates,
+    ...packages,
+    ...settings,
+    ...office,
+    ...code,
+  },
 };

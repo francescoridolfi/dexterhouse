@@ -48,15 +48,17 @@ async function parseProblem(response: Response): Promise<Problem | null> {
 
 /** Same-origin JSON request; nginx and the Vite dev server proxy `/api` to the core. */
 export async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+  const form = body instanceof FormData;
   const headers: Record<string, string> = { Accept: "application/json" };
-  if (body !== undefined) headers["Content-Type"] = "application/json";
+  // Multipart: the browser sets Content-Type with the boundary itself.
+  if (body !== undefined && !form) headers["Content-Type"] = "application/json";
   if (UNSAFE.has(method)) headers["X-CSRFToken"] = csrfToken();
   if (organizationSlug) headers["X-Organization"] = organizationSlug;
   const response = await fetch(path, {
     method,
     headers,
     credentials: "same-origin",
-    body: body === undefined ? undefined : JSON.stringify(body),
+    body: body === undefined ? undefined : form ? body : JSON.stringify(body),
   });
   if (!response.ok) {
     const problem = await parseProblem(response);
@@ -71,6 +73,8 @@ export async function request<T>(method: string, path: string, body?: unknown): 
 export const getJson = <T>(path: string) => request<T>("GET", path);
 export const postJson = <T>(path: string, body?: unknown) => request<T>("POST", path, body ?? {});
 export const patchJson = <T>(path: string, body: unknown) => request<T>("PATCH", path, body);
+export const postForm = <T>(path: string, form: FormData) => request<T>("POST", path, form);
+export const deleteJson = <T>(path: string) => request<T>("DELETE", path);
 export const putJson = <T>(path: string, body: unknown) => request<T>("PUT", path, body);
 
 export function query(params: Record<string, string | number | undefined | null>): string {

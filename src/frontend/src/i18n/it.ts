@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Italiano completo (CD-036): stesse chiavi di `en.ts` (verificato dai test).
+import e13 from "./e13/it.ts";
+
 const common = {
   loading: "Caricamento…",
   retry: "Riprova",
@@ -253,6 +255,7 @@ const projects = {
       board: "Board",
       team: "Team",
       artifacts: "Artefatti",
+      changes: "Modifiche",
       log: "Log",
       costs: "Costi",
       office: "Ufficio 3D",
@@ -450,6 +453,21 @@ const projects = {
     tests: "test: {{passed}} superati, {{failed}} falliti",
     violation: "bloccato {{tool}} ({{kind}})",
     waiting: "in attesa di {{reason}}",
+    reopened: "progetto riaperto per {{cr}} (iterazione {{n}})",
+    contextAdded: "documento di contesto aggiunto: {{name}}",
+    contextProcessed_one: "documento di contesto pronto ({{count}} carattere)",
+    contextProcessed_other: "documento di contesto pronto ({{count}} caratteri)",
+    contextFailed: "documento di contesto non riuscito: {{reason}}",
+    contextDeactivated: "documento di contesto disattivato",
+    cr: {
+      created: "{{cr}} creata: {{title}}",
+      updated: "{{cr}} modificata",
+      queued: "{{cr}} in coda",
+      started: "{{cr}} avviata",
+      completed: "{{cr}} completata",
+      failed: "{{cr}} non riuscita",
+      cancelled: "{{cr}} annullata",
+    },
   },
   eventType: {},
 };
@@ -747,5 +765,14 @@ const code = {
 };
 
 export default {
-  common: { ...common, ...projects, ...gates, ...packages, ...settings, ...office, ...code },
+  common: {
+    ...common,
+    ...projects,
+    ...e13,
+    ...gates,
+    ...packages,
+    ...settings,
+    ...office,
+    ...code,
+  },
 };
