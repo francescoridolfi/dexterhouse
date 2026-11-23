@@ -116,10 +116,10 @@ def artifacts(ctx: ToolContext, kind: str | None = None) -> dict[str, Any]:
 
 def tasks(ctx: ToolContext, status: str | None = None) -> dict[str, Any]:
     """The task board: top-level tasks with state and iterations."""
-    rows = Task.objects.filter(project_id=ctx.project_id, parent__isnull=True)
+    rows = Task.objects.current(ctx.project_id).filter(parent__isnull=True)
     if status:
         rows = rows.filter(status=status)
-    by_id = dict(Task.objects.filter(project_id=ctx.project_id).values_list("id", "external_id"))
+    by_id = dict(Task.objects.current(ctx.project_id).values_list("id", "external_id"))
     return {
         "tasks": [
             {

@@ -4,8 +4,8 @@
 import pytest
 from django.db import IntegrityError, transaction
 
-from dexterhouse.apps.workflows.engine import common
-from dexterhouse.apps.workflows.models import ProcessRun
+from dexterhouse.apps.workflows.engine import common, loop
+from dexterhouse.apps.workflows.models import PhaseRun, ProcessRun, Task
 
 pytestmark = pytest.mark.django_db
 
@@ -53,3 +53,39 @@ def test_phase_list_api_shows_the_current_iteration(started, client):
     url = f"/api/v1/projects/{project.id}/phases"
     assert client.get(url).json()["results"] == []
     assert len(client.get(url, {"iteration": 0}).json()["results"]) > 0
+
+
+def board_task(row, external_id: str = "T-001") -> Task:
+    return Task.objects.create(
+        project=row.process_run.project,
+        process_run=row.process_run,
+        phase_run=row,
+        external_id=external_id,
+        title="Booking",
+        max_iterations=1,
+        assigned_role="developer",
+    )
+
+
+def test_each_iteration_has_its_own_task_board(started):
+    project = started()
+    first = PhaseRun.objects.filter(process_run=project.current_run).first()
+    board_task(first)
+    run = next_run(project, 1)
+    second = PhaseRun.objects.create(process_run=run, phase_id="implementation", position=0)
+    board_task(second)  # T-001 again, on the new run
+    assert loop.next_external_id(project) == "T-02"
+    with pytest.raises(IntegrityError), transaction.atomic():
+        board_task(second)
+    assert list(Task.objects.current(project.id).values_list("process_run", flat=True)) == [run.pk]
+
+
+def test_task_list_api_shows_the_current_iteration(started, client):
+    project = started()
+    board_task(PhaseRun.objects.filter(process_run=project.current_run).first())
+    run = next_run(project, 1)
+    url = f"/api/v1/projects/{project.id}/tasks"
+    assert client.get(url).json()["results"] == []
+    assert len(client.get(url, {"iteration": 0}).json()["results"]) == 1
+    board_task(PhaseRun.objects.create(process_run=run, phase_id="x", position=0))
+    assert len(client.get(url).json()["results"]) == 1

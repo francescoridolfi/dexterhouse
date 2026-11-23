@@ -124,9 +124,9 @@ def _board(project_id: Any) -> dict[str, Any] | None:
 def _task_ids(project_id: Any) -> list[str] | None:
     """Task ids of the latest board and of the tasks created from it (proposal checks)."""
     ids = set(
-        Task.objects.filter(project_id=project_id, parent__isnull=True).values_list(
-            "external_id", flat=True
-        )
+        Task.objects.current(project_id)
+        .filter(parent__isnull=True)
+        .values_list("external_id", flat=True)
     )
     board = _board(project_id)
     if board is not None:
@@ -432,7 +432,7 @@ def _retrospective(request: TurnRequest, project_id: Any, *_: Any) -> list[str]:
 def project_summary(project_id: Any) -> str:
     """Iterations per task, gate decisions, turns and cost per phase (retrospective input)."""
     lines = ["Tasks (id: iterations, status):"]
-    for task in Task.objects.filter(project_id=project_id, parent__isnull=True).order_by("order"):
+    for task in Task.objects.current(project_id).filter(parent__isnull=True).order_by("order"):
         iterations = max(
             [task.iteration, *task.children.values_list("iteration", flat=True)], default=1
         )

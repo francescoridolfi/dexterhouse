@@ -366,7 +366,7 @@ def complete_process(run: ProcessRun) -> None:
     save(run, "status", "finished_at")
     emit(run.project, "process.completed", {"error_code": None})
     project = run.project
-    top = Task.objects.filter(project=project, parent__isnull=True)
+    top = Task.objects.filter(process_run=run, parent__isnull=True)
     transition(project, ProjectStatus.COMPLETED)
     emit(
         project,

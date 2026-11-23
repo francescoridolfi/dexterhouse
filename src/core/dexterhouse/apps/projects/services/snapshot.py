@@ -54,7 +54,7 @@ def build_snapshot(project: Project) -> dict[str, Any]:
         "type": "snapshot",
         "project": project_json(project, detail=True),
         "phases": [phase_json(p, by_phase.get(p.id)) for p in phases.order_by("position")],
-        "tasks": [task_json(t) for t in Task.objects.filter(project=project).order_by("order")],
+        "tasks": [task_json(t) for t in Task.objects.current(project.id).order_by("order")],
         "gates_open": [gate_json(g) for g in open_gates],
         "agents": _agents(project),
         "workspace": None,

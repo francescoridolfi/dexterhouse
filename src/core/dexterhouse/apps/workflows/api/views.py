@@ -90,7 +90,7 @@ class PhaseSkipView(ApiView):
 class TaskListView(ApiView):
     def get(self, request: Request, project_id: uuid.UUID) -> Response:
         project = get_project(self.require(*READ), project_id)
-        rows = Task.objects.filter(project=project)
+        rows = _of_iteration(Task.objects, project, request, "process_run")
         for name in ("status", "kind", "assigned_role"):
             if value := request.query_params.get(name):
                 rows = rows.filter(**{name: value})
