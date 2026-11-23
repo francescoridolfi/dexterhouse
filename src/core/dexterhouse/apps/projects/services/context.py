@@ -129,7 +129,7 @@ def process_document(artifact_id: uuid.UUID) -> str:
     try:
         if not path.is_file():
             raise ExtractionError("missing_file")
-        out = extract(data["mime"], path.read_bytes())
+        out = extract(data["mime"], path.read_bytes(), settings.CONTEXT_MAX_CHARS)
         if not out.text.strip():
             raise ExtractionError("no_text")
     except ExtractionError as exc:

@@ -19,7 +19,8 @@ the brief. Users: `member` and above, on the new-project form and on the project
   timeout; the document is `processing` until done, `failed` with a reason otherwise. Scanned
   PDFs without a text layer fail with `no_text_layer` (no OCR in this version).
 - **Limits** (settings, with defaults): 10 MB per file, 20 active documents per project,
-  200 000 extracted characters per document. MIME checked from content, not extension.
+  200 000 extracted characters per document (longer text is cut and flagged
+  `truncated`). The type is checked from the content, not only the extension.
 - **Memory**: an active document is chunked and embedded like any artifact; `memory.search`
   returns it with `kind: context`. Without an embedder agents still get it as input.
 - **Agent inputs**: `context` is added to `DEFAULT_INPUTS` for `analyst`, `architect` and
