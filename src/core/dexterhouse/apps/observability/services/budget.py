@@ -290,8 +290,8 @@ def _gate_wait(project: Project) -> None:
 
 def _maybe_resume(project: Project) -> bool:
     """waiting(budget) -> running (or waiting(gate)), re-dispatching the queued steps."""
-    from dexterhouse.apps.workflows.engine import start
-    from dexterhouse.apps.workflows.models import Gate, GateStatus, ProcessRun
+    from dexterhouse.apps.workflows.engine import common, start
+    from dexterhouse.apps.workflows.models import Gate, GateStatus
 
     if project.status != ProjectStatus.WAITING or project.waiting_reason != "budget":
         return False
@@ -304,8 +304,7 @@ def _maybe_resume(project: Project) -> bool:
     else:
         transition(project, ProjectStatus.RUNNING)
     emit(project, "project.resumed", {"reason": "budget"})
-    run = ProcessRun.objects.select_for_update().filter(project=project).first()
+    run = common.latest_run(project)
     if run is not None:
-        run.project = project
         start.resume_run(run)
     return True

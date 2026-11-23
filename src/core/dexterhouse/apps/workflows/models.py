@@ -104,7 +104,10 @@ def _status_check(name: str, values: list[str]) -> models.CheckConstraint:
 
 
 class ProcessRun(BaseModel):
-    project = models.OneToOneField(Project, on_delete=models.CASCADE, related_name="process_run")
+    """One run of the process; iteration 0 runs the brief, n runs CR-n (ADR-0018)."""
+
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="process_runs")
+    iteration = models.PositiveSmallIntegerField(default=0)
     # The packages app (E-07) adds `process_version` FK PackageVersion.
     process_name = models.CharField(max_length=64)
     process_version = models.CharField(max_length=32)
@@ -119,7 +122,12 @@ class ProcessRun(BaseModel):
 
     class Meta:
         db_table = "dh_workflows_processrun"
-        constraints = [_status_check("dh_processrun_status_valid", ProcessRunStatus.values)]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["project", "iteration"], name="dh_processrun_iteration_unique"
+            ),
+            _status_check("dh_processrun_status_valid", ProcessRunStatus.values),
+        ]
 
     def __str__(self) -> str:
         return f"{self.process_name}@{self.process_version}"

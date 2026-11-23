@@ -2,6 +2,7 @@
 """REST v1: phases, tasks, gates (contracts/api/workflow.md)."""
 
 import uuid
+from typing import Any
 
 from django.shortcuts import get_object_or_404
 from rest_framework import status
@@ -23,6 +24,7 @@ from dexterhouse.apps.workflows.api.serializers import (
 from dexterhouse.apps.workflows.models import Gate, GateStatus, GateType, PhaseRun, Task
 from dexterhouse.common.api import ApiView, OrgContext
 from dexterhouse.common.api.pagination import AscendingCursorPage
+from dexterhouse.common.errors import ValidationFailedError
 
 DECIDE = (Role.ADMIN, Scope.GATES_DECIDE)
 ANSWER = (Role.MEMBER, Scope.GATES_DECIDE)  # question gates: member+ (ux_2d_flows.md F3)
@@ -45,6 +47,18 @@ def _gate(ctx: OrgContext, gate_id: uuid.UUID) -> Gate:
     return get_object_or_404(rows, pk=gate_id)
 
 
+def _of_iteration(rows: Any, project: Any, request: Request, field: str) -> Any:
+    """Rows of `?iteration=n` (0 = brief, n = CR-n); without it, of the current run."""
+    iteration = request.query_params.get("iteration")
+    if iteration is None:
+        return rows.filter(**{field: project.current_run})
+    if not iteration.isdigit():
+        raise ValidationFailedError(
+            "invalid iteration", [{"field": "iteration", "message": "not a number"}]
+        )
+    return rows.filter(**{f"{field}__project": project, f"{field}__iteration": int(iteration)})
+
+
 def _open_gate(phase: PhaseRun) -> Gate | None:
     return phase.gates.filter(status=GateStatus.OPEN).first()
 
@@ -52,7 +66,8 @@ def _open_gate(phase: PhaseRun) -> Gate | None:
 class PhaseListView(ApiView):
     def get(self, request: Request, project_id: uuid.UUID) -> Response:
         project = get_project(self.require(*READ), project_id)
-        rows = PhaseRun.objects.filter(process_run__project=project).select_related("process_run")
+        rows = _of_iteration(PhaseRun.objects, project, request, "process_run")
+        rows = rows.select_related("process_run")
         return Response({"results": [phase_json(p, _open_gate(p)) for p in rows]})
 
 

@@ -394,12 +394,18 @@ def cancel_process(run: ProcessRun) -> None:
 
 
 def lock(project_id: Any) -> tuple[Project, ProcessRun | None]:
-    """Lock the project, then its process run (the engine's single lock order)."""
+    """Lock the project, then its latest process run (the engine's single lock order)."""
     project = Project.objects.select_for_update().get(pk=project_id)
-    run = ProcessRun.objects.select_for_update().filter(project=project).first()
-    if run is not None:
-        run.project = project
-    return project, run
+    return project, latest_run(project)
+
+
+def latest_run(project: Project) -> ProcessRun | None:
+    """Lock and return the run of the latest iteration; the project must be locked."""
+    run = ProcessRun.objects.select_for_update().filter(project=project).order_by("-iteration")
+    row = run.first()
+    if row is not None:
+        row.project = project
+    return row
 
 
 def phase_runs(run: ProcessRun) -> list[PhaseRun]:

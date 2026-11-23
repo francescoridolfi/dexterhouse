@@ -48,7 +48,7 @@ def build_snapshot(project: Project) -> dict[str, Any]:
         Gate.objects.filter(project=project, status=GateStatus.OPEN).select_related("decided_by")
     )
     by_phase = {g.phase_run_id: g for g in open_gates}
-    phases = PhaseRun.objects.filter(process_run__project=project).select_related("process_run")
+    phases = PhaseRun.objects.filter(process_run=project.current_run).select_related("process_run")
     last = Event.objects.filter(project_id=project.id).order_by("-created_at", "-id").first()
     return {
         "type": "snapshot",

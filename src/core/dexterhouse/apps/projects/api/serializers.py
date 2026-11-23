@@ -69,7 +69,7 @@ class NoteInput(serializers.Serializer):
 
 
 def project_json(project: Project, *, detail: bool = False) -> dict[str, Any]:
-    run = getattr(project, "process_run", None) if project.status != "draft" else None
+    run = project.current_run if project.status != "draft" else None
     phases = list(PhaseRun.objects.filter(process_run=run)) if run else []
     data = {
         "id": str(project.id),

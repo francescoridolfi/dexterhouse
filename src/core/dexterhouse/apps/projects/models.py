@@ -65,7 +65,7 @@ class ArtifactKind(models.TextChoices):
 
 
 class Project(BaseModel):
-    """A brief taken from `draft` to `completed` by one process run."""
+    """A brief taken from `draft` to `completed`, then reopened by change requests."""
 
     organization = models.ForeignKey(
         Organization, on_delete=models.PROTECT, related_name="projects"
@@ -125,6 +125,14 @@ class Project(BaseModel):
 
     def __str__(self) -> str:
         return self.slug
+
+    @property
+    def current_run(self):
+        """The latest `ProcessRun` (highest iteration), or None; read-only callers only.
+
+        The engine reads the run through `workflows.engine.common.lock` instead.
+        """
+        return self.process_runs.order_by("-iteration").first()
 
 
 class Artifact(BaseModel):
