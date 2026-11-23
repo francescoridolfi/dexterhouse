@@ -18,7 +18,7 @@ from django.db.models import Count, Max, Sum
 
 from dexterhouse.apps.agents.models import AgentInstance, AgentStatus, AgentTurn
 from dexterhouse.apps.agents.schemas import ArtifactInput, NoteInput, TaskInput, TurnInputs
-from dexterhouse.apps.projects.models import Artifact, Note, Project
+from dexterhouse.apps.projects.models import Artifact, ChangeRequest, Note, Project
 from dexterhouse.apps.workflows.models import Gate, StepRun, Task
 from dexterhouse.apps.workflows.roles import BUILTIN_ROLES, installed_roles
 from dexterhouse.apps.workflows.runner import TurnRequest
@@ -145,6 +145,8 @@ def build_inputs(request: TurnRequest, step_run: StepRun) -> TurnInputs:
     task = request.task
     task_ref = task.external_id if task else None
     artifacts = _latest(project.id, input_kinds(request), task_ref)
+    cr = change_request_of(step_run)
+    artifacts = with_iteration(project.id, request, cr, artifacts)
     notes = Note.objects.filter(project=project, phase_run__isnull=True) | Note.objects.filter(
         project=project, phase_run=step_run.phase_run_id
     )
@@ -160,7 +162,7 @@ def build_inputs(request: TurnRequest, step_run: StepRun) -> TurnInputs:
             items = []  # reviewers and testers judge the new iteration, not the old findings
     stack = project.stack or {}
     return TurnInputs(
-        step_description=describe(request, project.id, stack, known),
+        step_description="\n".join([describe(request, project.id, stack, known), *guide(cr)]),
         produces=list(request.produces),
         task=TaskInput(
             external_id=task.external_id,
@@ -249,10 +251,16 @@ def _architect(*_: Any) -> list[str]:
 
 
 def _planning(request: TurnRequest, project_id: Any, *_: Any) -> list[str]:
-    return [
-        f"Installed roles you may assign: {', '.join(_roles(project_id))}.",
-        "Write task_board.json; T-01 is the repository scaffold.",
-    ]
+    reopened = ChangeRequest.objects.filter(
+        process_run__phases__step_runs__id=request.step_run_id
+    ).exists()
+    board = (
+        "Write task_board.json with only the change request's work on the existing code, "
+        "from T-01 (no scaffold task)."
+        if reopened
+        else "Write task_board.json; T-01 is the repository scaffold."
+    )
+    return [f"Installed roles you may assign: {', '.join(_roles(project_id))}.", board]
 
 
 def _roster(project_id: Any) -> str:
@@ -467,3 +475,45 @@ STEP: dict[str, Any] = {
     "release:project_manager": _release,
     "retrospective:project_manager": _retrospective,
 }
+
+
+# Change request iterations (E-13) ------------------------------------------------------
+
+#: Every step of an iteration > 0 reads these first: the current CR, the last release.
+ITERATION_INPUTS = ("change_request", "release_notes")
+#: The analyst also reads the product as delivered (the code graph comes with every turn).
+ANALYST_ITERATION_INPUTS = ("requirements", "user_stories", "architecture", "stack")
+
+
+def change_request_of(step_run: StepRun) -> ChangeRequest | None:
+    """The CR the step's run implements; None in the brief iteration (0)."""
+    return ChangeRequest.objects.filter(process_run_id=step_run.phase_run.process_run_id).first()
+
+
+def with_iteration(
+    project_id: Any, request: TurnRequest, cr: ChangeRequest | None, artifacts: list[Artifact]
+) -> list[Artifact]:
+    """The CR and the iteration inputs before the step's own; other CRs are left out."""
+    if cr is None:
+        return artifacts
+    analyst = ANALYST_ITERATION_INPUTS if request.role == "analyst" else ()
+    first = [
+        a
+        for a in _latest(project_id, (*ITERATION_INPUTS, *analyst), None)
+        if a.kind != "change_request" or a.name == f"cr-{cr.number}.md"
+    ]
+    seen = {a.id for a in first}
+    rest = [a for a in artifacts if a.id not in seen and a.kind != "change_request"]
+    return first + rest
+
+
+def guide(cr: ChangeRequest | None) -> list[str]:
+    if cr is None:
+        return []
+    return [
+        f"Iteration {cr.number}: this is {cr.label} ({cr.title}) on a delivered product. "
+        "Change what the change request asks and keep the rest; read the change_request "
+        "artifact first, then the last release notes and the current artifacts. Write each "
+        "artifact you produce as a new version: mark items as added, changed or removed in "
+        "the Changelog and keep existing ids; earlier versions stay as history."
+    ]

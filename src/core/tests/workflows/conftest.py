@@ -54,6 +54,36 @@ def drain(project: Project, limit: int = 500) -> int:
     raise AssertionError("drain did not settle")
 
 
+def finish(project: Project, user) -> None:
+    """Run steps and approve gates of the current run only, until that iteration ends."""
+    from dexterhouse.apps.workflows import services
+
+    project.refresh_from_db()
+    run = project.current_run
+    for _ in range(limit_steps := 500):
+        queued = StepRun.objects.filter(phase_run__process_run=run, status=StepRunStatus.QUEUED)
+        step = queued.order_by("created_at").first()
+        gate = Gate.objects.filter(phase_run__process_run=run, status=GateStatus.OPEN).first()
+        if step is not None and step.project.status == "running":
+            steps.run_step(step.id)
+        elif gate is not None:
+            services.decide(gate.id, user, decision="approve")
+        else:
+            project.refresh_from_db()
+            return
+    raise AssertionError(f"finish did not settle in {limit_steps} steps")
+
+
+@pytest.fixture
+def completed(started, user, settings) -> Project:
+    """A supervised project whose brief iteration completed (no questions asked)."""
+    settings.WORKFLOWS_FAKE_RUNNER = {"ask_questions": False}
+    project = started()
+    finish(project, user)
+    assert project.status == "completed"
+    return project
+
+
 def open_gate(project: Project) -> Gate | None:
     return Gate.objects.filter(project=project, status=GateStatus.OPEN).first()
 

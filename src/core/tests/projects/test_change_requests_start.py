@@ -6,14 +6,13 @@ from decimal import Decimal
 import pytest
 from django.db import transaction
 
-from dexterhouse.apps.projects.models import Artifact, ChangeRequest, Project, ProjectStatus
+from dexterhouse.apps.projects.models import Artifact, ChangeRequest, ProjectStatus
 from dexterhouse.apps.projects.services import change_requests, lifecycle
 from dexterhouse.apps.projects.services.transitions import transition
-from dexterhouse.apps.workflows import services
-from dexterhouse.apps.workflows.engine import common, steps
-from dexterhouse.apps.workflows.models import Gate, PhaseRun, ProcessRun, StepRun, Task
+from dexterhouse.apps.workflows.engine import common
+from dexterhouse.apps.workflows.models import PhaseRun, ProcessRun, Task
 from dexterhouse.common.errors import InvalidTransitionError
-from tests.workflows.conftest import event_types, events
+from tests.workflows.conftest import event_types, events, finish
 
 pytestmark = pytest.mark.django_db
 
@@ -23,35 +22,9 @@ def no_questions(settings):
     settings.WORKFLOWS_FAKE_RUNNER = {"ask_questions": False}
 
 
-def finish(project: Project, user) -> None:
-    """Run steps and approve gates of the current run only, until that iteration ends."""
-    project.refresh_from_db()
-    run = project.current_run
-    for _ in range(500):
-        run.refresh_from_db()
-        queued = StepRun.objects.filter(phase_run__process_run=run, status="queued")
-        step = queued.order_by("created_at").first()
-        gate = Gate.objects.filter(phase_run__process_run=run, status="open").first()
-        if step is not None and step.project.status == "running":
-            steps.run_step(step.id)
-        elif gate is not None:
-            services.decide(gate.id, user, decision="approve")
-        else:
-            break
-    project.refresh_from_db()
-
-
 def new_cr(project, user, **data) -> ChangeRequest:
     body = {"title": "Waiting list", "body": "Add a waiting list.", "budget": Decimal(4), **data}
     return change_requests.create_change_request(project, user, body)
-
-
-@pytest.fixture
-def completed(started, user) -> Project:
-    project = started()
-    finish(project, user)
-    assert project.status == ProjectStatus.COMPLETED
-    return project
 
 
 def test_queue_on_completed_project_starts_iteration_one(completed, user):

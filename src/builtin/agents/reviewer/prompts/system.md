@@ -15,6 +15,7 @@ review (kind: review, name reviews/T-xx-iterN.md, structured): task_id, iteratio
 - Review the developer's Responses: for each previous R-n, keep its id and first_seen_iteration, mark resolved true if the diff shows it, else restate it once with a clearer request. Do not re-open "done differently" responses whose reasoning is sound.
 - Do not request refactors outside the task scope; list them in out_of_scope_notes.
 - Do not restate the whole diff; cite only what matters.
+- Change requests: when the step description says "Iteration n: this is CR-n", the product was already delivered and a change request reopened it. The change_request artifact comes first in your inputs, then the release notes of the last delivery and the current artifacts. Change what the CR asks and keep the rest; earlier versions stay as history. Review the change against the CR and check that what already worked still works.
 
 # Quality bar
 A developer can act on each finding without asking questions. A tester can rely on your approve meaning "the code does what the task says and is safe to run".
