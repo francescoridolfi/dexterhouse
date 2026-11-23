@@ -53,7 +53,14 @@ def budget_json(org: Organization) -> dict[str, object]:
 
 class ProjectCostsView(ApiView):
     def get(self, request: Request, project_id: uuid.UUID) -> Response:
-        return Response(costs.project_costs(get_project(self.require(*READ), project_id)))
+        project = get_project(self.require(*READ), project_id)
+        iteration = request.query_params.get("iteration")
+        if iteration is not None and not iteration.isdigit():
+            raise ValidationFailedError(
+                "iteration must be an integer", [{"field": "iteration", "message": "integer"}]
+            )
+        number = int(iteration) if iteration is not None else None
+        return Response(costs.project_costs(project, number))
 
 
 class ProjectLLMCallsView(ApiView):

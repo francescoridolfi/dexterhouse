@@ -86,13 +86,36 @@ def _tokens(row: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _ok_calls(project_id: uuid.UUID) -> QuerySet[LLMCall]:
-    return LLMCall.objects.filter(project_id=project_id, status=CallStatus.OK)
+ITERATION = "agent_turn__phase_run__process_run__iteration"
 
 
-def by_phase(project_id: uuid.UUID) -> list[dict[str, Any]]:
+def _ok_calls(project_id: uuid.UUID, iteration: int | None = None) -> QuerySet[LLMCall]:
+    calls = LLMCall.objects.filter(project_id=project_id, status=CallStatus.OK)
+    return calls if iteration is None else calls.filter(**{ITERATION: iteration})
+
+
+def by_iteration(project_id: uuid.UUID) -> list[dict[str, Any]]:
+    """Spend per process iteration: `brief` (0) and `CR-n`; calls outside a run are left out."""
     rows = (
         _ok_calls(project_id)
+        .filter(**{f"{ITERATION}__isnull": False})
+        .values(iteration=F(ITERATION))
+        .annotate(cost=Sum("cost"))
+        .order_by("iteration")
+    )
+    return [
+        {
+            "iteration": r["iteration"],
+            "label": f"CR-{r['iteration']}" if r["iteration"] else "brief",
+            "cost": _money(r["cost"]),
+        }
+        for r in rows
+    ]
+
+
+def by_phase(project_id: uuid.UUID, iteration: int | None = None) -> list[dict[str, Any]]:
+    rows = (
+        _ok_calls(project_id, iteration)
         .values(
             phase_run=F("agent_turn__phase_run_id"), phase_id=F("agent_turn__phase_run__phase_id")
         )
@@ -111,9 +134,9 @@ def by_phase(project_id: uuid.UUID) -> list[dict[str, Any]]:
     ]
 
 
-def by_agent(project_id: uuid.UUID) -> list[dict[str, Any]]:
+def by_agent(project_id: uuid.UUID, iteration: int | None = None) -> list[dict[str, Any]]:
     rows = (
-        _ok_calls(project_id)
+        _ok_calls(project_id, iteration)
         .values(
             agent_id=F("agent_turn__agent_instance_id"),
             role=F("agent_turn__agent_instance__role"),
@@ -135,9 +158,9 @@ def by_agent(project_id: uuid.UUID) -> list[dict[str, Any]]:
     ]
 
 
-def by_task(project_id: uuid.UUID) -> list[dict[str, Any]]:
+def by_task(project_id: uuid.UUID, iteration: int | None = None) -> list[dict[str, Any]]:
     rows = (
-        _ok_calls(project_id)
+        _ok_calls(project_id, iteration)
         .filter(agent_turn__task__isnull=False)
         .values(task_id=F("agent_turn__task_id"), external_id=F("agent_turn__task__external_id"))
         .annotate(calls=Count("id"), **_token_sums())
@@ -148,10 +171,14 @@ def by_task(project_id: uuid.UUID) -> list[dict[str, Any]]:
     ]
 
 
-def by_provider(project_id: uuid.UUID | None = None, *, organization_id=None, since=None):
-    """Per provider/model, raw calls (all statuses) merged with the daily roll-ups."""
-    calls = LLMCall.objects.all()
-    rolled = LLMUsageDaily.objects.all()
+def by_provider(
+    project_id: uuid.UUID | None = None, *, organization_id=None, since=None, iteration=None
+):
+    """Per provider/model, raw calls (all statuses) merged with the daily roll-ups.
+
+    With `iteration` only that iteration's raw calls count (roll-ups have no iteration).
+    """
+    calls, rolled = _sources(LLMCall.objects.all(), iteration)
     if project_id is not None:
         calls, rolled = calls.filter(project_id=project_id), rolled.filter(project_id=project_id)
     if organization_id is not None:
@@ -205,9 +232,16 @@ def by_provider(project_id: uuid.UUID | None = None, *, organization_id=None, si
     return out
 
 
-def by_day(project_id: uuid.UUID | None = None, *, organization_id=None, since=None):
-    calls = LLMCall.objects.filter(status=CallStatus.OK)
-    rolled = LLMUsageDaily.objects.all()
+def _sources(calls: QuerySet[LLMCall], iteration: int | None) -> tuple[QuerySet, QuerySet]:
+    if iteration is None:
+        return calls, LLMUsageDaily.objects.all()
+    return calls.filter(**{ITERATION: iteration}), LLMUsageDaily.objects.none()
+
+
+def by_day(
+    project_id: uuid.UUID | None = None, *, organization_id=None, since=None, iteration=None
+):
+    calls, rolled = _sources(LLMCall.objects.filter(status=CallStatus.OK), iteration)
     if project_id is not None:
         calls, rolled = calls.filter(project_id=project_id), rolled.filter(project_id=project_id)
     if organization_id is not None:
@@ -232,8 +266,8 @@ def by_day(project_id: uuid.UUID | None = None, *, organization_id=None, since=N
     ]
 
 
-def project_costs(project: Any) -> dict[str, Any]:
-    """`GET /projects/{id}/costs`."""
+def project_costs(project: Any, iteration: int | None = None) -> dict[str, Any]:
+    """`GET /projects/{id}/costs[?iteration=n]`: the breakdowns of one iteration, or all."""
     from dexterhouse.apps.observability.services.estimate import estimate_for_project
 
     return {
@@ -242,11 +276,13 @@ def project_costs(project: Any) -> dict[str, Any]:
         "spent": _money(project.spent),
         "unpriced_tokens": project.spent_unpriced_tokens,
         "estimate": estimate_for_project(project),
-        "by_phase": by_phase(project.id),
-        "by_agent": by_agent(project.id),
-        "by_task": by_task(project.id),
-        "by_provider": by_provider(project.id),
-        "by_day": by_day(project.id),
+        "iteration": iteration,
+        "by_iteration": by_iteration(project.id),
+        "by_phase": by_phase(project.id, iteration),
+        "by_agent": by_agent(project.id, iteration),
+        "by_task": by_task(project.id, iteration),
+        "by_provider": by_provider(project.id, iteration=iteration),
+        "by_day": by_day(project.id, iteration=iteration),
     }
 
 
