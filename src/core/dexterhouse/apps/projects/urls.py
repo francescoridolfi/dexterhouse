@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 from django.urls import path
 
-from dexterhouse.apps.projects.api import views
+from dexterhouse.apps.projects.api import change_requests, views
 
 urlpatterns = [
     path("projects", views.ProjectListView.as_view(), name="project-list"),
@@ -37,4 +37,27 @@ urlpatterns = [
     ),
     path("projects/<uuid:project_id>/notes", views.NoteListView.as_view(), name="note-list"),
     path("notes/<uuid:note_id>", views.NoteDetailView.as_view(), name="note-detail"),
+    path(
+        "projects/<uuid:project_id>/change-requests",
+        change_requests.ChangeRequestListView.as_view(),
+        name="change-request-list",
+    ),
+    path(
+        "change-requests/<uuid:cr_id>",
+        change_requests.ChangeRequestDetailView.as_view(),
+        name="change-request-detail",
+    ),
+    *[
+        path(
+            f"change-requests/<uuid:cr_id>/{action}",
+            change_requests.ChangeRequestActionView.as_view(action=action),
+            name=f"change-request-{action}",
+        )
+        for action in ("queue", "cancel")
+    ],
+    path(
+        "change-requests/<uuid:cr_id>/estimate",
+        change_requests.ChangeRequestEstimateView.as_view(),
+        name="change-request-estimate",
+    ),
 ]
