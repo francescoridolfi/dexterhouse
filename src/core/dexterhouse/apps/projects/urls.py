@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 from django.urls import path
 
-from dexterhouse.apps.projects.api import views
+from dexterhouse.apps.projects.api import context, views
 
 urlpatterns = [
     path("projects", views.ProjectListView.as_view(), name="project-list"),
@@ -37,4 +37,15 @@ urlpatterns = [
     ),
     path("projects/<uuid:project_id>/notes", views.NoteListView.as_view(), name="note-list"),
     path("notes/<uuid:note_id>", views.NoteDetailView.as_view(), name="note-detail"),
+    path(
+        "projects/<uuid:project_id>/context",
+        context.ContextListView.as_view(),
+        name="context-list",
+    ),
+    path("context/<uuid:doc_id>", context.ContextDetailView.as_view(), name="context-detail"),
+    path(
+        "context/<uuid:doc_id>/download",
+        context.ContextDownloadView.as_view(),
+        name="context-download",
+    ),
 ]
