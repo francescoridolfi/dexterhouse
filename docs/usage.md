@@ -26,6 +26,23 @@ The brief is the most important input: name the users, the must-have features, t
 if you have one in mind, and what "done" means. The analyst turns it into requirements and
 asks about the gaps.
 
+### Context documents
+
+Technical analyses, domain notes or existing specs can be imported as **context
+documents**: on the new-project form (under the brief) or from the **Context** panel of the
+Overview, at any time before the project is archived. Accepted: `.md`, `.txt`, `.json`,
+`.yaml`, `.csv`, `.pdf` and `.docx`, up to 10 MB each and 20 per project. The text is
+extracted in the background (PDF text layer, DOCX headings and tables); a scanned PDF
+without text fails with `no_text_layer` (no OCR), text past 200 000 characters is cut and
+marked *truncated*.
+
+The analyst, the architect and the project manager read the documents with their inputs
+(whole up to 8 000 characters, otherwise the start and a hint to search the rest); every
+agent finds them with `memory.search`. A document added while the project runs reaches the
+next turns. Re-uploading the same file name creates a new version; *Deactivate* removes it
+from later turns and from the memory. Documents are treated as data, never as instructions:
+they cannot widen tools, risk levels or budgets.
+
 ## 2. Pick a mode
 
 | Mode | Gates | Questions |

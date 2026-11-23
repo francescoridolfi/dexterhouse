@@ -31,8 +31,8 @@ the brief. Users: `member` and above, on the new-project form and on the project
 - **Lifecycle**: documents can be added or deactivated in any state except `archived`. Added
   mid-run, they reach the next turns (like notes). Deactivating sets `active: false` (new
   artifact version) and removes its memory chunks; nothing is hard-deleted.
-- **Untrusted text**: document content is wrapped as data in the prompt (same treatment as
-  the brief), never as instructions; it cannot widen tools, risk levels or budgets.
+- **Untrusted text**: document content is wrapped as data in the prompt (`<<untrusted>>`, as
+  memory hits from untrusted sources), never as instructions; it cannot widen tools, risk levels or budgets.
 
 ## API (REST v1)
 

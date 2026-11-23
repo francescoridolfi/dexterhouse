@@ -147,14 +147,16 @@ so two stacks on one Docker daemon never clean up each other's workspaces.
 
 ## Backup and restore
 
-What to keep: the Postgres database, `.env`, and the `dh_secrets` volume (without the
-Fernet key the stored repository tokens and API keys cannot be decrypted). Workspaces are
-disposable; installed packages can be reinstalled from the registry.
+What to keep: the Postgres database, `.env`, the `dh_secrets` volume (without the
+Fernet key the stored repository tokens and API keys cannot be decrypted) and the `context`
+volume (the original files of the context documents; their text is in the database).
+Workspaces are disposable; installed packages can be reinstalled from the registry.
 
 ```bash
 mkdir -p backups
 docker compose exec -T postgres pg_dump -Fc -U dexterhouse dexterhouse > backups/db-$(date +%F).dump
 docker run --rm -v dexterhouse_dh_secrets:/s:ro -v "$PWD/backups:/b" alpine tar czf /b/secrets-$(date +%F).tgz -C /s .
+docker run --rm -v dexterhouse_context:/s:ro -v "$PWD/backups:/b" alpine tar czf /b/context-$(date +%F).tgz -C /s .
 ```
 
 Store both outside the host, encrypted. Restore into an empty database:
@@ -173,7 +175,7 @@ names start with the Compose project name (`dexterhouse_` by default).
 ## Uninstall
 
 `docker compose down` stops the stack and keeps the data; `docker compose down -v` also
-deletes the volumes (database, secrets, packages). Workspace containers and their
+deletes the volumes (database, secrets, packages, context documents). Workspace containers and their
 `dh-ws-*` volumes are created by the runner, not by Compose: they are destroyed when a
 project is archived or `WORKSPACE_IDLE_DESTROY_H` hours (24) after it completes. Remove
 leftovers with `docker ps -a --filter label=dexterhouse.project`.
