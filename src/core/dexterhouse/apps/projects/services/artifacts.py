@@ -24,7 +24,12 @@ def content_hash(content: str, data: Any) -> str:
 
 
 def validate_data(kind: str, data: Any) -> dict[str, Any] | None:
-    """Validate `data` for structured kinds; text kinds carry no data."""
+    """Validate `data` for structured kinds; text kinds carry no data.
+
+    `context` documents carry both: text in `content`, metadata written by the core itself.
+    """
+    if kind == ArtifactKind.CONTEXT:
+        return data
     if kind not in STRUCTURED_KINDS:
         if data is not None:
             raise ValidationFailedError(
@@ -74,7 +79,9 @@ def save_artifact(
     if kind == ArtifactKind.STACK:
         project.stack = clean
         project.save(update_fields=["stack", "updated_at"])
-    if kind != ArtifactKind.CODE_GRAPH:  # derived from the code: no memory chunks
+    # code_graph is derived from the code: no memory chunks; context is indexed once its
+    # text is extracted (services/context.py).
+    if kind not in {ArtifactKind.CODE_GRAPH, ArtifactKind.CONTEXT}:
         transaction.on_commit(lambda: index(artifact))
     return artifact
 
@@ -83,6 +90,18 @@ def index(artifact: Artifact) -> None:
     """Send the artifact version to the project memory (`memory.tasks.index_artifact`)."""
     from dexterhouse.apps.memory.tasks import index_artifact_task
 
+    if artifact.kind == ArtifactKind.CONTEXT:  # imported text: chunks stay marked untrusted
+        index_artifact_task.delay(
+            str(artifact.project.organization_id),
+            str(artifact.project_id),
+            str(artifact.id),
+            artifact.version,
+            artifact.kind,
+            artifact.name,
+            content=artifact.content,
+            untrusted=True,
+        )
+        return
     index_artifact_task.delay(
         str(artifact.project.organization_id),
         str(artifact.project_id),

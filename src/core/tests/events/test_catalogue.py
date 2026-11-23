@@ -12,7 +12,7 @@ from dexterhouse.apps.events.schemas import EVENT_TYPES, payload_model
 
 # Rows of the five family tables in dev_docs/01_architecture/contracts/events/, one per type.
 EXPECTED_PER_FAMILY = {
-    "project_process": 24,
+    "project_process": 28,  # + context.* (docs/specs/context-documents.md)
     "agents": 14,
     "tasks_gates": 14,
     "workspace_release": 15,
@@ -31,7 +31,7 @@ def _family(model: type) -> str:
 
 
 def test_catalogue_size() -> None:
-    assert len(EVENT_TYPES) == sum(EXPECTED_PER_FAMILY.values()) == 85
+    assert len(EVENT_TYPES) == sum(EXPECTED_PER_FAMILY.values()) == 89
 
 
 def test_catalogue_size_per_family() -> None:
@@ -66,6 +66,7 @@ VALID = {
     },
     "process.started": {"phases": [{"id": "analysis", "needs": [], "room": "meeting_room"}]},
     "phase.failed": {"phase_id": "analysis"},
+    "context.processed": {"artifact": {**ARTIFACT, "kind": "context"}, "chars": 120, "pages": 3},
     "agent.turn.completed": {
         "turn_id": _id(),
         "agent_id": _id(),

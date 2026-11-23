@@ -34,6 +34,7 @@ GATEWAY_RETRY_DELAYS = (0.0, 0.0, 0.0)
 PACKAGES_DIR = Path(
     os.environ.get("DH_TEST_PACKAGES_DIR") or tempfile.mkdtemp(prefix="dh-test-packages-")
 ).resolve()
+CONTEXT_DIR = Path(tempfile.mkdtemp(prefix="dh-test-context-")).resolve()
 REGISTRY_INDEX_URL = os.environ.get("DH_TEST_REGISTRY_INDEX_URL", "")
 MARKETPLACE_URL = ""
 PACKAGES_GIT_MIRRORS = json.loads(os.environ.get("DH_TEST_PACKAGES_GIT_MIRRORS") or "{}")

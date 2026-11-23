@@ -25,8 +25,8 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends curl git \
     && rm -rf /var/lib/apt/lists/* \
     && useradd --create-home --uid 1000 dexterhouse \
-    && mkdir -p /app/staticfiles /run/dh-secrets /data/packages \
-    && chown dexterhouse:dexterhouse /run/dh-secrets /data/packages
+    && mkdir -p /app/staticfiles /run/dh-secrets /data/packages /data/context \
+    && chown dexterhouse:dexterhouse /run/dh-secrets /data/packages /data/context
 COPY --from=builder /opt/venv /opt/venv
 COPY src/builtin /app/builtin
 ENV PATH=/opt/venv/bin:$PATH \
