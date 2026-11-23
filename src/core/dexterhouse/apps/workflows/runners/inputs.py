@@ -24,9 +24,9 @@ from dexterhouse.apps.workflows.roles import BUILTIN_ROLES, installed_roles
 from dexterhouse.apps.workflows.runner import TurnRequest
 
 DEFAULT_INPUTS: dict[str, tuple[str, ...]] = {
-    "analyst": ("brief", "questions", "requirements", "user_stories", "assumptions"),
-    "architect": ("requirements", "user_stories"),
-    "project_manager": ("architecture", "stack", "requirements", "user_stories"),
+    "analyst": ("brief", "context", "questions", "requirements", "user_stories", "assumptions"),
+    "architect": ("requirements", "user_stories", "context"),
+    "project_manager": ("architecture", "stack", "requirements", "user_stories", "context"),
     "recruiter": ("task_board", "stack", "architecture", "brief"),
     "replan": ("task_board", "team_proposal"),
     "developer": ("stack", "architecture", "dev_notes", "task_board"),
@@ -38,6 +38,9 @@ DEFAULT_INPUTS: dict[str, tuple[str, ...]] = {
     "retrospective:project_manager": ("release_notes", "task_board", "test_report", "assumptions"),
 }
 TASK_KINDS = frozenset({"dev_notes", "review", "test_report"})
+#: Context documents enter whole up to this size, else as an excerpt (context-documents spec).
+CONTEXT_WHOLE_CHARS = 8000
+CONTEXT_EXCERPT_CHARS = 2000
 WORKSPACE_IMAGES = (
     "dexterhouse/workspace:python (Python 3.12, uv, pip), "
     "dexterhouse/workspace:node (Node 22, npm, pnpm), "
@@ -65,6 +68,7 @@ def _latest(project_id: Any, kinds: tuple[str, ...], task_ref: str | None) -> li
     latest = rows.values("kind", "name").annotate(v=Max("version"))
     wanted = {(r["kind"], r["name"], r["v"]) for r in latest}
     artifacts = [a for a in rows.order_by("created_at") if (a.kind, a.name, a.version) in wanted]
+    artifacts = [a for a in artifacts if a.kind != "context" or _usable_document(a)]
     if task_ref:
         artifacts = [a for a in artifacts if a.kind not in TASK_KINDS or task_ref in a.name]
     else:
@@ -76,7 +80,33 @@ def _task_report(artifact: Artifact) -> bool:
     return artifact.kind == "test_report" and (artifact.data or {}).get("scope") == "task"
 
 
+def _usable_document(artifact: Artifact) -> bool:
+    data = artifact.data or {}
+    return bool(data.get("active")) and data.get("status") == "processed"
+
+
+def _document_text(artifact: Artifact) -> str:
+    """The whole text of a short document; the start and a `memory.search` hint otherwise."""
+    text = artifact.content
+    if len(text) <= CONTEXT_WHOLE_CHARS:
+        return text
+    title = (artifact.data or {}).get("title") or artifact.name
+    return (
+        f"{text[:CONTEXT_EXCERPT_CHARS]}\n\n[{title}: first {CONTEXT_EXCERPT_CHARS} of "
+        f"{len(text)} characters. Use memory.search to find the rest.]"
+    )
+
+
 def _artifact_input(artifact: Artifact) -> ArtifactInput:
+    if artifact.kind == "context":  # imported by a user: text only, kept as untrusted data
+        return ArtifactInput(
+            id=artifact.id,
+            kind=artifact.kind,
+            name=artifact.name,
+            version=artifact.version,
+            content=_document_text(artifact),
+            untrusted=True,
+        )
     return ArtifactInput(
         id=artifact.id,
         kind=artifact.kind,
