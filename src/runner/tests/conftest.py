@@ -9,14 +9,9 @@ import subprocess
 from pathlib import Path
 
 import pytest
+from runner_helpers import STACK, git
 
 from dexterhouse_runner.workspace_mcp.base import Config
-
-
-def git(root: Path, *args: str) -> str:
-    return subprocess.run(
-        ["git", "-C", str(root), *args], check=True, capture_output=True, text=True
-    ).stdout
 
 
 @pytest.fixture
@@ -224,18 +219,6 @@ def runner(tmp_path: Path) -> SimpleNamespace:
         redis=redis,
         settings=settings,
     )
-
-
-STACK = {
-    "language": "python",
-    "framework": "none",
-    "workspace_image": "dexterhouse/workspace:python",
-    "package_manager": "uv",
-    "test_command": "python3 -c 'print(\"2 passed\")'",
-    "run_command": "python3 -m http.server 8000",
-    "services": [],
-    "env": {"APP_ENV": "test"},
-}
 
 
 @pytest.fixture

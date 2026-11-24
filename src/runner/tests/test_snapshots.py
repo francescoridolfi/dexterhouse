@@ -8,7 +8,7 @@ from types import SimpleNamespace
 from unittest import mock
 
 import pytest
-from conftest import STACK, git
+from runner_helpers import STACK, git
 
 from dexterhouse_runner import delivery, snapshots
 from dexterhouse_runner.docker_manager import RunnerError
