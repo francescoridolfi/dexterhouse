@@ -8,11 +8,18 @@ the core creates a one-time grant (60 s) and sends only its id; the runner redee
 """
 
 import uuid
+from typing import Any
 
 import structlog
 
 from dexterhouse.apps.events.models import Event
-from dexterhouse.apps.projects.models import Artifact, ArtifactKind, DeliveryMode, Project
+from dexterhouse.apps.projects.models import (
+    Artifact,
+    ArtifactKind,
+    ChangeRequest,
+    DeliveryMode,
+    Project,
+)
 from dexterhouse.apps.projects.services.actors import emit
 from dexterhouse.apps.workspaces import services
 from dexterhouse.apps.workspaces.client import get_client
@@ -35,6 +42,15 @@ def _notes(project: Project) -> str:
         .first()
     )
     return (notes.content if notes else "")[:60_000]
+
+
+def pull_request(project: Project, phase_run_id: Any, n: int) -> PullRequest:
+    """`<name>: release n`, or `CR-k: <title> (<name> release n)` for a change request."""
+    cr = ChangeRequest.objects.filter(process_run__phases__id=phase_run_id).first()
+    if cr is None:
+        return PullRequest(title=f"{project.name}: release {n}", body=_notes(project))
+    title = f"{cr.label}: {cr.title} ({project.name} release {n})"
+    return PullRequest(title=title[:250], body=f"{cr.label}: {cr.title}\n\n{_notes(project)}")
 
 
 def deliver(project_id: str | uuid.UUID, phase_run_id: str | uuid.UUID) -> str:
@@ -68,9 +84,7 @@ def deliver(project_id: str | uuid.UUID, phase_run_id: str | uuid.UUID) -> str:
         remote_url=project.remote_repo_url,
         token_ref=grant.id if grant else None,
         branch_name=None if mode == DeliveryMode.PUSH_MAIN else f"dexterhouse/release-{n}",
-        pr=PullRequest(title=f"{project.name}: release {n}", body=_notes(project))
-        if mode == DeliveryMode.PULL_REQUEST
-        else None,
+        pr=pull_request(project, phase_run_id, n) if mode == DeliveryMode.PULL_REQUEST else None,
     )
     result = get_client().call("runner.system.deliver", message)
     services.touch(workspace)

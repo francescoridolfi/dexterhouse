@@ -3,6 +3,7 @@
 
 from dexterhouse.apps.events.schemas import (  # noqa: F401  (import registers the models)
     agents,
+    change_requests,
     notifications,
     packages_budget_security,
     project_process,

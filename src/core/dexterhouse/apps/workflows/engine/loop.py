@@ -86,6 +86,7 @@ def init_tasks(phase: Phase, row: PhaseRun) -> bool:
     for item in sorted(parsed.tasks, key=lambda t: order[t.external_id]):
         task = Task.objects.create(
             project=project,
+            process_run=row.process_run,
             phase_run=row,
             external_id=item.external_id,
             title=item.title,
@@ -105,7 +106,7 @@ def init_tasks(phase: Phase, row: PhaseRun) -> bool:
 def next_external_id(project: Project) -> str:
     numbers = [
         int(m.group(1))
-        for e in Task.objects.filter(project=project).values_list("external_id", flat=True)
+        for e in Task.objects.current(project.id).values_list("external_id", flat=True)
         if (m := re.fullmatch(r"T-(\d+)", e))
     ]
     return f"T-{max(numbers, default=0) + 1:02d}"
@@ -117,6 +118,7 @@ def add_task(row: PhaseRun, phase: Phase, *, actor: Any = SYSTEM, **fields: Any)
     last = Task.objects.filter(phase_run=row).aggregate(m=Max("order"))["m"]
     task = Task.objects.create(
         project=project,
+        process_run=row.process_run,
         phase_run=row,
         external_id=next_external_id(project),
         max_iterations=phase.max_iterations or 1,
@@ -258,6 +260,7 @@ def iterate(
     save(task, "iteration", "status", "current_step")
     fix = Task.objects.create(
         project=task.project,
+        process_run=row.process_run,
         phase_run=row,
         external_id=task.external_id,
         kind=TaskKind.FIX,

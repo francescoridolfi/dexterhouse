@@ -43,7 +43,7 @@ def created_by(gate: Gate) -> list[Task]:
     """The `fix` tasks a release `reject` created (CD-034), oldest first."""
     return list(
         Task.objects.filter(
-            project_id=gate.project_id,
+            process_run_id=gate.phase_run.process_run_id,
             kind="fix",
             parent__isnull=True,
             created_at__gte=gate.decided_at,

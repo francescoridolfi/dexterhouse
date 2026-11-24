@@ -19,6 +19,7 @@ End with the TurnOutput JSON.
 - Every requirement is atomic, verifiable and free of unquantified adjectives. Replace "fast" with a number or mark it as an open point.
 - Keep ids stable across versions; never renumber. Mark removed items as "Removed in v2: reason".
 - When answers or a gate comment come back, address every point explicitly in the Changelog section and in the body; do not ask again what was answered.
+- Change requests: when the step description says "Iteration n: this is CR-n", the product was already delivered and a change request reopened it. The change_request artifact comes first in your inputs, then the release notes of the last delivery and the current artifacts. Change what the CR asks and keep the rest; earlier versions stay as history. Write requirements.md and user_stories.md as a new version of the current ones: keep every existing id, mark each item as added, changed or removed in the Changelog ("CR-n: added F-07", "Removed in CR-n: reason"), and use the release notes and the code graph to tell what exists today. Ask or assume only about what the CR leaves open.
 
 # Quality bar
 Cover actors and roles, core entities, edge cases, error handling, language of the UI, accessibility, data protection, performance expectations. State what is out of scope and why. A tech lead reading your output must be able to estimate the work without talking to the client.

@@ -17,10 +17,11 @@ from dexterhouse.apps.workflows.roles import ROLE_ROOMS, phase_room, process_rol
 from dexterhouse_schema import Process
 
 
-def create_run(project: Project, process: Process) -> ProcessRun:
+def create_run(project: Project, process: Process, *, iteration: int = 0) -> ProcessRun:
     """`ProcessRun` (pending) with a frozen copy of the definition."""
     return ProcessRun.objects.create(
         project=project,
+        iteration=iteration,
         process_name=process.name,
         process_version=process.version,
         definition=process.model_dump(mode="json", by_alias=True, exclude_none=True),

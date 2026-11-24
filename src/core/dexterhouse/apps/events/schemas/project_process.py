@@ -80,7 +80,7 @@ class ProjectArchived(EventPayload):
 
 class ProjectBudgetChanged(EventPayload):
     event_type = "project.budget_changed"
-    actors = ("user",)
+    actors = ("user", "system")  # system: a change request started by itself (E-13)
 
     old: Decimal
     new: Decimal

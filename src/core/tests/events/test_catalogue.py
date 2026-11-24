@@ -18,6 +18,7 @@ EXPECTED_PER_FAMILY = {
     "workspace_release": 15,
     "packages_budget_security": 17,
     "notifications": 1,  # E-06, contracts/events/notifications.md
+    "change_requests": 8,  # E-13, contracts/events/change_requests.md
 }
 TYPE_NAME = re.compile(r"^[a-z_]+(\.[a-z_]+)+$")
 
@@ -31,7 +32,7 @@ def _family(model: type) -> str:
 
 
 def test_catalogue_size() -> None:
-    assert len(EVENT_TYPES) == sum(EXPECTED_PER_FAMILY.values()) == 89
+    assert len(EVENT_TYPES) == sum(EXPECTED_PER_FAMILY.values()) == 97
 
 
 def test_catalogue_size_per_family() -> None:
@@ -112,6 +113,12 @@ VALID = {
         "kind": "agent",
     },
     "budget.org_exceeded": {"spent_month": "100.5", "budget_monthly": "100"},
+    "change_request.started": {
+        "change_request_id": _id(),
+        "number": 1,
+        "iteration": 1,
+        "process_run_id": _id(),
+    },
     "notification.created": {
         "notification_id": _id(),
         "user_id": _id(),
