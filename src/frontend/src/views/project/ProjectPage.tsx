@@ -14,6 +14,7 @@ import { ForbiddenPage, NotFoundPage } from "../system/Pages.tsx";
 import { ProjectHeader } from "./ProjectHeader.tsx";
 import { ArtifactsTab } from "./tabs/ArtifactsTab.tsx";
 import { BoardTab } from "./tabs/BoardTab.tsx";
+import { ChangesTab } from "./tabs/ChangesTab.tsx";
 import { CostsTab } from "./tabs/CostsTab.tsx";
 import { LogTab } from "./tabs/LogTab.tsx";
 import { OfficeTab } from "./tabs/OfficeTab.tsx";
@@ -21,7 +22,16 @@ import { OverviewTab } from "./tabs/OverviewTab.tsx";
 import { TeamTab } from "./tabs/TeamTab.tsx";
 import { useProjectStream } from "./useProjectStream.ts";
 
-const TABS = ["overview", "board", "team", "artifacts", "log", "costs", "office"] as const;
+const TABS = [
+  "overview",
+  "board",
+  "team",
+  "artifacts",
+  "changes",
+  "log",
+  "costs",
+  "office",
+] as const;
 type Tab = (typeof TABS)[number];
 const SHORTCUTS: Record<string, Tab> = { l: "log", b: "board" };
 
@@ -121,6 +131,7 @@ export function ProjectPage() {
           {active === "board" ? <BoardTab /> : null}
           {active === "team" ? <TeamTab /> : null}
           {active === "artifacts" ? <ArtifactsTab /> : null}
+          {active === "changes" ? <ChangesTab /> : null}
           {active === "log" ? <LogTab /> : null}
           {active === "costs" ? <CostsTab /> : null}
         </div>

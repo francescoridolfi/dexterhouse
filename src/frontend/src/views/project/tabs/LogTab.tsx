@@ -33,6 +33,8 @@ const FAMILIES = [
   "test",
   "security",
   "release",
+  "context",
+  "change_request",
 ];
 
 export function LogTab() {
