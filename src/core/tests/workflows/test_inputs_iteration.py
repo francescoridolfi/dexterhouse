@@ -78,3 +78,21 @@ def test_planning_of_an_iteration_has_no_scaffold_task(completed, user):
             services.decide(gate.id, user, decision="approve")
     description = inputs_of(completed, "project_manager").step_description
     assert "no scaffold task" in description
+
+
+def test_documents_attached_to_the_cr_come_right_after_it(completed, user, settings, tmp_path):
+    from dexterhouse.apps.projects.services import context
+
+    settings.CONTEXT_DIR = tmp_path / "context"
+    general = context.add_document(completed, user, filename="domain.md", content=b"Gyms.")
+    body = {"title": "Waiting list", "body": "Add one.", "budget": Decimal(0)}
+    cr = change_requests.create_change_request(completed, user, body)
+    attached = context.add_document(
+        completed, user, filename="waitlist.md", content=b"FIFO.", change_request_id=cr.id
+    )
+    for doc in (general, attached):
+        context.process_document(doc.id)
+    change_requests.queue_change_request(cr, user)
+    names = [a.name for a in inputs_of(completed, "analyst").artifacts]
+    assert names[:2] == [f"cr-{cr.number}.md", "context/waitlist.md"]
+    assert names.index("context/domain.md") > names.index("context/waitlist.md")

@@ -534,7 +534,15 @@ def with_iteration(
     ]
     seen = {a.id for a in first}
     rest = [a for a in artifacts if a.id not in seen and a.kind != "change_request"]
-    return first + rest
+    # Documents attached to this CR come right after it, before everything else.
+    attached = [a for a in rest if a.kind == "context" and _attached_to(a, cr)]
+    rest = [a for a in rest if a not in attached]
+    crs = [a for a in first if a.kind == "change_request"]
+    return crs + attached + [a for a in first if a.kind != "change_request"] + rest
+
+
+def _attached_to(artifact: Artifact, cr: ChangeRequest) -> bool:
+    return (artifact.data or {}).get("change_request") == str(cr.id)
 
 
 def guide(cr: ChangeRequest | None) -> list[str]:
