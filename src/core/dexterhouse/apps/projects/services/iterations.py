@@ -94,7 +94,15 @@ def _running(run: Any) -> ChangeRequest | None:
 
 
 def on_iteration_completed(project: Project, run: Any) -> None:
-    """The run completed: its CR is done, and the next queued CR starts by itself."""
+    """The run completed: its CR is done, and the next queued CR starts by itself.
+
+    The runner keeps a snapshot of the code first, for a CR that starts after the
+    workspace is gone (ADR-0018); a CR starting now reuses the live workspace.
+    """
+    from dexterhouse.apps.workspaces.tasks import snapshot
+
+    project_id = str(project.id)
+    transaction.on_commit(lambda: snapshot.delay(project_id), robust=True)
     cr = _running(run)
     if cr is not None and cr.status == CR.RUNNING:
         cr.completed_at = timezone.now()

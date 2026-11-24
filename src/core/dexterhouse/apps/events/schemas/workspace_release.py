@@ -36,6 +36,7 @@ class WorkspaceCreated(EventPayload):
     image: str
     digest: str
     services: list[str]
+    restored_commit: str | None = None  # the workspace was restored (ADR-0018)
 
 
 class WorkspaceError(EventPayload):

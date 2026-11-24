@@ -75,6 +75,12 @@ def retry_project(project_id, user: User) -> Project:
     return project
 
 
+def _drop_snapshot(project_id) -> None:
+    from dexterhouse.apps.workspaces.tasks import drop_snapshot
+
+    drop_snapshot.delay(str(project_id))
+
+
 def archive_project(project_id, user: User) -> Project:
     """Soft delete (`archived`, `deleted_at`); events stay for retention."""
     with transaction.atomic():
@@ -82,6 +88,7 @@ def archive_project(project_id, user: User) -> Project:
         transition(project, ProjectStatus.ARCHIVED)
         if run is not None:
             start.cancel_run(run)
-        # Workspace destruction is a runner operation (E-05).
+        # Workspace destruction is a runner operation (E-05); its snapshot goes too.
         emit(project, "project.archived", actor=user_actor(user))
+        transaction.on_commit(lambda: _drop_snapshot(project.id), robust=True)
     return project

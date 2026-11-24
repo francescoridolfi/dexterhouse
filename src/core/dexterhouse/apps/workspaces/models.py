@@ -44,6 +44,12 @@ class Workspace(BaseModel):
     last_activity_at = models.DateTimeField(null=True, blank=True)
     destroy_after = models.DateTimeField(null=True, blank=True)
     destroy_reason = models.CharField(max_length=16, blank=True, default="")
+    # ADR-0018: how the next creation restores the code ("", "snapshot", "remote"), the
+    # commit of the last snapshot the runner holds, and the commit a restore produced.
+    restore_source = models.CharField(max_length=16, blank=True, default="")
+    snapshot_commit = models.CharField(max_length=64, blank=True, default="")
+    snapshot_at = models.DateTimeField(null=True, blank=True)
+    restored_commit = models.CharField(max_length=64, blank=True, default="")
     error_detail = models.TextField(null=True, blank=True)
 
     class Meta:
