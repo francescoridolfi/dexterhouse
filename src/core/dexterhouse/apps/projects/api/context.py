@@ -36,13 +36,16 @@ META = (
 
 
 def document_json(doc: Artifact, *, content: bool = False) -> dict[str, Any]:
-    data = doc.data or {}
+    """The document as an artifact (`kind`, `data`), its metadata also at the top level."""
+    meta = {key: (doc.data or {}).get(key) for key in META}
     out = {
         "id": str(doc.id),
         "project": str(doc.project_id),
+        "kind": doc.kind,
         "name": doc.name,
         "version": doc.version,
-        **{key: data.get(key) for key in META},
+        **meta,
+        "data": meta,
         "created_at": doc.created_at.isoformat().replace("+00:00", "Z"),
     }
     if content:

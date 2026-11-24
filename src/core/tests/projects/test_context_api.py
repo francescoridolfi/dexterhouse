@@ -28,6 +28,8 @@ def test_upload_list_detail_and_download(client, project):
     doc = response.json()
     assert doc["name"] == "context/analysis.md"
     assert doc["title"] == "Tech analysis"
+    assert doc["kind"] == "context"
+    assert doc["data"]["filename"] == "analysis.md"  # the shape of an artifact for the UI
     assert doc["status"] in {"processing", "processed"}
     listed = client.get(f"/api/v1/projects/{project.id}/context").json()["results"]
     assert [d["id"] for d in listed] == [doc["id"]]
