@@ -11,14 +11,16 @@ container; tool calls go through the workspace's MCP session, one at a time per 
 import json
 import re
 import shlex
+import tempfile
 import time
 import uuid
+from pathlib import Path
 from typing import Any
 
 import structlog
 from docker.errors import DockerException
 
-from dexterhouse_runner import __version__, metrics, repo_read
+from dexterhouse_runner import __version__, metrics, repo_read, snapshots
 from dexterhouse_runner.callbacks import Callbacks
 from dexterhouse_runner.config import RunnerSettings
 from dexterhouse_runner.delivery import Delivery
@@ -36,8 +38,11 @@ from dexterhouse_schema.runner import (
     LsTree,
     Merge,
     ReadFile,
+    Restore,
     SecretsBlocked,
     ServerSpec,
+    Snapshot,
+    SnapshotDrop,
     ToolError,
     ToolInvoke,
     ToolList,
@@ -115,6 +120,8 @@ TASK_METHODS = {
     "runner.system.code_graph": "code_graph",
     "runner.system.ls_tree": "ls_tree",
     "runner.system.read_file": "read_file",
+    "runner.system.snapshot": "snapshot",
+    "runner.system.snapshot_drop": "snapshot_drop",
 }
 
 
@@ -142,7 +149,7 @@ class RunnerService:
         self.callbacks.workspace_changed(message)
         return message
 
-    def _ready(self, ws: uuid.UUID, container: Any) -> WorkspaceChanged:
+    def _ready(self, ws: uuid.UUID, container: Any, **extra: Any) -> WorkspaceChanged:
         labels = container.labels or {}
         services = [
             c.labels.get("dexterhouse.service", "")
@@ -157,19 +164,21 @@ class RunnerService:
             digest=container.image.id,
             container_id=container.id,
             services=sorted(s for s in services if s),
+            **extra,
         )
 
     def create(self, msg: WorkspaceCreate) -> ToolResult:
         ws = msg.workspace_id
         existing = self.docker.find(ws)
         if existing is not None and existing.status == "running":
-            return ToolResult(ok=True, data=self._ready(ws, existing).dump())
+            return ToolResult(ok=True, data=self._ready(ws, existing, **self._head(msg)).dump())
         if existing is not None:
             try:  # a stopped container keeps its volume: restart it rather than lose the code
                 existing.start()
                 existing.reload()
                 if existing.status == "running":
-                    return ToolResult(ok=True, data=self._ready(ws, existing).dump())
+                    extra = self._head(msg)
+                    return ToolResult(ok=True, data=self._ready(ws, existing, **extra).dump())
             except DockerException as exc:
                 logger.warning(
                     "runner.workspace_restart_failed", workspace_id=str(ws), error=str(exc)
@@ -186,11 +195,14 @@ class RunnerService:
             )
             return ToolResult.failure(exc.code, exc.detail)
         self._changed(ws, "creating", image=image)
+        restored: dict[str, Any] = {}
         try:
             services = [str(s) for s in msg.stack.get("services") or []]
             created = self.docker.create(
                 ws, msg.project_id, image, self._workspace_env(msg, services), services, msg.limits
             )
+            if msg.restore is not None:
+                restored["restored_commit"] = self._restore(ws, msg.project_id, msg.restore)
             self._init_repo(ws)
             self.pool.list_tools(str(ws), BUILTIN, self._spec(ws))
         except (RunnerError, DockerException, SessionError, TimeoutError) as exc:
@@ -203,9 +215,55 @@ class RunnerService:
         metrics.WORKSPACES.set(len(self.docker.managed()))
         container = self.docker.running(ws)
         logger.info(
-            "runner.workspace_ready", workspace_id=str(ws), image=image, digest=created.digest
+            "runner.workspace_ready",
+            workspace_id=str(ws),
+            image=image,
+            digest=created.digest,
+            **restored,
         )
-        return ToolResult(ok=True, data=self._ready(ws, container).dump())
+        return ToolResult(ok=True, data=self._ready(ws, container, **restored).dump())
+
+    def _head(self, msg: WorkspaceCreate) -> dict[str, Any]:
+        """A retried restoring create: report the commit the workspace has (idempotency)."""
+        if msg.restore is None:
+            return {}
+        out = self._git(msg.workspace_id, "rev-parse", "-q", "--verify", "HEAD", check=False)
+        return {"restored_commit": out.strip() or None}
+
+    def _restore(self, ws: uuid.UUID, project_id: uuid.UUID, restore: Restore) -> str:
+        """Fill the new, empty volume from the snapshot or the remote (ADR-0018)."""
+        token = None
+        try:
+            if restore.source == "remote" and restore.token_ref is not None:
+                token = redeem(restore.token_ref, self.settings)
+            with tempfile.TemporaryDirectory(prefix="dh-restore-") as tmp:
+                built = snapshots.build_repository(
+                    Path(tmp),
+                    restore.source,
+                    bundle=snapshots.bundle_path(self.settings.RUNNER_SNAPSHOT_DIR, project_id),
+                    remote_url=restore.remote_url,
+                    branch=restore.branch,
+                    token=token,
+                )
+                with built.tar.open("rb") as data:
+                    self.docker.put_archive(ws, "/workspace", data)
+        except RunnerError as exc:
+            raise RunnerError(
+                exc.code, f"restore from the {restore.source} failed: {exc.detail}"
+            ) from None
+        except OSError as exc:
+            raise RunnerError(
+                "internal", f"restore from the {restore.source} failed: {exc.strerror or exc}"
+            ) from None
+        finally:
+            token = None
+        logger.info(
+            "runner.workspace_restored",
+            workspace_id=str(ws),
+            source=restore.source,
+            commit=built.commit,
+        )
+        return built.commit
 
     def _workspace_env(self, msg: WorkspaceCreate, services: list[str]) -> dict[str, str]:
         stack = msg.stack
@@ -615,6 +673,31 @@ class RunnerService:
             )
 
         return self._system("deliver", run)
+
+    def snapshot(self, msg: Snapshot) -> ToolResult:
+        def run() -> ToolResult:
+            container = self.docker.running(msg.workspace_id)
+            owner = (getattr(container, "labels", None) or {}).get("dexterhouse.project")
+            if owner and owner != str(msg.project_id):
+                raise RunnerError("invalid", "the workspace belongs to another project")
+            stream = self.docker.archive(msg.workspace_id, "/workspace/.git")
+            try:
+                data = snapshots.write_bundle(
+                    stream, self.settings.RUNNER_SNAPSHOT_DIR, msg.project_id
+                )
+            except OSError as exc:
+                raise RunnerError("internal", f"the snapshot was not written: {exc}") from None
+            logger.info("runner.snapshot_written", project_id=str(msg.project_id), **data)
+            return ToolResult(ok=True, data=data)
+
+        return self._system("snapshot", run)
+
+    def snapshot_drop(self, msg: SnapshotDrop) -> ToolResult:
+        def run() -> ToolResult:
+            deleted = snapshots.drop_bundle(self.settings.RUNNER_SNAPSHOT_DIR, msg.project_id)
+            return ToolResult(ok=True, data={"deleted": deleted})
+
+        return self._system("snapshot_drop", run)
 
     # Heartbeat ----------------------------------------------------------------------------
 

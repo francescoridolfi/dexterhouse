@@ -15,6 +15,8 @@ payloads of `dexterhouse_schema.runner`.
   inside the workspace image (standard library, `mcp` and `detect-secrets` only).
 - `delivery.py` and `grants.py`: the release push with a one-time grant and `GIT_ASKPASS`,
   never in the workspace and never forced; pull requests through the GitHub or GitLab API.
+- `snapshots.py`: one `git bundle` per project in `RUNNER_SNAPSHOT_DIR` (volume `snapshots`)
+  and the restore of a new workspace from it or from the remote (ADR-0018, change requests).
 
 Prometheus metrics on `RUNNER_METRICS_PORT` (9100). Configuration: `.env.example`, section
 Workspaces.

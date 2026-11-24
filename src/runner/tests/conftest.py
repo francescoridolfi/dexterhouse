@@ -107,6 +107,11 @@ class FakeDocker(DockerManager):
             tar.add(self.root(workspace_id) / ".git", arcname=".git")
         return iter([buffer.getvalue()])
 
+    def put_archive(self, workspace_id: Any, path: str, data: Any) -> None:
+        self.running(workspace_id)
+        with tarfile.open(fileobj=data, mode="r|") as tar:
+            tar.extractall(self.root(workspace_id), filter="data")
+
     def proxy(self) -> Any:
         return SimpleNamespace(logs=lambda **_: self.proxy_logs)
 

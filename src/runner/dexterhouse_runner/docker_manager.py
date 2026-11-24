@@ -332,6 +332,11 @@ class DockerManager:
         stream, _stat = self.running(workspace_id).get_archive(path)
         return stream
 
+    def put_archive(self, workspace_id: Any, path: str, data: Any) -> None:
+        """Unpack a tar stream at `path` in the workspace (a restored repository)."""
+        if not self.running(workspace_id).put_archive(path, data):
+            raise RunnerError("internal", f"the archive could not be copied into {path}")
+
 
 def quota(limits: Any) -> str:
     return str(parse_size(limits.disk))
