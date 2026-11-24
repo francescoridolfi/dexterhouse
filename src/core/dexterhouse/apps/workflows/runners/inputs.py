@@ -19,7 +19,7 @@ from django.db.models import Count, Max, Sum
 from dexterhouse.apps.agents.models import AgentInstance, AgentStatus, AgentTurn
 from dexterhouse.apps.agents.schemas import ArtifactInput, NoteInput, TaskInput, TurnInputs
 from dexterhouse.apps.projects.models import Artifact, ChangeRequest, Note, Project
-from dexterhouse.apps.workflows.models import Gate, StepRun, Task
+from dexterhouse.apps.workflows.models import Gate, PhaseRun, StepRun, Task
 from dexterhouse.apps.workflows.roles import BUILTIN_ROLES, installed_roles
 from dexterhouse.apps.workflows.runner import TurnRequest
 
@@ -62,15 +62,27 @@ def input_kinds(request: TurnRequest) -> tuple[str, ...]:
     return kinds
 
 
-def _latest(project_id: Any, kinds: tuple[str, ...], task_ref: str | None) -> list[Artifact]:
-    """Latest version of every (kind, name) of `kinds`, in the order of `kinds`."""
+def _latest(
+    project_id: Any, kinds: tuple[str, ...], task_ref: str | None, run_id: Any = None
+) -> list[Artifact]:
+    """Latest version of every (kind, name) of `kinds`, in the order of `kinds`.
+
+    With `run_id`, a task's notes and reports are those of that process run only: a change
+    request's board reuses `T-01`, and the brief iteration's `T-01` is another task.
+    """
     rows = Artifact.objects.filter(project_id=project_id, kind__in=kinds)
     latest = rows.values("kind", "name").annotate(v=Max("version"))
     wanted = {(r["kind"], r["name"], r["v"]) for r in latest}
     artifacts = [a for a in rows.order_by("created_at") if (a.kind, a.name, a.version) in wanted]
     artifacts = [a for a in artifacts if a.kind != "context" or _usable_document(a)]
     if task_ref:
-        artifacts = [a for a in artifacts if a.kind not in TASK_KINDS or task_ref in a.name]
+        runs = _run_phases(run_id)
+        artifacts = [
+            a
+            for a in artifacts
+            if a.kind not in TASK_KINDS
+            or (task_ref in a.name and (runs is None or a.phase_run_id in runs))
+        ]
     else:
         artifacts = [a for a in artifacts if not _task_report(a)]
     return sorted(artifacts, key=lambda a: kinds.index(a.kind))
@@ -117,15 +129,28 @@ def _artifact_input(artifact: Artifact) -> ArtifactInput:
     )
 
 
-def _task_reports(project_id: Any, task_ref: str, kind: str) -> list[Artifact]:
+def _run_phases(run_id: Any) -> set[Any] | None:
+    if run_id is None:
+        return None
+    return set(PhaseRun.objects.filter(process_run_id=run_id).values_list("id", flat=True))
+
+
+def _task_reports(project_id: Any, task_ref: str, kind: str, run_id: Any = None) -> list[Artifact]:
     rows = Artifact.objects.filter(project_id=project_id, kind=kind, name__contains=task_ref)
+    if run_id is not None:
+        rows = rows.filter(phase_run__process_run_id=run_id)
     return list(rows.order_by("created_at"))
 
 
-def review_context(project_id: Any, task_ref: str) -> tuple[list[dict[str, Any]], list[str]]:
-    """Open findings and failures of the task's latest review/test, and every finding id."""
-    reviews = _task_reports(project_id, task_ref, "review")
-    tests = _task_reports(project_id, task_ref, "test_report")
+def review_context(
+    project_id: Any, task_ref: str, run_id: Any = None
+) -> tuple[list[dict[str, Any]], list[str]]:
+    """Open findings and failures of the task's latest review/test, and every finding id.
+
+    `run_id` limits them to one process run (the task of that iteration).
+    """
+    reviews = _task_reports(project_id, task_ref, "review", run_id)
+    tests = _task_reports(project_id, task_ref, "test_report", run_id)
     known = sorted({f["id"] for r in reviews for f in (r.data or {}).get("findings", [])})
     items: list[dict[str, Any]] = []
     if reviews:
@@ -174,7 +199,8 @@ def build_inputs(request: TurnRequest, step_run: StepRun) -> TurnInputs:
     project = step_run.project
     task = request.task
     task_ref = task.external_id if task else None
-    artifacts = _latest(project.id, input_kinds(request), task_ref)
+    run_id = step_run.phase_run.process_run_id
+    artifacts = _latest(project.id, input_kinds(request), task_ref, run_id)
     cr = change_request_of(step_run)
     artifacts = with_iteration(project.id, request, cr, artifacts)
     notes = Note.objects.filter(project=project, phase_run__isnull=True) | Note.objects.filter(
@@ -186,7 +212,7 @@ def build_inputs(request: TurnRequest, step_run: StepRun) -> TurnInputs:
     items: list[dict[str, Any]] = []
     known: list[str] | None = None
     if task_ref:
-        items, known_ids = review_context(project.id, task_ref)
+        items, known_ids = review_context(project.id, task_ref, run_id)
         known = known_ids if request.verdict_rule == "review" else None
         if request.verdict_rule != "none":
             items = []  # reviewers and testers judge the new iteration, not the old findings

@@ -5,6 +5,7 @@ from decimal import Decimal
 
 import pytest
 
+from dexterhouse.apps.projects.models import Artifact
 from dexterhouse.apps.projects.services import change_requests
 from dexterhouse.apps.workflows import services
 from dexterhouse.apps.workflows.engine import steps
@@ -96,3 +97,42 @@ def test_documents_attached_to_the_cr_come_right_after_it(completed, user, setti
     names = [a.name for a in inputs_of(completed, "analyst").artifacts]
     assert names[:2] == [f"cr-{cr.number}.md", "context/waitlist.md"]
     assert names.index("context/domain.md") > names.index("context/waitlist.md")
+
+
+def _until_queued(project, role: str) -> None:
+    """Run the current iteration's steps until a `role` step is queued."""
+    for _ in range(300):
+        queued = StepRun.objects.filter(
+            phase_run__process_run=project.current_run, status="queued"
+        ).order_by("created_at")
+        if queued.filter(role=role).exists():
+            return
+        step = queued.first()
+        if step is not None:
+            steps.run_step(step.id)
+            continue
+        gate = Gate.objects.filter(project=project, status="open").first()
+        assert gate is not None, f"no {role} step and no gate"
+        services.decide(gate.id, project.created_by, decision="approve")
+    raise AssertionError(f"no {role} step")
+
+
+def test_task_reports_of_an_earlier_iteration_are_not_this_tasks(started, user, settings):
+    """A new board reuses T-01: the brief iteration's reviews and notes are not its history."""
+    settings.WORKFLOWS_FAKE_RUNNER = {
+        "ask_questions": False,
+        "tasks": 1,
+        "verdicts": {"reviewer:T-01": ["request_changes", "approve"]},
+    }
+    project = started()
+    finish(project, user)
+    settings.WORKFLOWS_FAKE_RUNNER = {"ask_questions": False, "tasks": 1}
+    reopen(project, user)
+    _until_queued(project, "reviewer")
+    reviewer = inputs_of(project, "reviewer")
+    assert reviewer.known_finding_ids == []
+    current = project.current_run.id
+    task_kinds = {"dev_notes", "review", "test_report"}
+    reports = [a for a in reviewer.artifacts if a.kind in task_kinds]
+    assert reports  # this iteration's dev notes of T-01
+    assert all(Artifact.objects.get(pk=a.id).phase_run.process_run_id == current for a in reports)
