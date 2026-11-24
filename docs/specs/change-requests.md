@@ -97,3 +97,13 @@ release-2). Frontend: `ChangesTab.test.tsx`, Playwright path on the demo project
   Proposal: no in v1; the project's process is fixed.
 - Q3. Auto-start of a queued CR in `autonomous` mode spends money without a click: keep it,
   or require the org budget check only? Proposal: keep, with the usual budget guards.
+
+## Implementation notes (E-13)
+
+- `iteration` equals the CR number: a cancelled CR leaves a gap (CR-2 after a cancelled
+  CR-1 runs as iteration 2).
+- Reopening clears `completed_at`; it is set again when the iteration completes.
+  `project.budget_changed` also has the `system` actor (a CR started from the queue).
+- Q1 closed by ADR-0018: snapshot in the runner, restore from it, then from the last
+  delivered branch. Q2 and Q3 as proposed.
+- Not yet: the CR JSON has no release link; archiving does not cancel draft or queued CRs.

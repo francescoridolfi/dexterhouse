@@ -1,6 +1,6 @@
 # Specs: change requests and context documents
 
-Status: **draft, awaiting approval** (2026-11-23). Two capabilities, one spec each; this page
+Status: **implemented** (E-13, approved 2026-11-23). Two capabilities, one spec each; this page
 is the index and holds what both share (commands, structure, style, boundaries).
 
 ## Capability map

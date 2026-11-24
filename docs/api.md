@@ -36,6 +36,7 @@ curl -H "Authorization: Bearer $DH_TOKEN" http://localhost/api/v1/projects
 | Projects | `GET/POST /projects`, `GET/PATCH/DELETE /projects/{id}`, `POST /projects/{id}/start\|pause\|resume\|retry`, `GET /projects/{id}/snapshot` |
 | Artifacts, notes | `GET/POST /projects/{id}/artifacts`, `GET /artifacts/{id}`, `/versions`, `/diff`; `GET/POST /projects/{id}/notes`, `DELETE /notes/{id}` |
 | Context documents | `GET/POST /projects/{id}/context` (multipart `file`, optional `title`; `?all=1` lists deactivated ones), `GET/DELETE /context/{id}`, `GET /context/{id}/download` |
+| Change requests | `GET/POST /projects/{id}/change-requests`, `GET/PATCH /change-requests/{id}` (draft only), `POST /change-requests/{id}/queue\|cancel` (admin), `GET /change-requests/{id}/estimate`; `?iteration=` on `/projects/{id}/phases`, `/tasks` and `/costs` |
 | Code (read-only) | `GET /projects/{id}/code/tree?ref=`, `/code/file?path=&ref=`, `/code/log?ref=&limit=`, `/code/location` |
 | Workflow | `GET /projects/{id}/phases`, `GET /phases/{id}`, `POST /phases/{id}/skip`, `GET /projects/{id}/tasks`, `GET /tasks/{id}`, `POST /tasks/{id}/cancel` |
 | Gates | `GET /gates?status=open` (inbox), `GET /projects/{id}/gates`, `GET /gates/{id}`, `POST /gates/{id}/decide` |

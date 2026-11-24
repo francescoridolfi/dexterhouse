@@ -96,6 +96,29 @@ On `approve_release` DexterHouse pushes the project's `main` to your repository:
 to a `dexterhouse/release-<n>` branch with a pull request. Modes, token scopes and failure
 reasons: [delivery.md](delivery.md). Agents never push; delivery is a system action.
 
+## 6. Change requests
+
+A completed project is not the end: on the **Changes** tab a member writes a **change
+request** (CR): a title, what to change (Markdown, up to 20 000 characters), a budget in EUR
+added to the project's when it starts, and optional context documents attached to it. An
+admin starts it: the project reopens (`project.reopened`) and the whole process runs again
+as a new iteration (`CR-1` is iteration 1), with the usual gates and mode. The agents read
+the CR first, then its attachments, the last release notes and the current requirements,
+architecture and code graph; they change what the CR asks, keep the rest and write new
+versions of the artifacts. The iteration is delivered as the next release
+(`dexterhouse/release-2`, pull request titled `CR-1: <title>`).
+
+- Only a `completed` project starts a CR. While it works, a CR can be written as a draft or
+  queued: queued CRs start by themselves, one at a time in number order, when the current
+  iteration completes (with the usual budget checks). Drafts never start by themselves.
+- A draft can be edited; drafts and queued CRs can be cancelled. A failed iteration is
+  retried with *Retry*, like any failure.
+- The code comes back even if the workspace was destroyed (24 h after completion): at the
+  end of every iteration the runner keeps a `git bundle` of the project, and a CR recreates
+  the workspace from it, or else from the last delivered branch.
+- Earlier iterations stay as they were: the Overview summarises past CRs, and the API
+  filters phases, tasks and costs by iteration (`?iteration=`, [api.md](api.md)).
+
 ## Budgets and costs
 
 - **Project budget** (EUR): at 80 % you get a warning, at 100 % the project stops at the
