@@ -358,6 +358,9 @@ def fail_phase(phase_run: PhaseRun, error_code: str, detail: str = "") -> None:
     if project.status != ProjectStatus.FAILED:
         transition(project, ProjectStatus.FAILED)
         emit(project, "project.failed", {"error_code": error_code, "phase_id": phase_run.phase_id})
+    from dexterhouse.apps.projects.services import iterations  # projects -> engine -> here
+
+    iterations.on_iteration_failed(project, run, error_code)
 
 
 def complete_process(run: ProcessRun) -> None:
@@ -366,7 +369,7 @@ def complete_process(run: ProcessRun) -> None:
     save(run, "status", "finished_at")
     emit(run.project, "process.completed", {"error_code": None})
     project = run.project
-    top = Task.objects.filter(project=project, parent__isnull=True)
+    top = Task.objects.filter(process_run=run, parent__isnull=True)
     transition(project, ProjectStatus.COMPLETED)
     emit(
         project,
@@ -378,6 +381,9 @@ def complete_process(run: ProcessRun) -> None:
             "iterations_total": sum(t.iteration for t in top),
         },
     )
+    from dexterhouse.apps.projects.services import iterations  # projects -> engine -> here
+
+    iterations.on_iteration_completed(project, run)
 
 
 def cancel_process(run: ProcessRun) -> None:
@@ -394,12 +400,18 @@ def cancel_process(run: ProcessRun) -> None:
 
 
 def lock(project_id: Any) -> tuple[Project, ProcessRun | None]:
-    """Lock the project, then its process run (the engine's single lock order)."""
+    """Lock the project, then its latest process run (the engine's single lock order)."""
     project = Project.objects.select_for_update().get(pk=project_id)
-    run = ProcessRun.objects.select_for_update().filter(project=project).first()
-    if run is not None:
-        run.project = project
-    return project, run
+    return project, latest_run(project)
+
+
+def latest_run(project: Project) -> ProcessRun | None:
+    """Lock and return the run of the latest iteration; the project must be locked."""
+    run = ProcessRun.objects.select_for_update().filter(project=project).order_by("-iteration")
+    row = run.first()
+    if row is not None:
+        row.project = project
+    return row
 
 
 def phase_runs(run: ProcessRun) -> list[PhaseRun]:

@@ -27,6 +27,7 @@ import { can } from "../../utils/auth.ts";
 import { formatAmount, parseAmount } from "../../utils/amount.ts";
 import { eur } from "../../utils/format.ts";
 import { useProjectStore } from "../../store/projectStore.ts";
+import { useChangeRequests } from "./live.ts";
 
 function ConnectionIndicator() {
   const { t } = useTranslation();
@@ -123,6 +124,30 @@ export function BudgetEditor({ onDone }: { onDone: () => void }) {
   );
 }
 
+/** "CR-2 · running": the CR being worked on (running, else the latest one if it failed,
+ * else the next queued one). */
+function ChangeRequestBadge({ projectId }: { projectId: string }) {
+  const { t } = useTranslation();
+  const crs = [...(useChangeRequests(projectId).data?.results ?? [])].sort(
+    (a, b) => a.number - b.number,
+  );
+  const latest = crs.filter((cr) => cr.started_at || cr.status === "running").at(-1);
+  const cr =
+    crs.find((c) => c.status === "running") ??
+    (latest?.status === "failed" ? latest : undefined) ??
+    crs.find((c) => c.status === "queued");
+  if (!cr) return null;
+  return (
+    <>
+      <span aria-hidden>·</span>
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-white/8 px-2 py-px">
+        <StatusDot status={cr.status} className="size-1.5" />
+        CR-{cr.number} · {t(`cr.status.${cr.status}`)}
+      </span>
+    </>
+  );
+}
+
 export function ProjectHeader() {
   const { t } = useTranslation();
   const me = useMe();
@@ -171,6 +196,7 @@ export function ProjectHeader() {
             <StatusDot status={project.status} className="size-2" />
             {t(`status.${status}`, { defaultValue: project.status })}
           </span>
+          <ChangeRequestBadge projectId={project.id} />
           <span aria-hidden>·</span>
           <ConnectionIndicator />
         </div>

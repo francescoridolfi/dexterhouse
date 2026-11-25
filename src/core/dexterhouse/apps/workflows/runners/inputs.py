@@ -18,15 +18,15 @@ from django.db.models import Count, Max, Sum
 
 from dexterhouse.apps.agents.models import AgentInstance, AgentStatus, AgentTurn
 from dexterhouse.apps.agents.schemas import ArtifactInput, NoteInput, TaskInput, TurnInputs
-from dexterhouse.apps.projects.models import Artifact, Note, Project
-from dexterhouse.apps.workflows.models import Gate, StepRun, Task
+from dexterhouse.apps.projects.models import Artifact, ChangeRequest, Note, Project
+from dexterhouse.apps.workflows.models import Gate, PhaseRun, StepRun, Task
 from dexterhouse.apps.workflows.roles import BUILTIN_ROLES, installed_roles
 from dexterhouse.apps.workflows.runner import TurnRequest
 
 DEFAULT_INPUTS: dict[str, tuple[str, ...]] = {
-    "analyst": ("brief", "questions", "requirements", "user_stories", "assumptions"),
-    "architect": ("requirements", "user_stories"),
-    "project_manager": ("architecture", "stack", "requirements", "user_stories"),
+    "analyst": ("brief", "context", "questions", "requirements", "user_stories", "assumptions"),
+    "architect": ("requirements", "user_stories", "context"),
+    "project_manager": ("architecture", "stack", "requirements", "user_stories", "context"),
     "recruiter": ("task_board", "stack", "architecture", "brief"),
     "replan": ("task_board", "team_proposal"),
     "developer": ("stack", "architecture", "dev_notes", "task_board"),
@@ -38,6 +38,9 @@ DEFAULT_INPUTS: dict[str, tuple[str, ...]] = {
     "retrospective:project_manager": ("release_notes", "task_board", "test_report", "assumptions"),
 }
 TASK_KINDS = frozenset({"dev_notes", "review", "test_report"})
+#: Context documents enter whole up to this size, else as an excerpt (context-documents spec).
+CONTEXT_WHOLE_CHARS = 8000
+CONTEXT_EXCERPT_CHARS = 2000
 WORKSPACE_IMAGES = (
     "dexterhouse/workspace:python (Python 3.12, uv, pip), "
     "dexterhouse/workspace:node (Node 22, npm, pnpm), "
@@ -59,14 +62,27 @@ def input_kinds(request: TurnRequest) -> tuple[str, ...]:
     return kinds
 
 
-def _latest(project_id: Any, kinds: tuple[str, ...], task_ref: str | None) -> list[Artifact]:
-    """Latest version of every (kind, name) of `kinds`, in the order of `kinds`."""
+def _latest(
+    project_id: Any, kinds: tuple[str, ...], task_ref: str | None, run_id: Any = None
+) -> list[Artifact]:
+    """Latest version of every (kind, name) of `kinds`, in the order of `kinds`.
+
+    With `run_id`, a task's notes and reports are those of that process run only: a change
+    request's board reuses `T-01`, and the brief iteration's `T-01` is another task.
+    """
     rows = Artifact.objects.filter(project_id=project_id, kind__in=kinds)
     latest = rows.values("kind", "name").annotate(v=Max("version"))
     wanted = {(r["kind"], r["name"], r["v"]) for r in latest}
     artifacts = [a for a in rows.order_by("created_at") if (a.kind, a.name, a.version) in wanted]
+    artifacts = [a for a in artifacts if a.kind != "context" or _usable_document(a)]
     if task_ref:
-        artifacts = [a for a in artifacts if a.kind not in TASK_KINDS or task_ref in a.name]
+        runs = _run_phases(run_id)
+        artifacts = [
+            a
+            for a in artifacts
+            if a.kind not in TASK_KINDS
+            or (task_ref in a.name and (runs is None or a.phase_run_id in runs))
+        ]
     else:
         artifacts = [a for a in artifacts if not _task_report(a)]
     return sorted(artifacts, key=lambda a: kinds.index(a.kind))
@@ -76,7 +92,33 @@ def _task_report(artifact: Artifact) -> bool:
     return artifact.kind == "test_report" and (artifact.data or {}).get("scope") == "task"
 
 
+def _usable_document(artifact: Artifact) -> bool:
+    data = artifact.data or {}
+    return bool(data.get("active")) and data.get("status") == "processed"
+
+
+def _document_text(artifact: Artifact) -> str:
+    """The whole text of a short document; the start and a `memory.search` hint otherwise."""
+    text = artifact.content
+    if len(text) <= CONTEXT_WHOLE_CHARS:
+        return text
+    title = (artifact.data or {}).get("title") or artifact.name
+    return (
+        f"{text[:CONTEXT_EXCERPT_CHARS]}\n\n[{title}: first {CONTEXT_EXCERPT_CHARS} of "
+        f"{len(text)} characters. Use memory.search to find the rest.]"
+    )
+
+
 def _artifact_input(artifact: Artifact) -> ArtifactInput:
+    if artifact.kind == "context":  # imported by a user: text only, kept as untrusted data
+        return ArtifactInput(
+            id=artifact.id,
+            kind=artifact.kind,
+            name=artifact.name,
+            version=artifact.version,
+            content=_document_text(artifact),
+            untrusted=True,
+        )
     return ArtifactInput(
         id=artifact.id,
         kind=artifact.kind,
@@ -87,15 +129,28 @@ def _artifact_input(artifact: Artifact) -> ArtifactInput:
     )
 
 
-def _task_reports(project_id: Any, task_ref: str, kind: str) -> list[Artifact]:
+def _run_phases(run_id: Any) -> set[Any] | None:
+    if run_id is None:
+        return None
+    return set(PhaseRun.objects.filter(process_run_id=run_id).values_list("id", flat=True))
+
+
+def _task_reports(project_id: Any, task_ref: str, kind: str, run_id: Any = None) -> list[Artifact]:
     rows = Artifact.objects.filter(project_id=project_id, kind=kind, name__contains=task_ref)
+    if run_id is not None:
+        rows = rows.filter(phase_run__process_run_id=run_id)
     return list(rows.order_by("created_at"))
 
 
-def review_context(project_id: Any, task_ref: str) -> tuple[list[dict[str, Any]], list[str]]:
-    """Open findings and failures of the task's latest review/test, and every finding id."""
-    reviews = _task_reports(project_id, task_ref, "review")
-    tests = _task_reports(project_id, task_ref, "test_report")
+def review_context(
+    project_id: Any, task_ref: str, run_id: Any = None
+) -> tuple[list[dict[str, Any]], list[str]]:
+    """Open findings and failures of the task's latest review/test, and every finding id.
+
+    `run_id` limits them to one process run (the task of that iteration).
+    """
+    reviews = _task_reports(project_id, task_ref, "review", run_id)
+    tests = _task_reports(project_id, task_ref, "test_report", run_id)
     known = sorted({f["id"] for r in reviews for f in (r.data or {}).get("findings", [])})
     items: list[dict[str, Any]] = []
     if reviews:
@@ -124,9 +179,9 @@ def _board(project_id: Any) -> dict[str, Any] | None:
 def _task_ids(project_id: Any) -> list[str] | None:
     """Task ids of the latest board and of the tasks created from it (proposal checks)."""
     ids = set(
-        Task.objects.filter(project_id=project_id, parent__isnull=True).values_list(
-            "external_id", flat=True
-        )
+        Task.objects.current(project_id)
+        .filter(parent__isnull=True)
+        .values_list("external_id", flat=True)
     )
     board = _board(project_id)
     if board is not None:
@@ -144,7 +199,10 @@ def build_inputs(request: TurnRequest, step_run: StepRun) -> TurnInputs:
     project = step_run.project
     task = request.task
     task_ref = task.external_id if task else None
-    artifacts = _latest(project.id, input_kinds(request), task_ref)
+    run_id = step_run.phase_run.process_run_id
+    artifacts = _latest(project.id, input_kinds(request), task_ref, run_id)
+    cr = change_request_of(step_run)
+    artifacts = with_iteration(project.id, request, cr, artifacts)
     notes = Note.objects.filter(project=project, phase_run__isnull=True) | Note.objects.filter(
         project=project, phase_run=step_run.phase_run_id
     )
@@ -154,13 +212,13 @@ def build_inputs(request: TurnRequest, step_run: StepRun) -> TurnInputs:
     items: list[dict[str, Any]] = []
     known: list[str] | None = None
     if task_ref:
-        items, known_ids = review_context(project.id, task_ref)
+        items, known_ids = review_context(project.id, task_ref, run_id)
         known = known_ids if request.verdict_rule == "review" else None
         if request.verdict_rule != "none":
             items = []  # reviewers and testers judge the new iteration, not the old findings
     stack = project.stack or {}
     return TurnInputs(
-        step_description=describe(request, project.id, stack, known),
+        step_description="\n".join([describe(request, project.id, stack, known), *guide(cr)]),
         produces=list(request.produces),
         task=TaskInput(
             external_id=task.external_id,
@@ -249,10 +307,16 @@ def _architect(*_: Any) -> list[str]:
 
 
 def _planning(request: TurnRequest, project_id: Any, *_: Any) -> list[str]:
-    return [
-        f"Installed roles you may assign: {', '.join(_roles(project_id))}.",
-        "Write task_board.json; T-01 is the repository scaffold.",
-    ]
+    reopened = ChangeRequest.objects.filter(
+        process_run__phases__step_runs__id=request.step_run_id
+    ).exists()
+    board = (
+        "Write task_board.json with only the change request's work on the existing code, "
+        "from T-01 (no scaffold task)."
+        if reopened
+        else "Write task_board.json; T-01 is the repository scaffold."
+    )
+    return [f"Installed roles you may assign: {', '.join(_roles(project_id))}.", board]
 
 
 def _roster(project_id: Any) -> str:
@@ -432,7 +496,7 @@ def _retrospective(request: TurnRequest, project_id: Any, *_: Any) -> list[str]:
 def project_summary(project_id: Any) -> str:
     """Iterations per task, gate decisions, turns and cost per phase (retrospective input)."""
     lines = ["Tasks (id: iterations, status):"]
-    for task in Task.objects.filter(project_id=project_id, parent__isnull=True).order_by("order"):
+    for task in Task.objects.current(project_id).filter(parent__isnull=True).order_by("order"):
         iterations = max(
             [task.iteration, *task.children.values_list("iteration", flat=True)], default=1
         )
@@ -467,3 +531,53 @@ STEP: dict[str, Any] = {
     "release:project_manager": _release,
     "retrospective:project_manager": _retrospective,
 }
+
+
+# Change request iterations (E-13) ------------------------------------------------------
+
+#: Every step of an iteration > 0 reads these first: the current CR, the last release.
+ITERATION_INPUTS = ("change_request", "release_notes")
+#: The analyst also reads the product as delivered (the code graph comes with every turn).
+ANALYST_ITERATION_INPUTS = ("requirements", "user_stories", "architecture", "stack")
+
+
+def change_request_of(step_run: StepRun) -> ChangeRequest | None:
+    """The CR the step's run implements; None in the brief iteration (0)."""
+    return ChangeRequest.objects.filter(process_run_id=step_run.phase_run.process_run_id).first()
+
+
+def with_iteration(
+    project_id: Any, request: TurnRequest, cr: ChangeRequest | None, artifacts: list[Artifact]
+) -> list[Artifact]:
+    """The CR and the iteration inputs before the step's own; other CRs are left out."""
+    if cr is None:
+        return artifacts
+    analyst = ANALYST_ITERATION_INPUTS if request.role == "analyst" else ()
+    first = [
+        a
+        for a in _latest(project_id, (*ITERATION_INPUTS, *analyst), None)
+        if a.kind != "change_request" or a.name == f"cr-{cr.number}.md"
+    ]
+    seen = {a.id for a in first}
+    rest = [a for a in artifacts if a.id not in seen and a.kind != "change_request"]
+    # Documents attached to this CR come right after it, before everything else.
+    attached = [a for a in rest if a.kind == "context" and _attached_to(a, cr)]
+    rest = [a for a in rest if a not in attached]
+    crs = [a for a in first if a.kind == "change_request"]
+    return crs + attached + [a for a in first if a.kind != "change_request"] + rest
+
+
+def _attached_to(artifact: Artifact, cr: ChangeRequest) -> bool:
+    return (artifact.data or {}).get("change_request") == str(cr.id)
+
+
+def guide(cr: ChangeRequest | None) -> list[str]:
+    if cr is None:
+        return []
+    return [
+        f"Iteration {cr.number}: this is {cr.label} ({cr.title}) on a delivered product. "
+        "Change what the change request asks and keep the rest; read the change_request "
+        "artifact first, then the last release notes and the current artifacts. Write each "
+        "artifact you produce as a new version: mark items as added, changed or removed in "
+        "the Changelog and keep existing ids; earlier versions stay as history."
+    ]

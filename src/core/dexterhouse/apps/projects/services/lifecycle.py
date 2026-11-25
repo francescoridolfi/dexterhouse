@@ -7,6 +7,7 @@ from dexterhouse.apps.accounts.models import User
 from dexterhouse.apps.observability.services import budget
 from dexterhouse.apps.observability.services.estimate import estimate_for_project
 from dexterhouse.apps.projects.models import Project, ProjectStatus
+from dexterhouse.apps.projects.services import iterations
 from dexterhouse.apps.projects.services.actors import emit, user_actor
 from dexterhouse.apps.projects.services.transitions import transition
 from dexterhouse.apps.projects.services.validation import validate_for_start
@@ -70,7 +71,14 @@ def retry_project(project_id, user: User) -> Project:
         transition(project, ProjectStatus.RUNNING)
         phase_id = start.retry_run(run)
         emit(project, "project.retried", {"from_phase_id": phase_id}, actor=user_actor(user))
+        iterations.on_iteration_retried(project, run, user)
     return project
+
+
+def _drop_snapshot(project_id) -> None:
+    from dexterhouse.apps.workspaces.tasks import drop_snapshot
+
+    drop_snapshot.delay(str(project_id))
 
 
 def archive_project(project_id, user: User) -> Project:
@@ -80,6 +88,7 @@ def archive_project(project_id, user: User) -> Project:
         transition(project, ProjectStatus.ARCHIVED)
         if run is not None:
             start.cancel_run(run)
-        # Workspace destruction is a runner operation (E-05).
+        # Workspace destruction is a runner operation (E-05); its snapshot goes too.
         emit(project, "project.archived", actor=user_actor(user))
+        transaction.on_commit(lambda: _drop_snapshot(project.id), robust=True)
     return project

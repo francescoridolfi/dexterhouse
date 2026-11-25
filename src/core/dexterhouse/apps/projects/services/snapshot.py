@@ -48,13 +48,13 @@ def build_snapshot(project: Project) -> dict[str, Any]:
         Gate.objects.filter(project=project, status=GateStatus.OPEN).select_related("decided_by")
     )
     by_phase = {g.phase_run_id: g for g in open_gates}
-    phases = PhaseRun.objects.filter(process_run__project=project).select_related("process_run")
+    phases = PhaseRun.objects.filter(process_run=project.current_run).select_related("process_run")
     last = Event.objects.filter(project_id=project.id).order_by("-created_at", "-id").first()
     return {
         "type": "snapshot",
         "project": project_json(project, detail=True),
         "phases": [phase_json(p, by_phase.get(p.id)) for p in phases.order_by("position")],
-        "tasks": [task_json(t) for t in Task.objects.filter(project=project).order_by("order")],
+        "tasks": [task_json(t) for t in Task.objects.current(project.id).order_by("order")],
         "gates_open": [gate_json(g) for g in open_gates],
         "agents": _agents(project),
         "workspace": None,

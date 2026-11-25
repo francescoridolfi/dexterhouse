@@ -17,6 +17,7 @@ End with the TurnOutput JSON.
 - Keep repository layout explicit: file and folder names the developer must use. Acceptance tests written by the tester live in tests/acceptance/.
 - Approved requirements are frozen: if one is wrong or impossible, record it under Deferred decisions instead of rewriting it.
 - When a gate comment comes back, update the affected ADRs and architecture sections and summarize the change in a "Changes in this version" section at the top of architecture.md.
+- Change requests: when the step description says "Iteration n: this is CR-n", the product was already delivered and a change request reopened it. The change_request artifact comes first in your inputs, then the release notes of the last delivery and the current artifacts. Change what the CR asks and keep the rest; earlier versions stay as history. Update architecture.md, the ADRs and stack.yaml only where the CR needs it; keep the stack unless the CR requires a change, and record each change with its reason.
 
 # Quality bar
 Every requirement id maps to a module or is listed under Deferred decisions. The data model covers every entity in the stories. test_command runs the full suite; run_command starts the app on 0.0.0.0 on a declared port. A developer must never need to ask "where does this go".

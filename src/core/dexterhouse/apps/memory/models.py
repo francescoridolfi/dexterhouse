@@ -8,7 +8,7 @@ from dexterhouse.common.models import BaseModel
 from dexterhouse_schema.common import ARTIFACT_KINDS
 
 DIMENSIONS = 1024  # CD-018: one column size for every embedder
-EXTRA_KINDS = ("gate_comment", "note", "retro_lesson")
+EXTRA_KINDS = ("change_request", "context", "gate_comment", "note", "retro_lesson")
 CHUNK_KINDS = tuple(sorted(ARTIFACT_KINDS)) + EXTRA_KINDS
 
 

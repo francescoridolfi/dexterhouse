@@ -27,6 +27,7 @@ from django.utils import timezone
 from dexterhouse.apps.projects.models import Project, ProjectStatus
 from dexterhouse.apps.projects.services.actors import emit
 from dexterhouse.apps.workspaces.client import HEARTBEAT_KEY, HEARTBEAT_TTL_S, _redis, get_client
+from dexterhouse.apps.workspaces.grants import create_grant
 from dexterhouse.apps.workspaces.models import (
     LIVE_STATUSES,
     PENDING_STATUSES,
@@ -37,6 +38,9 @@ from dexterhouse_schema.runner import (
     Heartbeat,
     Limits,
     Message,
+    Restore,
+    Snapshot,
+    SnapshotDrop,
     WorkspaceChanged,
     WorkspaceCreate,
     WorkspaceDestroy,
@@ -112,6 +116,50 @@ def request(project: Project) -> Workspace:
     return workspace
 
 
+RESTORE_FAILED = "restore from the"
+
+
+def _restore(project: Project, workspace: Workspace) -> Restore | None:
+    """The `restore` of the next creation: the runner's snapshot, or the delivered branch."""
+    if workspace.restore_source == "snapshot":
+        return Restore(source="snapshot")
+    if workspace.restore_source == "remote" and project.remote_repo_url:
+        grant = (
+            create_grant(project, requested_by_task=f"restore:{workspace.id}")
+            if project.remote_token
+            else None
+        )
+        return Restore(
+            source="remote",
+            remote_url=project.remote_repo_url,
+            token_ref=grant.id if grant else None,
+            branch=_delivered_branch(project),
+        )
+    return None
+
+
+def _delivered_branch(project: Project) -> str:
+    """The branch of the last delivery (`main` after a push to main or before any)."""
+    from dexterhouse.apps.events.models import Event
+
+    last = (
+        Event.objects.filter(project_id=project.id, type="release.delivered")
+        .order_by("-created_at")
+        .first()
+    )
+    return ((last.payload or {}).get("branch") if last else None) or "main"
+
+
+def _create_message(project: Project, workspace: Workspace) -> WorkspaceCreate:
+    return WorkspaceCreate(
+        project_id=project.id,
+        workspace_id=workspace.id,
+        stack=workspace.stack,
+        limits=limits(),
+        restore=_restore(project, workspace),
+    )
+
+
 def _send_create(project: Project, workspace: Workspace) -> None:
     stack = workspace.stack
     emit(
@@ -124,12 +172,7 @@ def _send_create(project: Project, workspace: Workspace) -> None:
             },
         },
     )
-    _send(
-        "runner.workspace.create",
-        WorkspaceCreate(
-            project_id=project.id, workspace_id=workspace.id, stack=stack, limits=limits()
-        ),
-    )
+    _send("runner.workspace.create", _create_message(project, workspace))
 
 
 def retry(project: Project) -> Workspace:
@@ -177,6 +220,9 @@ def apply_changed(message: WorkspaceChanged, *, resume: bool = True) -> Workspac
             workspace.services = list(message.services)
             workspace.volume = f"dh-ws-{workspace.id}"
             workspace.error_detail = None
+            if message.restored_commit:
+                workspace.restored_commit = message.restored_commit
+                workspace.restore_source = ""
             workspace.last_activity_at = timezone.now()
             workspace.save()
             if ready:
@@ -188,6 +234,7 @@ def apply_changed(message: WorkspaceChanged, *, resume: bool = True) -> Workspac
                         "image": workspace.image,
                         "digest": workspace.digest or "",
                         "services": workspace.services,
+                        "restored_commit": message.restored_commit,
                     },
                 )
             elif previous == WorkspaceStatus.IDLE:
@@ -210,18 +257,17 @@ def _failed(project: Project, workspace: Workspace, detail: str) -> None:
     workspace.attempts += 1
     workspace.error_detail = detail[:4000]
     emit(project, "workspace.error", {"attempt": workspace.attempts, "error_detail": detail[:2000]})
-    if workspace.attempts < MAX_ATTEMPTS and workspace.status in PENDING_STATUSES:
+    retryable = workspace.attempts < MAX_ATTEMPTS and workspace.status in PENDING_STATUSES
+    if retryable and workspace.restore_source and detail.startswith(RESTORE_FAILED):
+        # Snapshot first, then the delivered branch; nothing else would bring the code back.
+        if workspace.restore_source == "snapshot" and project.remote_repo_url:
+            workspace.restore_source = "remote"
+        else:
+            retryable = False
+    if retryable:
         workspace.status = WorkspaceStatus.REQUESTED
         workspace.save()
-        _send(
-            "runner.workspace.create",
-            WorkspaceCreate(
-                project_id=project.id,
-                workspace_id=workspace.id,
-                stack=workspace.stack,
-                limits=limits(),
-            ),
-        )
+        _send("runner.workspace.create", _create_message(project, workspace))
         return
     workspace.status = WorkspaceStatus.ERROR
     workspace.save()
@@ -253,6 +299,54 @@ def resume_engine(project_id: uuid.UUID) -> None:
         _project, run = common.lock(project_id)
         if run is not None:
             phases.advance(run)
+
+
+def prepare_for_iteration(project: Project) -> None:
+    """A change request reopens `project` (caller holds the project lock).
+
+    A live workspace still has the code and is reused. A gone one is marked so that the
+    next `request` (the first phase with `workspace: true`) restores the last iteration:
+    the runner's snapshot, then the delivered branch (ADR-0018). A project that never had
+    a workspace has nothing to restore.
+    """
+    workspace = Workspace.objects.select_for_update().filter(project=project).first()
+    if workspace is None or workspace.status in (*LIVE_STATUSES, *PENDING_STATUSES):
+        return
+    workspace.restore_source = "snapshot"
+    workspace.save(update_fields=["restore_source", "updated_at"])
+
+
+def snapshot(project_id: uuid.UUID) -> str | None:
+    """Ask the runner to keep a bundle of the live workspace; returns its commit.
+
+    Called after every completed iteration (`workspaces.tasks.snapshot`). A failure is
+    logged: the delivered branch remains the fallback for the next change request.
+    """
+    workspace = live(project_id)
+    if workspace is None:
+        return None
+    result = get_client().call(
+        "runner.system.snapshot", Snapshot(workspace_id=workspace.id, project_id=project_id)
+    )
+    if not result.ok:
+        logger.warning(
+            "workspaces.snapshot_failed",
+            project_id=str(project_id),
+            error=result.error.model_dump() if result.error else None,
+        )
+        return None
+    commit = str((result.data or {}).get("commit") or "")
+    Workspace.objects.filter(pk=workspace.pk).update(
+        snapshot_commit=commit, snapshot_at=timezone.now()
+    )
+    return commit or None
+
+
+def drop_snapshot(project_id: uuid.UUID) -> None:
+    """The project is archived: the runner deletes its bundle (idempotent)."""
+    result = get_client().call("runner.system.snapshot_drop", SnapshotDrop(project_id=project_id))
+    if not result.ok:
+        logger.warning("workspaces.snapshot_drop_failed", project_id=str(project_id))
 
 
 def touch(workspace: Workspace) -> None:

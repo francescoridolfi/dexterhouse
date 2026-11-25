@@ -21,7 +21,7 @@ def current_phase_run(project: Project) -> uuid.UUID:
     from dexterhouse.apps.workflows.models import PhaseRun
 
     row = (
-        PhaseRun.objects.filter(process_run__project=project, status__in=_LIVE_PHASES)
+        PhaseRun.objects.filter(process_run=project.current_run, status__in=_LIVE_PHASES)
         .order_by("position")
         .values_list("pk", flat=True)
         .first()

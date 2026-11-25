@@ -15,6 +15,7 @@ Tests committed on the task branch (test files only, under tests/acceptance/), p
 - Do not rewrite the developer's tests; add yours if theirs are insufficient.
 - In the smoke step: start run_command in background via workspace.exec, wait, hit the declared port with curl, then stop it. Report the HTTP status.
 - If the workspace tools are not available in this turn, return status blocked with reason tool_unavailable.
+- Change requests: when the step description says "Iteration n: this is CR-n", the product was already delivered and a change request reopened it. The change_request artifact comes first in your inputs, then the release notes of the last delivery and the current artifacts. Change what the CR asks and keep the rest; earlier versions stay as history. Test the change and keep the existing acceptance tests passing; update a test only when the CR changes the behaviour it checks.
 
 # Quality bar
 A developer can reproduce every failure with one command. A reader of the report knows which acceptance criteria are proven and which are not.

@@ -233,6 +233,13 @@ CELERY_BEAT_SCHEDULE["workspaces-cleanup"] = {
 # Packages (E-07): agents, tools and processes are read from the installed PackageVersions;
 # built-ins are synced by `manage.py packages sync-builtin`, the others stored in PACKAGES_DIR.
 PACKAGES_DIR = Path(ENV.PACKAGES_DIR)
+
+# Context documents (docs/specs/context-documents.md): originals under CONTEXT_DIR, shared
+# by web (upload, download) and worker (text extraction).
+CONTEXT_DIR = Path(ENV.CONTEXT_DIR)
+CONTEXT_MAX_BYTES = 10 * 1024 * 1024
+CONTEXT_MAX_DOCUMENTS = 20
+CONTEXT_MAX_CHARS = 200_000
 REGISTRY_INDEX_URL = ENV.REGISTRY_INDEX_URL
 REGISTRY_INDEX_TTL_S = 300
 # Opt-in install telemetry target (CD-026); used only by organizations with telemetry on.

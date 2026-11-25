@@ -60,11 +60,13 @@ class ArtifactKind(models.TextChoices):
     RELEASE_NOTES = "release_notes"
     RETROSPECTIVE = "retrospective"
     CODE_GRAPH = "code_graph"
+    CONTEXT = "context"
+    CHANGE_REQUEST = "change_request"
     FILE = "file"
 
 
 class Project(BaseModel):
-    """A brief taken from `draft` to `completed` by one process run."""
+    """A brief taken from `draft` to `completed`, then reopened by change requests."""
 
     organization = models.ForeignKey(
         Organization, on_delete=models.PROTECT, related_name="projects"
@@ -124,6 +126,14 @@ class Project(BaseModel):
 
     def __str__(self) -> str:
         return self.slug
+
+    @property
+    def current_run(self):
+        """The latest `ProcessRun` (highest iteration), or None; read-only callers only.
+
+        The engine reads the run through `workflows.engine.common.lock` instead.
+        """
+        return self.process_runs.order_by("-iteration").first()
 
 
 class Artifact(BaseModel):
@@ -194,3 +204,60 @@ class Note(BaseModel):
 
     def __str__(self) -> str:
         return f"note {self.id}"
+
+
+class ChangeRequestStatus(models.TextChoices):
+    DRAFT = "draft"
+    QUEUED = "queued"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+
+
+class ChangeRequest(BaseModel):
+    """CR-n: reopens a `completed` project and runs the process again (iteration n)."""
+
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="change_requests")
+    number = models.PositiveIntegerField()
+    title = models.CharField(max_length=120)
+    body = models.TextField(max_length=20_000)
+    budget = models.DecimalField(max_digits=12, decimal_places=6, default=0)
+    status = models.CharField(
+        max_length=16, choices=ChangeRequestStatus.choices, default=ChangeRequestStatus.DRAFT
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="change_requests"
+    )
+    process_run = models.OneToOneField(
+        "workflows.ProcessRun",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="change_request",
+    )
+    started_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "dh_projects_changerequest"
+        ordering = ["number"]
+        constraints = [
+            models.UniqueConstraint(fields=["project", "number"], name="dh_cr_number_unique"),
+            models.UniqueConstraint(
+                fields=["project"],
+                condition=models.Q(status=ChangeRequestStatus.RUNNING),
+                name="dh_cr_one_running",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(status__in=ChangeRequestStatus.values), name="dh_cr_status_valid"
+            ),
+            models.CheckConstraint(condition=models.Q(budget__gte=0), name="dh_cr_budget_valid"),
+        ]
+
+    def __str__(self) -> str:
+        return self.label
+
+    @property
+    def label(self) -> str:
+        return f"CR-{self.number}"

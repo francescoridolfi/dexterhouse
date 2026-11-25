@@ -9,6 +9,7 @@ is applied exactly once (ADR-0013). `AgentTurn.step_run` links the agent turns t
 from django.conf import settings
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
+from django.db.models import Subquery
 from django.utils import timezone
 
 from dexterhouse.apps.projects.models import Project
@@ -104,7 +105,10 @@ def _status_check(name: str, values: list[str]) -> models.CheckConstraint:
 
 
 class ProcessRun(BaseModel):
-    project = models.OneToOneField(Project, on_delete=models.CASCADE, related_name="process_run")
+    """One run of the process; iteration 0 runs the brief, n runs CR-n (ADR-0018)."""
+
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="process_runs")
+    iteration = models.PositiveSmallIntegerField(default=0)
     # The packages app (E-07) adds `process_version` FK PackageVersion.
     process_name = models.CharField(max_length=64)
     process_version = models.CharField(max_length=32)
@@ -119,7 +123,12 @@ class ProcessRun(BaseModel):
 
     class Meta:
         db_table = "dh_workflows_processrun"
-        constraints = [_status_check("dh_processrun_status_valid", ProcessRunStatus.values)]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["project", "iteration"], name="dh_processrun_iteration_unique"
+            ),
+            _status_check("dh_processrun_status_valid", ProcessRunStatus.values),
+        ]
 
     def __str__(self) -> str:
         return f"{self.process_name}@{self.process_version}"
@@ -155,8 +164,19 @@ class PhaseRun(BaseModel):
         return self.phase_id
 
 
+class TaskQuerySet(models.QuerySet):
+    def current(self, project_id) -> "TaskQuerySet":
+        """Tasks of the project's latest iteration (its current task board)."""
+        latest = ProcessRun.objects.filter(project_id=project_id).order_by("-iteration")
+        return self.filter(project_id=project_id, process_run=Subquery(latest.values("pk")[:1]))
+
+
 class Task(BaseModel):
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="tasks")
+    # Null only for rows written before E-13 by code that did not set it (backfilled).
+    process_run = models.ForeignKey(
+        ProcessRun, on_delete=models.CASCADE, null=True, related_name="tasks"
+    )
     phase_run = models.ForeignKey(PhaseRun, on_delete=models.CASCADE, related_name="tasks")
     external_id = models.CharField(max_length=16)
     kind = models.CharField(max_length=16, choices=TaskKind.choices, default=TaskKind.FEATURE)
@@ -186,6 +206,8 @@ class Task(BaseModel):
     started_at = models.DateTimeField(null=True, blank=True)
     finished_at = models.DateTimeField(null=True, blank=True)
 
+    objects = TaskQuerySet.as_manager()
+
     class Meta:
         db_table = "dh_workflows_task"
         indexes = [
@@ -193,11 +215,11 @@ class Task(BaseModel):
             models.Index(fields=["phase_run", "order"], name="dh_task_phase_order"),
         ]
         constraints = [
-            # One top-level task per external id; fix children are unique per iteration.
+            # One top-level task per external id and run; fix children unique per iteration.
             models.UniqueConstraint(
-                fields=["project", "external_id"],
+                fields=["process_run", "external_id"],
                 condition=models.Q(parent__isnull=True),
-                name="dh_task_external_unique",
+                name="dh_task_run_external_unique",
             ),
             models.UniqueConstraint(
                 fields=["parent", "iteration"],

@@ -26,6 +26,23 @@ The brief is the most important input: name the users, the must-have features, t
 if you have one in mind, and what "done" means. The analyst turns it into requirements and
 asks about the gaps.
 
+### Context documents
+
+Technical analyses, domain notes or existing specs can be imported as **context
+documents**: on the new-project form (under the brief) or from the **Context** panel of the
+Overview, at any time before the project is archived. Accepted: `.md`, `.txt`, `.json`,
+`.yaml`, `.csv`, `.pdf` and `.docx`, up to 10 MB each and 20 per project. The text is
+extracted in the background (PDF text layer, DOCX headings and tables); a scanned PDF
+without text fails with `no_text_layer` (no OCR), text past 200 000 characters is cut and
+marked *truncated*.
+
+The analyst, the architect and the project manager read the documents with their inputs
+(whole up to 8 000 characters, otherwise the start and a hint to search the rest); every
+agent finds them with `memory.search`. A document added while the project runs reaches the
+next turns. Re-uploading the same file name creates a new version; *Deactivate* removes it
+from later turns and from the memory. Documents are treated as data, never as instructions:
+they cannot widen tools, risk levels or budgets.
+
 ## 2. Pick a mode
 
 | Mode | Gates | Questions |
@@ -78,6 +95,29 @@ and resynchronises after a network drop.
 On `approve_release` DexterHouse pushes the project's `main` to your repository: by default
 to a `dexterhouse/release-<n>` branch with a pull request. Modes, token scopes and failure
 reasons: [delivery.md](delivery.md). Agents never push; delivery is a system action.
+
+## 6. Change requests
+
+A completed project is not the end: on the **Changes** tab a member writes a **change
+request** (CR): a title, what to change (Markdown, up to 20 000 characters), a budget in EUR
+added to the project's when it starts, and optional context documents attached to it. An
+admin starts it: the project reopens (`project.reopened`) and the whole process runs again
+as a new iteration (`CR-1` is iteration 1), with the usual gates and mode. The agents read
+the CR first, then its attachments, the last release notes and the current requirements,
+architecture and code graph; they change what the CR asks, keep the rest and write new
+versions of the artifacts. The iteration is delivered as the next release
+(`dexterhouse/release-2`, pull request titled `CR-1: <title>`).
+
+- Only a `completed` project starts a CR. While it works, a CR can be written as a draft or
+  queued: queued CRs start by themselves, one at a time in number order, when the current
+  iteration completes (with the usual budget checks). Drafts never start by themselves.
+- A draft can be edited; drafts and queued CRs can be cancelled. A failed iteration is
+  retried with *Retry*, like any failure.
+- The code comes back even if the workspace was destroyed (24 h after completion): at the
+  end of every iteration the runner keeps a `git bundle` of the project, and a CR recreates
+  the workspace from it, or else from the last delivered branch.
+- Earlier iterations stay as they were: the Overview summarises past CRs, and the API
+  filters phases, tasks and costs by iteration (`?iteration=`, [api.md](api.md)).
 
 ## Budgets and costs
 

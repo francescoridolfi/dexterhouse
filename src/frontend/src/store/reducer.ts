@@ -32,6 +32,8 @@ const FAMILIES = [
   "budget.",
   "provider.",
   "security.",
+  "context.",
+  "change_request.",
 ];
 
 type Payload = Record<string, unknown>;
@@ -240,6 +242,28 @@ function hasOpenGate(state: ProjectState): boolean {
   return Object.values(state.gates).some((g) => g.status === "open");
 }
 
+/** A change request starts a new iteration: the phases run again from the start, so the
+ * current run's phases go back to pending (the next snapshot replaces them anyway). */
+function reopen(state: ProjectState): ProjectState {
+  const phases: Record<string, PhaseView> = {};
+  for (const [id, phase] of Object.entries(state.phases)) {
+    phases[id] = {
+      ...phase,
+      runId: null,
+      status: "pending",
+      currentStep: 0,
+      round: 0,
+      startedAt: null,
+      finishedAt: null,
+      durationS: null,
+      cost: null,
+      agents: [],
+    };
+  }
+  const next = patchProject(state, { status: "running", waiting_reason: null, completed_at: null });
+  return { ...next, phases };
+}
+
 function reduceProject(state: ProjectState, type: string, p: Payload): ProjectState {
   switch (type) {
     case "project.started":
@@ -263,6 +287,8 @@ function reduceProject(state: ProjectState, type: string, p: Payload): ProjectSt
       return patchProject(state, { status: "running" });
     case "project.archived":
       return patchProject(state, { status: "archived" });
+    case "project.reopened":
+      return reopen(state);
     case "project.budget_changed": {
       const budget = num(p.new) ?? state.budget.budget;
       const next = patchProject(state, { budget: money(p.new) ?? String(budget) });

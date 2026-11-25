@@ -9,14 +9,9 @@ import subprocess
 from pathlib import Path
 
 import pytest
+from runner_helpers import STACK, git
 
 from dexterhouse_runner.workspace_mcp.base import Config
-
-
-def git(root: Path, *args: str) -> str:
-    return subprocess.run(
-        ["git", "-C", str(root), *args], check=True, capture_output=True, text=True
-    ).stdout
 
 
 @pytest.fixture
@@ -106,6 +101,11 @@ class FakeDocker(DockerManager):
         with tarfile.open(fileobj=buffer, mode="w") as tar:
             tar.add(self.root(workspace_id) / ".git", arcname=".git")
         return iter([buffer.getvalue()])
+
+    def put_archive(self, workspace_id: Any, path: str, data: Any) -> None:
+        self.running(workspace_id)
+        with tarfile.open(fileobj=data, mode="r|") as tar:
+            tar.extractall(self.root(workspace_id), filter="data")
 
     def proxy(self) -> Any:
         return SimpleNamespace(logs=lambda **_: self.proxy_logs)
@@ -219,18 +219,6 @@ def runner(tmp_path: Path) -> SimpleNamespace:
         redis=redis,
         settings=settings,
     )
-
-
-STACK = {
-    "language": "python",
-    "framework": "none",
-    "workspace_image": "dexterhouse/workspace:python",
-    "package_manager": "uv",
-    "test_command": "python3 -c 'print(\"2 passed\")'",
-    "run_command": "python3 -m http.server 8000",
-    "services": [],
-    "env": {"APP_ENV": "test"},
-}
 
 
 @pytest.fixture

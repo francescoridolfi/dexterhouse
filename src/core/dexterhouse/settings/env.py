@@ -59,6 +59,7 @@ class Env(BaseSettings):
     WORKSPACE_DISK: str = "5G"
     WORKSPACE_IDLE_DESTROY_H: int = 24
     PACKAGES_DIR: str = "/data/packages"
+    CONTEXT_DIR: str = "/data/context"
     REGISTRY_INDEX_URL: str = ""
     MARKETPLACE_URL: str = ""
     PACKAGES_ALLOW_LOCAL: bool = False

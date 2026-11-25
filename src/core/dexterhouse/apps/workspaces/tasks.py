@@ -49,6 +49,25 @@ def deliver(project_id: str, phase_run_id: str) -> str:
     return delivery.deliver(project_id, phase_run_id)
 
 
+@shared_task(name="dexterhouse.apps.workspaces.tasks.snapshot")
+def snapshot(project_id: str) -> str | None:
+    """Keep the code of a completed iteration in the runner (ADR-0018)."""
+    import uuid
+
+    from dexterhouse.apps.workspaces import services
+
+    return services.snapshot(uuid.UUID(project_id))
+
+
+@shared_task(name="dexterhouse.apps.workspaces.tasks.drop_snapshot")
+def drop_snapshot(project_id: str) -> None:
+    import uuid
+
+    from dexterhouse.apps.workspaces import services
+
+    services.drop_snapshot(uuid.UUID(project_id))
+
+
 @shared_task(name="dexterhouse.apps.workspaces.tasks.refresh_code_graph")
 def refresh_code_graph(project_id: str, turn_id: str | None = None, role: str = "") -> str | None:
     import uuid

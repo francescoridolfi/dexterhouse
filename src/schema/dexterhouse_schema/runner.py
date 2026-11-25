@@ -90,11 +90,21 @@ class Limits(Message):
     test_timeout_s: int = 900
 
 
+class Restore(Message):
+    """Where a new workspace's repository comes from (ADR-0018); None: an empty repository."""
+
+    source: Literal["snapshot", "remote"]
+    remote_url: str | None = None
+    token_ref: uuid.UUID | None = Field(default=None, description="SecretGrant id, never a token.")
+    branch: Branch = "main"
+
+
 class WorkspaceCreate(Message):
     project_id: uuid.UUID
     workspace_id: uuid.UUID
     stack: dict[str, Any] = Field(description="The `stack` artifact; the runner checks the image.")
     limits: Limits = Limits()
+    restore: Restore | None = None
 
 
 class WorkspaceDestroy(Message):
@@ -157,6 +167,19 @@ class Deliver(Message):
     branch_name: Branch | None = None
     base: Branch = "main"
     pr: PullRequest | None = None
+
+
+class Snapshot(Message):
+    """`git bundle --all` of the workspace into the runner's volume -> data {commit, size}."""
+
+    workspace_id: uuid.UUID
+    project_id: uuid.UUID
+
+
+class SnapshotDrop(Message):
+    """Forget the project's bundle (archived project) -> data {deleted}."""
+
+    project_id: uuid.UUID
 
 
 class ExitCheck(Message):
@@ -237,6 +260,9 @@ class WorkspaceChanged(Message):
     container_id: str | None = None
     services: list[str] = Field(default_factory=list)
     error_detail: str | None = None
+    restored_commit: str | None = Field(
+        default=None, description="HEAD of `main` after a `WorkspaceCreate.restore`."
+    )
 
 
 class Heartbeat(Message):
@@ -272,6 +298,8 @@ RUNNER_TASKS: dict[str, type[Message]] = {
     "runner.system.code_graph": CodeGraph,
     "runner.system.ls_tree": LsTree,
     "runner.system.read_file": ReadFile,
+    "runner.system.snapshot": Snapshot,
+    "runner.system.snapshot_drop": SnapshotDrop,
 }
 CALLBACK_TASKS: dict[str, type[Message]] = {
     "core.runner.workspace_changed": WorkspaceChanged,

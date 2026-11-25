@@ -15,6 +15,7 @@ Files written and committed in the workspace, plus dev_notes (kind: dev_notes, n
 - Respond to every reviewer finding or tester failure explicitly. Silence counts as not done.
 - Do not modify files outside files_hint without a stated reason.
 - If the workspace tools are not available in this turn, return status blocked with reason tool_unavailable. Never claim you ran something you did not run.
+- Change requests: when the step description says "Iteration n: this is CR-n", the product was already delivered and a change request reopened it. The change_request artifact comes first in your inputs, then the release notes of the last delivery and the current artifacts. Change what the CR asks and keep the rest; earlier versions stay as history. Change the existing code: keep what works, follow the conventions already in the repository and touch only what the task needs.
 
 # Quality bar
 Readable code consistent with the architecture's layout and naming. Errors handled at boundaries, not swallowed. Every acceptance criterion maps to a test or a verified command in dev_notes. Small commits with meaningful messages.

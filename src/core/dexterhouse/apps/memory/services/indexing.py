@@ -113,6 +113,14 @@ def index_comment(
     )
 
 
+def forget(project_id: uuid.UUID, kind: str, name: str) -> int:
+    """Drop every chunk of a named source (all versions); returns how many."""
+    deleted, _ = MemoryChunk.objects.filter(
+        project_id=project_id, kind=kind, artifact_name=name[:200]
+    ).delete()
+    return deleted
+
+
 def _embed(embedder: Embedder, chunks: list[Chunk]) -> list[list[float]]:
     texts = [f"{c.heading}\n{c.content}" if c.heading else c.content for c in chunks]
     vectors: list[list[float]] = []

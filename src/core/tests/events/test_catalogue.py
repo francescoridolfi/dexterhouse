@@ -12,12 +12,13 @@ from dexterhouse.apps.events.schemas import EVENT_TYPES, payload_model
 
 # Rows of the five family tables in dev_docs/01_architecture/contracts/events/, one per type.
 EXPECTED_PER_FAMILY = {
-    "project_process": 24,
+    "project_process": 28,  # + context.* (docs/specs/context-documents.md)
     "agents": 14,
     "tasks_gates": 14,
     "workspace_release": 15,
     "packages_budget_security": 17,
     "notifications": 1,  # E-06, contracts/events/notifications.md
+    "change_requests": 8,  # E-13, contracts/events/change_requests.md
 }
 TYPE_NAME = re.compile(r"^[a-z_]+(\.[a-z_]+)+$")
 
@@ -31,7 +32,7 @@ def _family(model: type) -> str:
 
 
 def test_catalogue_size() -> None:
-    assert len(EVENT_TYPES) == sum(EXPECTED_PER_FAMILY.values()) == 85
+    assert len(EVENT_TYPES) == sum(EXPECTED_PER_FAMILY.values()) == 97
 
 
 def test_catalogue_size_per_family() -> None:
@@ -66,6 +67,7 @@ VALID = {
     },
     "process.started": {"phases": [{"id": "analysis", "needs": [], "room": "meeting_room"}]},
     "phase.failed": {"phase_id": "analysis"},
+    "context.processed": {"artifact": {**ARTIFACT, "kind": "context"}, "chars": 120, "pages": 3},
     "agent.turn.completed": {
         "turn_id": _id(),
         "agent_id": _id(),
@@ -111,6 +113,12 @@ VALID = {
         "kind": "agent",
     },
     "budget.org_exceeded": {"spent_month": "100.5", "budget_monthly": "100"},
+    "change_request.started": {
+        "change_request_id": _id(),
+        "number": 1,
+        "iteration": 1,
+        "process_run_id": _id(),
+    },
     "notification.created": {
         "notification_id": _id(),
         "user_id": _id(),

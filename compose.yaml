@@ -13,6 +13,7 @@ x-core: &core
   volumes: &core-volumes
     - dh_secrets:/run/dh-secrets:ro
     - packages:/data/packages
+    - context:/data/context
   depends_on: &core-depends
     postgres: { condition: service_healthy }
     redis: { condition: service_healthy }
@@ -59,7 +60,7 @@ services:
     command: >-
       celery -A dexterhouse worker -Q agents,default,core-callbacks
       -c ${WORKER_CONCURRENCY:-4} -l info
-    volumes: [dh_secrets:/run/dh-secrets:ro, packages:/data/packages]
+    volumes: [dh_secrets:/run/dh-secrets:ro, packages:/data/packages, context:/data/context]
     # Agents call the LLM providers, the registry index and package repositories from here.
     networks: [internal, egress]
     # Ollama on the Docker host (OLLAMA_BASE_URL); Docker Desktop resolves it on its own.
@@ -98,6 +99,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - dh_secrets:/run/dh-secrets:ro
+      - snapshots:/data/snapshots
     depends_on:
       redis: { condition: service_healthy }
       proxy: { condition: service_healthy }
@@ -190,4 +192,6 @@ volumes:
   pgdata: {}
   redisdata: {}
   packages: {}
+  context: {}
   dh_secrets: {}
+  snapshots: {}

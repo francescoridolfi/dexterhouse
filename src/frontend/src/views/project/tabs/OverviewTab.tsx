@@ -2,6 +2,8 @@
 import type { RefObject } from "react";
 
 import type { ProjectSocket } from "../../../store/socket.ts";
+import { ContextPanel } from "../panels/ContextPanel.tsx";
+import { IterationPicker } from "../panels/IterationPicker.tsx";
 import { LiveLog } from "../panels/LiveLog.tsx";
 import { NoteComposer } from "../panels/NoteComposer.tsx";
 import { Pipeline } from "../panels/Pipeline.tsx";
@@ -16,12 +18,14 @@ export function OverviewTab({
 }) {
   return (
     <div className="space-y-4">
+      <IterationPicker />
       <Pipeline onOpenGate={onOpenGate} />
       <div className="grid gap-4 @5xl:grid-cols-[minmax(16rem,1fr)_2fr]">
         <TeamNow />
         <LiveLog socket={socket} />
       </div>
       <NoteComposer />
+      <ContextPanel />
     </div>
   );
 }

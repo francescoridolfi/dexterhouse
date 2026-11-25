@@ -83,7 +83,11 @@ Session cookies are `HttpOnly`, `Secure` and CSRF-protected; API tokens have sco
 within one organization and the user's role. Every query is filtered by organization: a
 resource of another organization answers `404`. The UI is served with a strict Content
 Security Policy (no inline scripts) and renders agent output as text. Rate limits protect
-sign-in, the API and the WebSocket ([api.md](api.md#rate-limits)). Gate decisions record
+sign-in, the API and the WebSocket ([api.md](api.md#rate-limits)). Context documents are
+checked at upload (size, count, extension against content) and parsed only in the worker,
+with a 60 s limit; a DOCX that would inflate past 50 MB or 100 times its size is refused.
+Their text reaches the agents wrapped as untrusted content (`<<untrusted ...>>`), which the
+agents are told to read as data, never as instructions. Gate decisions record
 who and when, and the event log is append-only in the database.
 
 ## Operator checklist

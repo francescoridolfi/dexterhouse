@@ -1,5 +1,8 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""project.*, process.*, phase.*, note.* payloads (contracts/events/project_process.md)."""
+"""project.*, process.*, phase.*, note.*, context.* payloads.
+
+Contract: contracts/events/project_process.md.
+"""
 
 import uuid
 from decimal import Decimal
@@ -77,7 +80,7 @@ class ProjectArchived(EventPayload):
 
 class ProjectBudgetChanged(EventPayload):
     event_type = "project.budget_changed"
-    actors = ("user",)
+    actors = ("user", "system")  # system: a change request started by itself (E-13)
 
     old: Decimal
     new: Decimal
@@ -198,3 +201,38 @@ class NoteConsumed(EventPayload):
 
     note_id: uuid.UUID
     agent_id: uuid.UUID
+
+
+# context.* (docs/specs/context-documents.md)
+
+
+class ContextAdded(EventPayload):
+    event_type = "context.added"
+    actors = ("user",)
+
+    artifact: ArtifactRef
+    filename: str
+    size: int
+
+
+class ContextProcessed(EventPayload):
+    event_type = "context.processed"
+
+    artifact: ArtifactRef
+    chars: int
+    pages: int | None = None
+    truncated: bool = False
+
+
+class ContextFailed(EventPayload):
+    event_type = "context.failed"
+
+    artifact: ArtifactRef
+    reason: str
+
+
+class ContextDeactivated(EventPayload):
+    event_type = "context.deactivated"
+    actors = ("user",)
+
+    artifact: ArtifactRef

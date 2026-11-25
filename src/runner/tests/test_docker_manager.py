@@ -138,6 +138,12 @@ def test_destroy_find_managed_exec_archive():
     assert docker.exec("w1", ["true"]) == (0, "out", "")
     container.get_archive.return_value = (iter([b"tar"]), {})
     assert list(docker.archive("w1", "/workspace/.git")) == [b"tar"]
+    container.put_archive.return_value = True
+    docker.put_archive("w1", "/workspace", b"tar")
+    container.put_archive.assert_called_once_with("/workspace", b"tar")
+    container.put_archive.return_value = False
+    with pytest.raises(RunnerError):
+        docker.put_archive("w1", "/workspace", b"tar")
     client.containers.get.side_effect = NotFound("gone")
     assert docker.find("w1") is None
     with pytest.raises(RunnerError):
